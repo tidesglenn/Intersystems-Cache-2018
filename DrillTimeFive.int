@@ -35,7 +35,7 @@ DrillTimeThree(pGlobal, pClass, pKeyList)
     set i=""
     s totalProps=classDef.Properties.Count()
     i (('$l($g(totalProps)))||(totalProps=0)) w !,"No Properties" q
-    for i=1:1:totalProps {  
+    for i=1:1:totalProps {
      quit:i=""
      set propObj=classDef.Properties.GetAt(i)
      if '$isobject(propObj) continue
@@ -50,11 +50,21 @@ DrillTimeThree(pGlobal, pClass, pKeyList)
      set propName=$property(propObj,"Name")
      set seq=$property(propObj,"SequenceNumber") if seq="" set seq=9999
      set outputProps(seq)=propName
-     s storageProps=classDef.Storages.GetAt(i)
-     if ($l($g(storageProps))){
-     set fieldNodeMap(propName)=$property(storageProps,"Node")
-     set fieldPieceMap(propName)=$property(storageProps,"Piece")
-     }
+    s storageProps=classDef.Storages.GetAt(i)
+    if ($l($g(storageProps))){
+    new tmpNode,tmpPiece,loc
+    set tmpNode=$property(storageProps,"Node")
+    set tmpPiece=$property(storageProps,"Piece")
+    if tmpNode="" {
+        set loc=$property(storageProps,"DataLocation")
+        if loc'="" {
+            set tmpNode=$piece(loc,":",1)
+            set tmpPiece=$piece(loc,":",2)
+        }
+    }
+    set fieldNodeMap(propName)=tmpNode
+    set fieldPieceMap(propName)=tmpPiece
+    }
      set fieldTypeMap(propName)=type
     }
 
@@ -68,7 +78,7 @@ DrillTimeThree(pGlobal, pClass, pKeyList)
     set ^EXPORT($J,0)=headerLine
 
     ; Begin recursive traversal from global root
-    do Traverse("^"_pGlobal, "", keyLength, pClass, .outputProps, .recCount, .fieldNodeMap, .fieldPieceMap, .fieldTypeMap)
+    do Traverse(pGlobal, "", keyLength, pClass, .outputProps, .recCount, .fieldNodeMap, .fieldPieceMap, .fieldTypeMap)
     do WriteCSV(pClass)
     write "Export complete: ",recCount," rows written to CSV.",! quit
 
@@ -76,11 +86,13 @@ TRAP ; Basic error handler
     write "ERROR: ",$zerror,! quit
 
 ; Recursive global walker
-Traverse(gref, subs, keyLength, className, outputProps, recCount, fieldNodeMap, fieldPieceMap, fieldTypeMap)
-    new sub set sub=""
+Traverse(gref, subs, keyLength, className, outputProps, recCount, fieldNodeMap,fieldPieceMap, fieldTypeMap)
+    new sub,ref set sub=""
+    set ref=gref_"("
+    if subs'="" set ref=gref_"("_subs_"," 
     for {
-    . set sub=$order(@(gref_sub)) quit:sub=""
-    . new newSubs if subs'="" set newSubs=subs_","_$$Q(sub) i '$l($g(sub)) set newSubs=$$Q($g(sub))
+    . set sub=$order(@ref@(sub)) quit:sub=""
+    . new newSubs if subs'="" set newSubs=subs_","_$$Q(sub) else  set newSubs=$$Q(sub)
     . new fullRef set fullRef=gref_"("_newSubs_")"
     . new subCount set subCount=$length(newSubs, ",")
     . if subCount<keyLength {
@@ -93,8 +105,7 @@ Traverse(gref, subs, keyLength, className, outputProps, recCount, fieldNodeMap, 
 
 ; Parses node data and maps it to correct CSV fields
 ProcessNode(ref, className, outputProps, recCount, fieldNodeMap, fieldPieceMap, fieldTypeMap)
-    new val, line, dataNode, prop, i, dataPiece, dataStr, type, joinedVal, obj, sc
-    set val=$get(@@ref)
+    new line,prop,i,dataNode,dataPiece,type,dataStr,joinedVal,obj,sc,base,nodeRef,val
     set line=""
     set i=""
     for {
@@ -103,6 +114,9 @@ ProcessNode(ref, className, outputProps, recCount, fieldNodeMap, fieldPieceMap, 
     . set dataNode=fieldNodeMap(prop)
     . set dataPiece=fieldPieceMap(prop)
     . set type=fieldTypeMap(prop)
+    . set base=$extract(ref,1,$length(ref)-1)
+    . if dataNode'="" set nodeRef=base_","_$$Q(dataNode)_")" else set nodeRef=ref
+    . set val=$get(@@nodeRef)
     . if dataPiece'="" {
     . . set dataStr=$piece(val,"^",dataPiece)
     . } else {
@@ -110,7 +124,7 @@ ProcessNode(ref, className, outputProps, recCount, fieldNodeMap, fieldPieceMap, 
     . }
     . if type'="" {
     . . if type'?1"%".E {
-    . . . ; normal scalar, do nothing
+    . . . ; normal scalar
     . . } else {
     . . . if ##class(%Dictionary.ClassDefinition).%ExistsId(type) {
     . . . . set joinedVal=dataStr
@@ -156,7 +170,7 @@ Q(x) if x'?1N.N {quit "\""_x_"\""} else {quit x}
 RunExportJobs(pGlobal, pClass, pKeyLen)
     new key, count set count=0
     set key=""
-    for { set key=$order(@("^"_pGlobal_"("_key_")")) quit:key=""
+    for { set key=$order(@(pGlobal_"("_key_")")) quit:key=""
      ;new jobStr set jobStr="do DrillTimeThree(\""_pGlobal_"\",\""_pClass_"\","_key_")"
      job DrillTimeThree(pGlobal,pClass,key)
      set count=count+1
