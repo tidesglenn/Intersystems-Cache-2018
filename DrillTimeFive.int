@@ -6,14 +6,16 @@ DrillTimeThree(pGlobal, pClass, pKeyList)
     s $ZERROR=""
     s $ZTRAP=""
     set $ZTRAP="TRAP^DrillTimeFive"
-    h 20
 
     new keyLength, keyFields, fieldMap, classDef, sc
     new seq, propName, propObj, skip, type, coll, outputProps, i, val, recCount, fieldNodeMap, fieldPieceMap, fieldTypeMap
+    new fkParentMap, fkSubPropMap, fkTypeMap
     set recCount=0
-    s pKeyList="HMO,ID,RIN"
-    s pGlobal="^[""MHRREG""]HMOREF"
-    s pClass="Referrals.Referral"
+    do InitAnim
+    if pGlobal="",pClass="" {
+    . do ExportNamespace(pKeyList)
+    . quit
+    }
     ; Determine key length from string or count
     set keyLength=1
     if pKeyList'="" {
@@ -56,6 +58,31 @@ DrillTimeThree(pGlobal, pClass, pKeyList)
      set fieldPieceMap(propName)=$property(storageProps,"Piece")
      }
      set fieldTypeMap(propName)=type
+     ; Attempt to flatten foreign key object references
+     if type'?1"%".E {
+     . new subClass,subSc set subClass=##class(%Dictionary.ClassDefinition).%OpenId(type,.subSc)
+     . if $isobject(subClass) {
+     . . new j,subObj,subSkip,subColl,subType,subName,fkSeq
+     . . set fkSeq=1
+     . . for j=1:1:subClass.Properties.Count() {
+     . . . set subObj=subClass.Properties.GetAt(j) quit:'$isobject(subObj)
+     . . . set subSkip=0
+     . . . if $property(subObj,"Calculated") set subSkip=1
+     . . . if $property(subObj,"Relationship") set subSkip=1
+     . . . if $property(subObj,"MultiDimensional") set subSkip=1
+     . . . set subColl=$property(subObj,"Collection") if subColl'="" set subSkip=1
+     . . . set subType=$property(subObj,"Type") if subType["%Stream" set subSkip=1
+     . . . if subSkip=1 continue
+     . . . set subName=$property(subObj,"Name")
+     . . . new colName set colName=propName_"_"_subName
+     . . . set outputProps(seq+(fkSeq/1000))=colName
+     . . . set fkParentMap(colName)=propName
+     . . . set fkSubPropMap(colName)=subName
+     . . . set fkTypeMap(colName)=type
+     . . . set fkSeq=fkSeq+1
+     . . }
+     . }
+     }
     }
 
     ; Add CSV header line using proper $ORDER traversal
@@ -68,15 +95,16 @@ DrillTimeThree(pGlobal, pClass, pKeyList)
     set ^EXPORT($J,0)=headerLine
 
     ; Begin recursive traversal from global root
-    do Traverse("^"_pGlobal, "", keyLength, pClass, .outputProps, .recCount, .fieldNodeMap, .fieldPieceMap, .fieldTypeMap)
+    do Traverse("^"_pGlobal, "", keyLength, pClass, .outputProps, .recCount, .fieldNodeMap, .fieldPieceMap, .fieldTypeMap, .fkParentMap, .fkSubPropMap, .fkTypeMap)
+    write !
     do WriteCSV(pClass)
-    write "Export complete: ",recCount," rows written to CSV.",! quit
+    write !,"Export complete: ",recCount," rows written to CSV.",! quit
 
 TRAP ; Basic error handler
     write "ERROR: ",$zerror,! quit
 
 ; Recursive global walker
-Traverse(gref, subs, keyLength, className, outputProps, recCount, fieldNodeMap, fieldPieceMap, fieldTypeMap)
+Traverse(gref, subs, keyLength, className, outputProps, recCount, fieldNodeMap, fieldPieceMap, fieldTypeMap, fkParentMap, fkSubPropMap, fkTypeMap)
     new sub set sub=""
     for {
     . set sub=$order(@(gref_sub)) quit:sub=""
@@ -84,16 +112,17 @@ Traverse(gref, subs, keyLength, className, outputProps, recCount, fieldNodeMap, 
     . new fullRef set fullRef=gref_"("_newSubs_")"
     . new subCount set subCount=$length(newSubs, ",")
     . if subCount<keyLength {
-    . . do Traverse(gref, newSubs, keyLength, className, outputProps, .recCount, .fieldNodeMap, .fieldPieceMap, .fieldTypeMap)
+    . . do Traverse(gref, newSubs, keyLength, className, outputProps, .recCount, .fieldNodeMap, .fieldPieceMap, .fieldTypeMap, .fkParentMap, .fkSubPropMap, .fkTypeMap)
     . } else {
-    . . if $data(@@fullRef)#10 do ProcessNode(fullRef, className, outputProps, .recCount, .fieldNodeMap, .fieldPieceMap, .fieldTypeMap)
-    . . do Traverse(gref, newSubs, keyLength+1, className, outputProps, .recCount, .fieldNodeMap, .fieldPieceMap, .fieldTypeMap)
+    . . if $data(@@fullRef)#10 do ProcessNode(fullRef, className, outputProps, .recCount, .fieldNodeMap, .fieldPieceMap, .fieldTypeMap, .fkParentMap, .fkSubPropMap, .fkTypeMap)
+    . . do Traverse(gref, newSubs, keyLength+1, className, outputProps, .recCount, .fieldNodeMap, .fieldPieceMap, .fieldTypeMap, .fkParentMap, .fkSubPropMap, .fkTypeMap)
     . }
     } quit
 
 ; Parses node data and maps it to correct CSV fields
-ProcessNode(ref, className, outputProps, recCount, fieldNodeMap, fieldPieceMap, fieldTypeMap)
+ProcessNode(ref, className, outputProps, recCount, fieldNodeMap, fieldPieceMap, fieldTypeMap, fkParentMap, fkSubPropMap, fkTypeMap)
     new val, line, dataNode, prop, i, dataPiece, dataStr, type, joinedVal, obj, sc
+    new parent,fkProp,fkType
     set val=$get(@@ref)
     set line=""
     set i=""
@@ -103,23 +132,37 @@ ProcessNode(ref, className, outputProps, recCount, fieldNodeMap, fieldPieceMap, 
     . set dataNode=fieldNodeMap(prop)
     . set dataPiece=fieldPieceMap(prop)
     . set type=fieldTypeMap(prop)
-    . if dataPiece'="" {
-    . . set dataStr=$piece(val,"^",dataPiece)
-    . } else {
-    . . set dataStr=val
-    . }
-    . if type'="" {
-    . . if type'?1"%".E {
-    . . . ; normal scalar, do nothing
+    . if $data(fkParentMap(prop)) {
+    . . set parent=fkParentMap(prop)
+    . . set fkProp=fkSubPropMap(prop)
+    . . set fkType=fkTypeMap(prop)
+    . . new parentPiece set parentPiece=fieldPieceMap(parent)
+    . . if parentPiece'="" {
+    . . . set dataStr=$piece(val,"^",parentPiece)
     . . } else {
-    . . . if ##class(%Dictionary.ClassDefinition).%ExistsId(type) {
-    . . . . set joinedVal=dataStr
-    . . . . set obj=##class(type).%OpenId(dataStr,.sc)
-    . . . . if $isobject(obj) {
-    . . . . . if $property(obj,"Name")'="" set joinedVal=$property(obj,"Name")
-    . . . . . if $property(obj,"ID")'="" set joinedVal=$property(obj,"ID")
+    . . . set dataStr=val
+    . . }
+    . . set obj="" if dataStr'="" set obj=##class(fkType).%OpenId(dataStr,.sc)
+    . . set dataStr="" if $isobject(obj) set dataStr=$property(obj,fkProp)
+    . } else {
+    . . if dataPiece'="" {
+    . . . set dataStr=$piece(val,"^",dataPiece)
+    . . } else {
+    . . . set dataStr=val
+    . . }
+    . . if type'="" {
+    . . . if type'?1"%".E {
+    . . . . ; normal scalar, do nothing
+    . . . } else {
+    . . . . if ##class(%Dictionary.ClassDefinition).%ExistsId(type) {
+    . . . . . set joinedVal=dataStr
+    . . . . . set obj=##class(type).%OpenId(dataStr,.sc)
+    . . . . . if $isobject(obj) {
+    . . . . . . if $property(obj,"Name")'="" set joinedVal=$property(obj,"Name")
+    . . . . . . if $property(obj,"ID")'="" set joinedVal=$property(obj,"ID")
+    . . . . . }
+    . . . . . set dataStr=joinedVal
     . . . . }
-    . . . . set dataStr=joinedVal
     . . . }
     . . }
     . }
@@ -129,7 +172,7 @@ ProcessNode(ref, className, outputProps, recCount, fieldNodeMap, fieldPieceMap, 
     }
     set recCount=recCount+1
     set ^EXPORT($J,recCount)=line
-    write "Row ",recCount," written.",!
+    do Animate($length(line))
     quit
 
 ; Write CSV file from ^EXPORT($J)
@@ -152,6 +195,38 @@ WriteCSV(className)
 ; Quote wrapper for string subscripts
 Q(x) if x'?1N.N {quit "\""_x_"\""} else {quit x}
 
+; Export all class-mapped globals in current namespace
+ExportNamespace(pKeyList)
+    new global,class,keyLen,sc,def,idKey
+    set global=""
+    for {
+    . set global=$order(^$GLOBAL(global)) quit:global=""
+    . set class=$$ClassFromGlobal(global)
+    . if class="" continue
+    . set def=##class(%Dictionary.ClassDefinition).%OpenId(class,.sc)
+    . quit:'$isobject(def)
+    . set keyLen=1
+    . set idKey=def.Keys.IdKey
+    . if $isobject(idKey) set keyLen=idKey.Properties.Count()
+    . do DrillTimeThree(global,class,$select(pKeyList'="":pKeyList,keyLen))
+    }
+    quit
+
+; Lookup class name for a given data global
+ClassFromGlobal(glo)
+    new class,sc,def,storage,dataLoc,root
+    set class=""
+    for {
+    . set class=$order(^oddDEF(class)) quit:class=""
+    . set def=##class(%Dictionary.ClassDefinition).%OpenId(class,.sc)
+    . quit:'$isobject(def)
+    . set storage=def.Storages.GetAt(1)
+    . set dataLoc=$property(storage,"DataLocation")
+    . set root=$piece(dataLoc,"(")
+    . if root=glo quit class
+    }
+    quit ""
+
 ; Job spawner stub — can be enhanced for controller logic
 RunExportJobs(pGlobal, pClass, pKeyLen)
     new key, count set count=0
@@ -163,4 +238,24 @@ RunExportJobs(pGlobal, pClass, pKeyLen)
      write "Launched job for key: ",key,! ; Logging job launches
     }
     write count," jobs launched.",!
+    quit
+
+; Initialize animation state
+InitAnim
+    set ^ANIM($J,"spin")=0
+    set ^ANIM($J,"bytes")=0
+    quit
+
+; Update spinner/drill animation and display KB processed
+Animate(bytes)
+    new spinChars,spinIndex,totalBytes,totalKB,drillPos,drill
+    set spinChars="|/-\\"
+    set spinIndex=$get(^ANIM($J,"spin"))+1 if spinIndex>4 set spinIndex=1
+    set ^ANIM($J,"spin")=spinIndex
+    set totalBytes=$get(^ANIM($J,"bytes"))+bytes
+    set ^ANIM($J,"bytes")=totalBytes
+    set totalKB=totalBytes/1024
+    set drillPos=($int(totalKB)#20)+1
+    set drill=$justify("",drillPos-1," ")_">"
+    write $char(13),$extract(spinChars,spinIndex)," ",drill," ",totalKB,"KB drilled"
     quit
