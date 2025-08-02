@@ -2,18 +2,21 @@ DrillTimeFive
 ; Traverses global structures and maps data to CSV rows based on class metadata.
 ; Compatible with Caché 2018. Uses %Dictionary.ClassDefinition for property metadata.
 ;
-DrillTimeThree(pGlobal, pClass, pKeyList)
+DrillTimeThree(pGlobal, pClass, pKeyList, pLogLevel, pWorker, pTotalWorkers)
     s $ZERROR=""
     s $ZTRAP=""
     set $ZTRAP="TRAP^DrillTimeFive"
-    h 20
 
-    new keyLength, keyFields, fieldMap, classDef, sc
+    new keyLength, keyFields, fieldMap, classDef, sc, gLogLevel
+    set gLogLevel=$get(pLogLevel,1)
     new seq, propName, propObj, skip, type, coll, outputProps, i, val, recCount, fieldNodeMap, fieldPieceMap, fieldTypeMap
     set recCount=0
-    s pKeyList="HMO,ID,RIN"
-    s pGlobal="^[""MHRREG""]HMOREF"
-    s pClass="Referrals.Referral"
+    ; pKeyList, pGlobal and pClass can be passed in by the caller.  The lines
+    ; below are examples only and are commented out so the routine works with
+    ; any number of key pieces.
+    ;s pKeyList="HMO,ID,RIN"
+    ;s pGlobal="^[""MHRREG""]HMOREF"
+    ;s pClass="Referrals.Referral"
     ; Determine key length from string or count
     set keyLength=1
     if pKeyList'="" {
@@ -24,6 +27,7 @@ DrillTimeThree(pGlobal, pClass, pKeyList)
     . . for i=1:1:keyLength set keyFields(i)=$piece(pKeyList,",",i)
     . }
     }
+    do Log("Worker "_$get(pWorker,1)_"/"_$get(pTotalWorkers,1)_": Starting export for "_pClass_" from "_pGlobal_": key length="_keyLength,1)
 
     ; Use ClassDefinition instead of CompiledClass for better compatibility
     set classDef=##class(%Dictionary.ClassDefinition).%OpenId(pClass,.sc)
@@ -35,7 +39,7 @@ DrillTimeThree(pGlobal, pClass, pKeyList)
     set i=""
     s totalProps=classDef.Properties.Count()
     i (('$l($g(totalProps)))||(totalProps=0)) w !,"No Properties" q
-    for i=1:1:totalProps {  
+    for i=1:1:totalProps {
      quit:i=""
      set propObj=classDef.Properties.GetAt(i)
      if '$isobject(propObj) continue
@@ -47,62 +51,78 @@ DrillTimeThree(pGlobal, pClass, pKeyList)
      set type=$property(propObj,"Type") if type["%Stream" set skip=1
      ;if $property(propObj,"Storable")=0 set skip=1
      if skip=1 continue
-     set propName=$property(propObj,"Name")
-     set seq=$property(propObj,"SequenceNumber") if seq="" set seq=9999
-     set outputProps(seq)=propName
-     s storageProps=classDef.Storages.GetAt(i)
-     if ($l($g(storageProps))){
-     set fieldNodeMap(propName)=$property(storageProps,"Node")
-     set fieldPieceMap(propName)=$property(storageProps,"Piece")
-     }
+    set propName=$property(propObj,"Name")
+    set seq=$property(propObj,"SequenceNumber") if seq="" set seq=9999
+    set outputProps(seq,propName)=""
+    s storageProps=classDef.Storages.GetAt(i)
+    if ($l($g(storageProps))){
+    new tmpNode,tmpPiece,loc
+    set tmpNode=$$GetProp(storageProps,"Node")
+    set tmpPiece=$$GetProp(storageProps,"Piece")
+    if tmpNode="" {
+        set loc=$$GetProp(storageProps,"DataLocation")
+        if loc'="" {
+            set tmpNode=$piece(loc,":",1)
+            set tmpPiece=$piece(loc,":",2)
+        }
+    }
+    set fieldNodeMap(propName)=tmpNode
+    set fieldPieceMap(propName)=tmpPiece
+    }
      set fieldTypeMap(propName)=type
     }
 
     ; Add CSV header line using proper $ORDER traversal
-    new headerLine set headerLine=""
-    set i=""
-    for {set i=$order(outputProps(i)) quit:i=""
-     set propName=outputProps(i)
-     i headerLine'="" set headerLine=headerLine_","_"""_propName_"""  i '$l($g(headerLine)) set headerLine=""""_propName_""""
+    new headerLine,seq,propName set headerLine="",seq=""
+    for  set seq=$order(outputProps(seq)) quit:seq=""  {
+        set propName=""
+        for  set propName=$order(outputProps(seq,propName)) quit:propName=""  {
+            set headerLine=headerLine_$select(headerLine'="":",","")_""""_propName_""""
+        }
     }
     set ^EXPORT($J,0)=headerLine
 
     ; Begin recursive traversal from global root
-    do Traverse("^"_pGlobal, "", keyLength, pClass, .outputProps, .recCount, .fieldNodeMap, .fieldPieceMap, .fieldTypeMap)
-    do WriteCSV(pClass)
-    write "Export complete: ",recCount," rows written to CSV.",! quit
+    do Traverse(pGlobal, "", keyLength, pClass, .outputProps, .recCount, .fieldNodeMap, .fieldPieceMap, .fieldTypeMap)
+    do WriteCSV(pClass,$get(pWorker,1))
+    do Log("Export complete: "_recCount_" rows written to CSV.",1)
+    quit
 
 TRAP ; Basic error handler
     write "ERROR: ",$zerror,! quit
 
 ; Recursive global walker
-Traverse(gref, subs, keyLength, className, outputProps, recCount, fieldNodeMap, fieldPieceMap, fieldTypeMap)
-    new sub set sub=""
+Traverse(gref, subs, keyLength, className, outputProps, recCount, fieldNodeMap,fieldPieceMap, fieldTypeMap)
+    new sub,prefix set sub=""
+    set prefix=gref_"("
+    if subs'="" set prefix=gref_"("_subs_",""
     for {
-    . set sub=$order(@(gref_sub)) quit:sub=""
-    . new newSubs if subs'="" set newSubs=subs_","_$$Q(sub) i '$l($g(sub)) set newSubs=$$Q($g(sub))
-    . new fullRef set fullRef=gref_"("_newSubs_")"
+    . set sub=$order(@(prefix_$$Q(sub)_")")) quit:sub=""
+    . new newSubs if subs'="" set newSubs=subs_","_$$Q(sub) else  set newSubs=$$Q(sub)
     . new subCount set subCount=$length(newSubs, ",")
     . if subCount<keyLength {
     . . do Traverse(gref, newSubs, keyLength, className, outputProps, .recCount, .fieldNodeMap, .fieldPieceMap, .fieldTypeMap)
-    . } else {
-    . . if $data(@@fullRef)#10 do ProcessNode(fullRef, className, outputProps, .recCount, .fieldNodeMap, .fieldPieceMap, .fieldTypeMap)
-    . . do Traverse(gref, newSubs, keyLength+1, className, outputProps, .recCount, .fieldNodeMap, .fieldPieceMap, .fieldTypeMap)
+    . } elseif subCount=keyLength {
+    . . new fullRef set fullRef=gref_"("_newSubs_")"
+    . . do ProcessNode(fullRef, className, outputProps, .recCount, .fieldNodeMap, .fieldPieceMap, .fieldTypeMap)
     . }
-    } quit
+    }
+    quit
 
 ; Parses node data and maps it to correct CSV fields
 ProcessNode(ref, className, outputProps, recCount, fieldNodeMap, fieldPieceMap, fieldTypeMap)
-    new val, line, dataNode, prop, i, dataPiece, dataStr, type, joinedVal, obj, sc
-    set val=$get(@@ref)
+    new line,prop,i,dataNode,dataPiece,type,dataStr,joinedVal,obj,sc,base,nodeRef,val
     set line=""
-    set i=""
-    for {
-    . set i=$order(outputProps(i)) quit:i=""
-    . set prop=outputProps(i)
+    new seq set seq=""
+    for  set seq=$order(outputProps(seq)) quit:seq=""  {
+    . new prop set prop=""
+    . for  set prop=$order(outputProps(seq,prop)) quit:prop=""  {
     . set dataNode=fieldNodeMap(prop)
     . set dataPiece=fieldPieceMap(prop)
     . set type=fieldTypeMap(prop)
+    . set base=$extract(ref,1,$length(ref)-1)
+    . if dataNode'="" set nodeRef=$$NodeRef(base,dataNode) else  set nodeRef=ref
+    . set val=$get(@nodeRef)
     . if dataPiece'="" {
     . . set dataStr=$piece(val,"^",dataPiece)
     . } else {
@@ -110,7 +130,7 @@ ProcessNode(ref, className, outputProps, recCount, fieldNodeMap, fieldPieceMap, 
     . }
     . if type'="" {
     . . if type'?1"%".E {
-    . . . ; normal scalar, do nothing
+    . . . ; normal scalar
     . . } else {
     . . . if ##class(%Dictionary.ClassDefinition).%ExistsId(type) {
     . . . . set joinedVal=dataStr
@@ -129,38 +149,87 @@ ProcessNode(ref, className, outputProps, recCount, fieldNodeMap, fieldPieceMap, 
     }
     set recCount=recCount+1
     set ^EXPORT($J,recCount)=line
-    write "Row ",recCount," written.",!
+    do Log("Row "_recCount_" written.",2)
     quit
 
 ; Write CSV file from ^EXPORT($J)
-WriteCSV(className)
-    new file,filePath,line,rec set filePath="C:\\InterSystems\\Cache\\Hackensack\\"_className_".csv"
+WriteCSV(className,worker)
+    new file,filePath,line,rec
+    set filePath="C:\\InterSystems\\Cache\\Hackensack\\"_className_"_"_worker_".csv"
     set file=##class(%File).%New()
     set file.Name=filePath
     if file.Exists() do file.Delete()
     set sc=file.Open("WNS") if $SYSTEM.Status.IsError(sc) { write "ERROR opening file",! quit }
-    for rec=0:1:999999 {
-     continue:'$data(^EXPORT($J,rec))
-     set line=^EXPORT($J,rec)
-     ;k ^EXPORT($J,rec)
-     do file.WriteLine(line)
+    set rec=""
+    for  set rec=$order(^EXPORT($J,rec)) quit:rec=""  {
+        set line=^EXPORT($J,rec)
+        ;k ^EXPORT($J,rec)
+        do file.WriteLine(line)
     }
     do file.Close()
-    write "CSV file written to ",filePath,!
+    do Log("CSV file written to "_filePath,1)
     quit
 
 ; Quote wrapper for string subscripts
 Q(x) if x'?1N.N {quit "\""_x_"\""} else {quit x}
 
-; Job spawner stub — can be enhanced for controller logic
-RunExportJobs(pGlobal, pClass, pKeyLen)
-    new key, count set count=0
-    set key=""
-    for { set key=$order(@("^"_pGlobal_"("_key_")")) quit:key=""
-     ;new jobStr set jobStr="do DrillTimeThree(\""_pGlobal_"\",\""_pClass_"\","_key_")"
-     job DrillTimeThree(pGlobal,pClass,key)
-     set count=count+1
-     write "Launched job for key: ",key,! ; Logging job launches
+; Safely retrieve a property value or return ""
+GetProp(obj,name)
+    new val
+    set val=""
+    try {
+        set val=$property(obj,name)
+    } catch {
+        set val=""
     }
-    write count," jobs launched.",!
+    quit val
+
+; Build a node reference using base and storage node specification
+NodeRef(base,node)
+    new i,part,cnt,ref set ref=base
+    if node'="" {
+    . set cnt=$length(node,",")+1
+    . for i=1:1:cnt {
+    . . set part=$piece(node,",",i)
+    . . set ref=ref_","_$$Q(part)
+    . }
+    }
+    set ref=ref_")"
+    quit ref
+
+; Simple logging wrapper respecting gLogLevel
+Log(msg,level)
+    if $get(gLogLevel,1)<level quit
+    write msg,!
+    quit
+
+; Job spawner stub — can be enhanced for controller logic
+RunExportJobs(pGlobal, pClass, pKeyList, pLogLevel, pWorkers)
+    new key,count,keyLen,setRoot,worker,total,gLogLevel
+    set total=$select($get(pWorkers)>0:pWorkers,1:1)
+    set gLogLevel=$get(pLogLevel,1)
+    ; Determine how many subscripts make up the key
+    set keyLen=1
+    if pKeyList?1N.N set keyLen=pKeyList
+    if pKeyList'?1N.N set keyLen=$length(pKeyList,",")
+    do Log("Parent starting export using key length "_keyLen_" with "_total_" workers",1)
+    for worker=1:1:total {
+        job StartWorker(pGlobal,pClass,pKeyList,gLogLevel,worker,total)
+        set count=count+1
+        do Log("Launched worker "_worker,1)
+    }
+    do Log(count_" worker jobs launched.",1)
+    quit
+
+; Worker job processes a subset of keys
+StartWorker(pGlobal,pClass,pKeyList,pLogLevel,worker,total)
+    new idx,key,setRoot
+    set idx=0,key=""
+    for {
+        set key=$order(@(pGlobal_"("_$$Q(key)_")")) quit:key=""  do
+        . set idx=idx+1
+        . continue:(idx-1)#total'=worker-1
+        . set setRoot=pGlobal_"("_$$Q(key)_")"
+        . do DrillTimeThree(setRoot,pClass,pKeyList,pLogLevel,worker,total)
+    }
     quit
