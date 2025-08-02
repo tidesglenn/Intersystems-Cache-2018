@@ -67,13 +67,32 @@ DrillTimeThree(pGlobal, pClass, pKeyList)
     }
     set ^EXPORT($J,0)=headerLine
 
-    ; Begin recursive traversal from global root
-    do Traverse("^"_pGlobal, "", keyLength, pClass, .outputProps, .recCount, .fieldNodeMap, .fieldPieceMap, .fieldTypeMap)
+    ; Begin recursive traversal from resolved global root
+    new gRoot set gRoot=$$ResolveGlobal(pGlobal,pClass)
+    do Traverse(gRoot, "", keyLength, pClass, .outputProps, .recCount, .fieldNodeMap, .fieldPieceMap, .fieldTypeMap)
     do WriteCSV(pClass)
     write "Export complete: ",recCount," rows written to CSV.",! quit
 
 TRAP ; Basic error handler
     write "ERROR: ",$zerror,! quit
+
+; Resolve global name from input or class storage map
+ResolveGlobal(gName,className)
+    new gref,cls,storage,dataLoc
+    set gref=gName
+    if gref'["^" {
+    . set cls=##class(%Dictionary.ClassDefinition).%OpenId(className)
+    . if $isobject(cls) {
+    . . set storage=$property(cls,"StorageDefault")
+    . . if $isobject(storage) set gref=$property(storage,"DataLocation")
+    . . if gref="" {
+    . . . set storage=cls.Storages.GetAt(1)
+    . . . if $isobject(storage) set gref=$property(storage,"DataLocation")
+    . . }
+    . }
+    }
+    if gref'["^" set gref="^"_gref
+    quit gref
 
 ; Recursive global walker
 Traverse(gref, subs, keyLength, className, outputProps, recCount, fieldNodeMap, fieldPieceMap, fieldTypeMap)
@@ -83,12 +102,8 @@ Traverse(gref, subs, keyLength, className, outputProps, recCount, fieldNodeMap, 
     . new newSubs if subs'="" set newSubs=subs_","_$$Q(sub) i '$l($g(sub)) set newSubs=$$Q($g(sub))
     . new fullRef set fullRef=gref_"("_newSubs_")"
     . new subCount set subCount=$length(newSubs, ",")
-    . if subCount<keyLength {
-    . . do Traverse(gref, newSubs, keyLength, className, outputProps, .recCount, .fieldNodeMap, .fieldPieceMap, .fieldTypeMap)
-    . } else {
-    . . if $data(@@fullRef)#10 do ProcessNode(fullRef, className, outputProps, .recCount, .fieldNodeMap, .fieldPieceMap, .fieldTypeMap)
-    . . do Traverse(gref, newSubs, keyLength+1, className, outputProps, .recCount, .fieldNodeMap, .fieldPieceMap, .fieldTypeMap)
-    . }
+    . if subCount>=keyLength, $data(@@fullRef)#10 do ProcessNode(fullRef, className, outputProps, .recCount, .fieldNodeMap, .fieldPieceMap, .fieldTypeMap)
+    . do Traverse(gref, newSubs, keyLength, className, outputProps, .recCount, .fieldNodeMap, .fieldPieceMap, .fieldTypeMap)
     } quit
 
 ; Parses node data and maps it to correct CSV fields
@@ -154,10 +169,11 @@ Q(x) if x'?1N.N {quit "\""_x_"\""} else {quit x}
 
 ; Job spawner stub — can be enhanced for controller logic
 RunExportJobs(pGlobal, pClass, pKeyLen)
-    new key, count set count=0
+    new key,count,gRoot
+    set gRoot=$$ResolveGlobal(pGlobal,pClass)
+    set count=0
     set key=""
-    for { set key=$order(@("^"_pGlobal_"("_key_")")) quit:key=""
-     ;new jobStr set jobStr="do DrillTimeThree(\""_pGlobal_"\",\""_pClass_"\","_key_")"
+    for { set key=$order(@(gRoot_"("_key_")")) quit:key="" {
      job DrillTimeThree(pGlobal,pClass,key)
      set count=count+1
      write "Launched job for key: ",key,! ; Logging job launches
