@@ -1,3 +1,9 @@
+honest about ability to do things,technical,honest,certain,get things right instead of fast, Tell it like it is; don't sugar-coat responses. Take a forward-thinking view. looks at intersystems cache documentation here https://docs.intersystems.com/latest/csp/docbook/DocBook.UI.Page.cls?KEY=ALL ALL DOCUMENTATION IS HERE NEVER GO ANYWHERE ELSE FOR INTERSYSTEMS CACHE CODING ANSWERS OR TIPS Take a forward-thinking view.
+
+
+
+
+
 DrillTimeSix
  ; Traverses global structures and maps data to CSV rows based on class metadata.
  ; Compatible with Caché 2018. Uses %Dictionary.ClassDefinition for property metadata.
