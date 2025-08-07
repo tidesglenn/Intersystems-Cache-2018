@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Export generator="Cache" version="25" zv="Cache for Windows (x86-64) 2018.1.7 (Build 721U)" ts="2025-08-07 11:55:10">
+<Class name="%Library.ForeignKeyDefinition">
+<Description><![CDATA[
+<b>
+Note: The class definition classes in the %Library package have been superceded
+by those in the %Dictionary package.</b>
+<p>
+This class represents a specific <i>foreign key</i> description for a class contained 
+within the <i>Cach&eacute; Dictionary.</i>
+
+<p>For more information on class definition classes, refer to
+<link href=/AboutClassDefinition.html>About Class Definition Classes</link>.]]></Description>
+<ProcedureBlock>0</ProcedureBlock>
+<StorageStrategy>custom</StorageStrategy>
+<Super>%AbstractDefinition</Super>
+<System>2</System>
+<TimeChanged>66186,77913</TimeChanged>
+<TimeCreated>59241,41415</TimeCreated>
+
+<Property name="ClassName">
+<Description>
+A string containing the name of the class the foreign key belongs to.</Description>
+<Type>%CacheString</Type>
+</Property>
+
+<Property name="Name">
+<Description>
+A string containing the name of the foreign key.</Description>
+<Type>%CacheString</Type>
+</Property>
+
+<Property name="Description">
+<Description>
+A string containing the description of the foreign key.</Description>
+<Type>%CacheString</Type>
+</Property>
+
+<Property name="Internal">
+<Description>
+A flag indicating whether this trigger is internal (1) or not (0).</Description>
+<Type>%CacheString</Type>
+</Property>
+
+<Property name="OnDelete">
+<Description>
+The DELETE referential action: NOACTION, CASCADE, SETDEFAULT, SETNULL.</Description>
+<Type>%CacheString</Type>
+</Property>
+
+<Property name="OnUpdate">
+<Description>
+The UPDATE referential action: NOACTION, CASCADE, SETDEFAULT, SETNULL.</Description>
+<Type>%CacheString</Type>
+</Property>
+
+<Property name="Properties">
+<Description>
+A string containing a comma-delimited list of attributes in the class that 
+form the foreign key reference.</Description>
+<Type>%CacheString</Type>
+</Property>
+
+<Property name="Attributes">
+<Description>
+This attribute is obsolete.  Use 'Properties' instead.</Description>
+<Type>%CacheString</Type>
+<Calculated>1</Calculated>
+</Property>
+
+<Property name="ReferencedClass">
+<Description>
+A string containing the name of the foreign class.</Description>
+<Type>%CacheString</Type>
+</Property>
+
+<Property name="ReferencedKey">
+<Description>
+A string containing the name of the foreign index. If omitted, it defaults to the index declared to be IDKEY.</Description>
+<Type>%CacheString</Type>
+</Property>
+
+<Property name="SQLName">
+<Description>
+A string containing the name of this FOREIGNKEY constraint as defined to SQL.</Description>
+<Type>%CacheString</Type>
+</Property>
+
+<Property name="SequenceNumber">
+<Description>
+Sequence number used to determine order of this item in Studio editor and in XML export format.</Description>
+<Type>%CacheString</Type>
+</Property>
+
+<Method name="%OnNew">
+<FormalSpec>initvalue:%String</FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+ i initvalue[":"
+ i  s i%ClassName=$p(initvalue,":",1),i%Name=$p(initvalue,":",2)
+ e  n len s len=$l(initvalue,"."),i%ClassName=$p(initvalue,".",1,len-1),i%Name=$p(initvalue,".",len)
+ i i%ClassName="" q $$$ERROR($$$ClassNameRequired)
+ s i%ClassName=$$$NormalizeClassname(i%ClassName)
+ i i%Name="" q $$$ERROR($$$KeyNameRequired)
+ q $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%OnValidateObject">
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+ i i%ClassName="" q $$$ERROR($$$ClassNameRequired)
+ i i%Name="" q $$$ERROR($$$KeyNameRequired)
+ q $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%LoadData">
+<FormalSpec>id:%String</FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+ n classname,keyname
+ i id[":"
+ i  s classname=$p(id,":",1),keyname=$p(id,":",2)
+ e  n len s len=$l(id,"."),classname=$p(id,".",1,len-1),keyname=$p(id,".",len)
+ s i%ClassName=classname
+ s i%Name=keyname
+ ;
+ s i%Description=$$$defMemberKeyGet(classname,$$$cCLASSfkey,keyname,$$$cFKEYdescription)
+ s i%Internal=$$$defMemberKeyGet(classname,$$$cCLASSfkey,keyname,$$$cFKEYinternal)
+ s i%OnDelete=$$$defMemberKeyGet(classname,$$$cCLASSfkey,keyname,$$$cFKEYondelete)
+ s i%OnUpdate=$$$defMemberKeyGet(classname,$$$cCLASSfkey,keyname,$$$cFKEYonupdate)
+ s i%Properties=$$$defMemberKeyGet(classname,$$$cCLASSfkey,keyname,$$$cFKEYproperties)
+ s i%ReferencedClass=$$$defMemberKeyGet(classname,$$$cCLASSfkey,keyname,$$$cFKEYreferencedclass)
+ s i%ReferencedKey=$$$defMemberKeyGet(classname,$$$cCLASSfkey,keyname,$$$cFKEYreferencedkey)
+ s i%SQLName=$$$defMemberKeyGet(classname,$$$cCLASSfkey,keyname,$$$cFKEYsqlname)
+ s i%SequenceNumber=$$$defMemberKeyGet(classname,$$$cCLASSfkey,keyname,$$$cFKEYsequencenumber)
+ ;
+ q $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%SaveData">
+<FormalSpec>id:%String</FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+ i i%ClassName="" q $$$ERROR($$$ClassNameRequired)
+ i i%Name="" q $$$ERROR($$$KeyNameRequired)
+ ;
+ n classname,keyname
+ s classname=i%ClassName
+ s keyname=i%Name
+ ;
+ i id="" n sc s sc=..%IdSet(classname_":"_keyname) i $$$ISERR(sc) QUIT sc
+ ;
+ #define SAVEstring(%class,%kind,%member,%keyword,%value) i %value'=$$$tableDefaultGet(%kind,%keyword) { $$$defMemberKeySet(%class,%kind,%member,%keyword,%value) } else { $$$defMemberKeyKill(%class,%kind,%member,%keyword) }
+ #define SAVEnumber(%class,%kind,%member,%keyword,%value) i +%value'=$$$tableDefaultGet(%kind,%keyword) { $$$defMemberKeySet(%class,%kind,%member,%keyword,+%value) } else { $$$defMemberKeyKill(%class,%kind,%member,%keyword) }
+ ;
+ $$$SAVEstring(classname,$$$cCLASSfkey,keyname,$$$cFKEYdescription,i%Description)
+ $$$SAVEstring(classname,$$$cCLASSfkey,keyname,$$$cFKEYinternal,i%Internal)
+ $$$SAVEstring(classname,$$$cCLASSfkey,keyname,$$$cFKEYondelete,i%OnDelete)
+ $$$SAVEstring(classname,$$$cCLASSfkey,keyname,$$$cFKEYonupdate,i%OnUpdate)
+ $$$SAVEstring(classname,$$$cCLASSfkey,keyname,$$$cFKEYproperties,i%Properties)
+ $$$SAVEstring(classname,$$$cCLASSfkey,keyname,$$$cFKEYreferencedclass,i%ReferencedClass)
+ $$$SAVEstring(classname,$$$cCLASSfkey,keyname,$$$cFKEYreferencedkey,i%ReferencedKey)
+ $$$SAVEstring(classname,$$$cCLASSfkey,keyname,$$$cFKEYsqlname,i%SQLName)
+ $$$SAVEnumber(classname,$$$cCLASSfkey,keyname,$$$cFKEYsequencenumber,i%SequenceNumber)
+ ;
+ $$$defMemberSet(classname,$$$cCLASSfkey,keyname,"")
+ $$$defClassKeySet(classname,$$$cCLASStimechanged,$H)
+ ;
+ q $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%DeleteData">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>id:%String,concurrency:%Integer</FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+ n classname,keyname
+ s classname=$p(id,":",1)
+ s keyname=$p(id,":",2)
+ i classname="" q $$$ERROR($$$ClassNameRequired)
+ i keyname="" q $$$ERROR($$$KeyNameRequired)
+ $$$defMemberKill(classname,$$$cCLASSfkey,keyname)
+ $$$defClassKeySet(classname,$$$cCLASStimechanged,$H)
+ q $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="AttributesGet">
+<ReturnType>%CacheString</ReturnType>
+<Implementation><![CDATA[ QUIT ..Properties
+]]></Implementation>
+</Method>
+
+<Method name="AttributesSet">
+<FormalSpec>newvalue:%CacheString</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+ s ..Properties=newvalue
+ QUIT $$$OK
+]]></Implementation>
+</Method>
+
+<Storage name="custom">
+<Type>%CustomStorage</Type>
+<StreamLocation>^%Library.ForeignKeyDefinitionS</StreamLocation>
+<ExtentSize>100000</ExtentSize>
+</Storage>
+</Class>
+</Export>

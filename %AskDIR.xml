@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Export generator="Cache" version="25" zv="Cache for Windows (x86-64) 2018.1.7 (Build 721U)" ts="2025-08-07 11:49:10">
+<Routine name="%ASKDIR" type="INT" languagemode="0" generated="1" timestamp="66186,80398.060324"><![CDATA[
+%ASKDIR(SYSNUM,PR,DFLT) ; ASK DIRECTORY NAME; STC1562 03/16/09
+ /*
+ +--------------------------------------------------------+
+ | Copyright 1986-2015 by InterSystems Corporation,       |
+ | Cambridge, Massachusetts, U.S.A.                       |
+ | All rights reserved.                                   |
+ |                                                        |
+ | Confidential, unpublished property of InterSystems.    |
+ |                                                        |
+ | This media contains an authorized copy or copies       |
+ | of material copyrighted by InterSystems and is the     |
+ | confidential, unpublished property of InterSystems.    |
+ | This copyright notice and any other copyright notices  |
+ | included in machine readable copies must be reproduced |
+ | on all authorized copies.                              |
+ +--------------------------------------------------------+
+ */
+ ;EXTRINSIC FUNCTION.
+ ;INPUT PARAMETER #1 = SYSNUM
+ ;INPUT PARAMETER #2 = PROMPT TO DISPLAY, E.G., "DIRECTORY: "
+ ;INPUT PARAMETER #3 = DEFAULT DIRECTORY NAME TO OFFER. <NULL> IF NONE.
+ ;
+ ;  CHECKS INPUT: IF SYSNUM=0, LOOKS FOR THAT DIR.
+ ;  CONVERTS LOWER-CASE TO UPPER-CASE, TO CONSERVE SPACE IN GINDTAB.
+ ;  QUITS DIRECTORY NAME, OR <NULL> IF NONE SELECTED.
+ ;
+MAIN N (SYSNUM,PR,DFLT,NA,CP,NU)
+ S POP=0
+ S PR=$S(PR="":"Directory: ",1:PR)_$S(DFLT'="":DFLT_" => ",1:"")
+INPUT W !,PR 
+ R INDIR:300 E  S INDIR="^"
+ I INDIR="" S INDIR=DFLT
+ I INDIR="^"!(INDIR="") S INDIR="" Q ""
+ I INDIR="?" D HELP G INPUT
+ I PR["namespace" i $e(INDIR,1,2)'="^^" S INDIR=$$UC(INDIR)
+ If $e(INDIR,1,2)="^^" s INDIR=$e(INDIR,3,$l(INDIR))
+ Else  I (SYSNUM=0!(SYSNUM="")),'$zu(90,10,INDIR) G ERRIN
+ ;
+EXIT Q INDIR
+HELP D LIST^%NSP
+ W:$zu(90,0) !?4,"You may choose one of the above, or" 
+ W !?4,"You may type in an implied namespace in the format ""^^directory"""
+ Q
+ERRIN W !!,"Namespace ",INDIR," is not accessible on this system."
+ S X=$$YN("Do you wish to use the namespace anyway","N")
+ I POP Q ""
+ I X="Y" G EXIT
+ W !,"Please select another namespace." G INPUT
+YN(P,D,t) N R,X S P=$G(P),D=$E($G(D)_"?"),t=$G(t) ;ask Yes/No w/ Prompt,Default
+ S D=$S("Yy"[D:"Yes => ","Nn"[D:"No => ",1:"") ;Yes, No or no default
+ F  W !,P_"? "_D Read:t R:t Read:'t R DO  I "^YN"[R Q  ;timed or non-timed read
+ . S X=R,R=$TR($E(R_D_"?"),"yn","YN") I "^YN"'[R W "  enter Yes or No, please"
+ S POP=(R="^") W $E($S(R="N":"No",R="Y":"Yes",1:""),$L(X)+1,3) Q R
+UC(x) q $zcvt(x,"u")
+]]></Routine>
+</Export>

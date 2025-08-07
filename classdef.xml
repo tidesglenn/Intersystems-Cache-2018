@@ -1,0 +1,942 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Export generator="Cache" version="25" zv="Cache for Windows (x86-64) 2018.1.7 (Build 721U)" ts="2025-08-07 11:50:45">
+<Class name="%Library.ClassDefinition">
+<Description><![CDATA[
+<b>
+Note: The class definition classes in the %Library package have been superceded
+by those in the %Dictionary package.</b>
+<p>
+
+This class represents a specific <i>class</i> description contained within the 
+<i>Cach&eacute; Dictionary.</i>
+
+<p>For more information on class definition classes, refer to
+<link href=/AboutClassDefinition.html>About Class Definition Classes</link>.]]></Description>
+<IncludeCode>%sySystem</IncludeCode>
+<ProcedureBlock>0</ProcedureBlock>
+<StorageStrategy>custom</StorageStrategy>
+<Super>%AbstractDefinition</Super>
+<System>2</System>
+<TimeChanged>66186,77913</TimeChanged>
+<TimeCreated>59241,41414</TimeCreated>
+
+<Property name="Name">
+<Description>
+A string containing the name of the class.</Description>
+<Type>%CacheString</Type>
+</Property>
+
+<Property name="Abstract">
+<Description>
+A flag indicating whether the class is abstract (1) or not (0).</Description>
+<Type>%CacheString</Type>
+</Property>
+
+<Property name="ClassType">
+<Description>
+A string containing the class type.</Description>
+<Type>%CacheString</Type>
+<InitialExpression>$char(0)</InitialExpression>
+</Property>
+
+<Method name="ClassTypeGet">
+<ReturnType>%CacheString</ReturnType>
+<Implementation><![CDATA[
+	If i%ClassType=$char(0) Quit $$ClassType^%occName($piece(..Super,","))
+	Quit i%ClassType
+]]></Implementation>
+</Method>
+
+<Property name="ClientDatatype">
+<Description>
+For a datatype class, a string containing the client datatype of the class.</Description>
+<Type>%CacheString</Type>
+<InitialExpression>"VARCHAR"</InitialExpression>
+</Property>
+
+<Property name="CompileAfter">
+<Description>
+A string containing the name of another class which should be 
+compiled before this class.</Description>
+<Type>%CacheString</Type>
+</Property>
+
+<Property name="Datatype">
+<Description>
+A flag indicating whether the class is a datatype class (1) or not (0).</Description>
+<Type>%CacheString</Type>
+<Calculated>1</Calculated>
+</Property>
+
+<Property name="DDLAllowed">
+<Description>
+A flag indicating whether DDL operations are allowed on the class (1) or not (0).</Description>
+<Type>%CacheString</Type>
+</Property>
+
+<Property name="Description">
+<Description>
+A string containing the description of the class.</Description>
+<Type>%CacheString</Type>
+</Property>
+
+<Property name="Dynamic">
+<Description>
+A flag indicating whether the class is dynamically defined (1) or not (0).</Description>
+<Type>%CacheString</Type>
+</Property>
+
+<Property name="Final">
+<Description>
+A flag indicating whether the class is final (1) or not (0).</Description>
+<Type>%CacheString</Type>
+</Property>
+
+<Property name="Hidden">
+<Description>
+A flag indicating whether the class is hidden (1) or not (0).</Description>
+<Type>%CacheString</Type>
+</Property>
+
+<Property name="IncludeCode">
+<Description>
+A string containing a comma-delimited list of names of 
+include (.INC) files to be used when compiling the class.</Description>
+<Type>%CacheString</Type>
+</Property>
+
+<Property name="IncludeGenerator">
+<Description>
+A string containing a comma-delimited list of names of 
+include (.INC) files to be used when compiling any method generators for the class.</Description>
+<Type>%CacheString</Type>
+</Property>
+
+<Property name="Language">
+<Description>
+A string containing the default language for all the methods.</Description>
+<Type>%CacheString</Type>
+<InitialExpression>"cache"</InitialExpression>
+</Property>
+
+<Property name="Modified">
+<Description>
+A flag indicating how the class keeps track of modified attributes.</Description>
+<Type>%CacheString</Type>
+<InitialExpression>0</InitialExpression>
+</Property>
+
+<Property name="NoContext">
+<Description>
+This is for internal use only.</Description>
+<Type>%CacheString</Type>
+</Property>
+
+<Property name="OdbcType">
+<Description>
+For a datatype class, a string indicating the ODBC type of the class.</Description>
+<Type>%CacheString</Type>
+<InitialExpression>"VARCHAR"</InitialExpression>
+</Property>
+
+<Property name="Owner">
+<Description>
+A string containing the name of the owner of the class.</Description>
+<Type>%CacheString</Type>
+</Property>
+
+<Property name="Persistent">
+<Description>
+A flag indicating whether the class is persistent (1) or not (0).</Description>
+<Type>%CacheString</Type>
+<Calculated>1</Calculated>
+</Property>
+
+<Property name="PropertyClass">
+<Description>
+This is for internal use only.</Description>
+<Type>%CacheString</Type>
+</Property>
+
+<Property name="Querytype">
+<Type>%CacheString</Type>
+<Calculated>1</Calculated>
+</Property>
+
+<Property name="Serial">
+<Description>
+A flag indicating whether the class is serial (embeddable) (1) or not (0).</Description>
+<Type>%CacheString</Type>
+<Calculated>1</Calculated>
+</Property>
+
+<Property name="SqlCategory">
+<Description>
+For datatype classes, a string containing the name of the SQL category 
+associated with the data type.</Description>
+<Type>%CacheString</Type>
+<InitialExpression>"STRING"</InitialExpression>
+</Property>
+
+<Property name="SqlRoutinePrefix">
+<Description>
+This is for internal use.</Description>
+<Type>%CacheString</Type>
+</Property>
+
+<Property name="SqlRowIdName">
+<Description>
+A string containing a user-defined name of the ID field or null string "" if it has the default name.</Description>
+<Type>%CacheString</Type>
+</Property>
+
+<Property name="SqlRowIdPrivate">
+<Description>
+A flag indicating whether the class hides its ID field to SQL (1) or not (0).</Description>
+<Type>%CacheString</Type>
+</Property>
+
+<Property name="SqlTableName">
+<Description>
+A string containing an optional SQL table name. This is the name used the class 
+is projected as an SQL table.</Description>
+<Type>%CacheString</Type>
+</Property>
+
+<Property name="StorageStrategy">
+<Description>
+A string containing the name of the storage definition in use.</Description>
+<Type>%CacheString</Type>
+</Property>
+
+<Property name="Super">
+<Description>
+A string containing a comma-delimited list of super class names.</Description>
+<Type>%CacheString</Type>
+</Property>
+
+<Property name="System">
+<Description>
+A flag indicating whether the class is a system class (1) or not (0).</Description>
+<Type>%CacheString</Type>
+<InitialExpression>0</InitialExpression>
+</Property>
+
+<Property name="TimeCreated">
+<Description>
+Time this class is created.</Description>
+<Type>%CacheString</Type>
+</Property>
+
+<Property name="View">
+<Description>
+A flag indicating whether the class is an SQL view (1) or not (0).</Description>
+<Type>%CacheString</Type>
+<Calculated>1</Calculated>
+</Property>
+
+<Property name="ViewQuery">
+<Description>
+The SQL statement that defines a view.</Description>
+<Type>%CacheString</Type>
+</Property>
+
+<Property name="ForeignKeys">
+<Description><![CDATA[
+A collection of foreign keys belonging to the class.
+See <CLASS>%ForeignKeyDefinition</CLASS> for details.]]></Description>
+<Type>%ListOfPersistentChildObjects</Type>
+<Parameter name="CLASSNAME" value="1"/>
+</Property>
+
+<Property name="Indices">
+<Description><![CDATA[
+A collection of indices belonging to the class.
+See <CLASS>%IndexDefinition</CLASS> for details.]]></Description>
+<Type>%ListOfPersistentChildObjects</Type>
+<Parameter name="CLASSNAME" value="1"/>
+</Property>
+
+<Property name="Methods">
+<Description><![CDATA[
+A collection of methods belonging to the class.
+See <CLASS>%MethodDefinition</CLASS> for details.]]></Description>
+<Type>%ListOfPersistentChildObjects</Type>
+<Parameter name="CLASSNAME" value="1"/>
+</Property>
+
+<Property name="Parameters">
+<Description><![CDATA[
+A collection of class parameters belonging to the class.
+See <CLASS>%ParameterDefinition</CLASS> for details.]]></Description>
+<Type>%ListOfPersistentChildObjects</Type>
+<Parameter name="CLASSNAME" value="1"/>
+</Property>
+
+<Property name="Properties">
+<Description><![CDATA[
+A collection of properties belonging to the class.
+See <CLASS>%PropertyDefinition</CLASS> for details.]]></Description>
+<Type>%ListOfPersistentChildObjects</Type>
+<Parameter name="CLASSNAME" value="1"/>
+</Property>
+
+<Property name="Queries">
+<Description><![CDATA[
+A collection of class queries belonging to the class.
+See <CLASS>%QueryDefinition</CLASS> for details.]]></Description>
+<Type>%ListOfPersistentChildObjects</Type>
+<Parameter name="CLASSNAME" value="1"/>
+</Property>
+
+<Property name="Storages">
+<Description><![CDATA[
+A collection of storage definitions belonging to the class.
+See <CLASS>%StorageDefinition</CLASS> for details.]]></Description>
+<Type>%ListOfPersistentChildObjects</Type>
+<Parameter name="CLASSNAME" value="1"/>
+</Property>
+
+<Property name="Triggers">
+<Description><![CDATA[
+A collection of SQL triggers belonging to the class.
+See <CLASS>%TriggerDefinition</CLASS> for details.]]></Description>
+<Type>%ListOfPersistentChildObjects</Type>
+<Parameter name="CLASSNAME" value="1"/>
+</Property>
+
+<Property name="ClassVersion">
+<Description>
+The class dictionary version of this class, when we save we always upgrade to the latest version automatically.
+If you open an existing class we will use the version from this class</Description>
+<Type>%Integer</Type>
+<InitialExpression>23</InitialExpression>
+</Property>
+
+<Property name="list">
+<Type>%ListOfDataTypes</Type>
+<Transient>1</Transient>
+</Property>
+
+<Method name="%OnNew">
+<FormalSpec>classname:%String</FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+ n ismatched $$$IsClassDefVersionMatched(ismatched) i ismatched=0 q $$$ERROR($$$ClassDictionaryVersionMismatch)
+ ;
+ i classname="" q $$$ERROR($$$ClassNameRequired)
+ s classname=$$$NormalizeClassname(classname)
+ New rc
+ Set rc=$$IsClassnameValid^%occName(,classname) If $$$ISERR(rc) Quit rc
+ Set rc=$$IsClassnameConflict^%occName(classname) If $$$ISERR(rc) Quit rc
+ s i%Name=classname
+ s i%TimeCreated=$zutil(188)
+ ;
+ s i%ForeignKeys=$$$oidForm($lb($name($$$defClassKeyRaw(classname,$$$cCLASSfkey)),classname,"%Library.ForeignKeyDefinition"))
+ s i%Indices=$$$oidForm($lb($name($$$defClassKeyRaw(classname,$$$cCLASSindex)),classname,"%Library.IndexDefinition"))
+ s i%Methods=$$$oidForm($lb($name($$$defClassKeyRaw(classname,$$$cCLASSmethod)),classname,"%Library.MethodDefinition"))
+ s i%Parameters=$$$oidForm($lb($name($$$defClassKeyRaw(classname,$$$cCLASSparameter)),classname,"%Library.ParameterDefinition"))
+ s i%Properties=$$$oidForm($lb($name($$$defClassKeyRaw(classname,$$$cCLASSproperty)),classname,"%Library.PropertyDefinition",""))
+ s i%Queries=$$$oidForm($lb($name($$$defClassKeyRaw(classname,$$$cCLASSquery)),classname,"%Library.QueryDefinition",""))
+ s i%Storages=$$$oidForm($lb($name($$$defClassKeyRaw(classname,$$$cCLASSstorage)),classname,"%Library.StorageDefinition"))
+ s i%Triggers=$$$oidForm($lb($name($$$defClassKeyRaw(classname,$$$cCLASStrigger)),classname,"%Library.TriggerDefinition"))
+
+ q $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%LoadData">
+<FormalSpec>classname:%String</FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+ n ismatched $$$IsClassDefVersionMatched(ismatched) i ismatched=0 q $$$ERROR($$$ClassDictionaryVersionMismatch)
+ ;
+ s classname=$$$NormalizeClassname(classname)
+ i $$$defClassDefined(classname)=0 q $$$ERROR($$$ClassDoesNotExist,classname)
+ i $$$defClassVersionGet(classname)'=$$$CLASSDEFINITIONVERSION q $$$ERROR($$$OneClassDictionaryVersionMismatch,classname)
+ ;
+ n sc
+ s i%Name=classname
+ ;
+ s i%ClassVersion=$$$defClassVersionGet(classname)
+ s i%Abstract=$$$defClassKeyGet(classname,$$$cCLASSabstract)
+ i $$$defClassKeyDefined(classname,$$$cCLASSclasstype) { s i%ClassType=$$$defClassKeyGet(classname,$$$cCLASSclasstype) } Else { s i%ClassType=$char(0) }
+ s i%ClientDatatype=$$$defClassKeyGet(classname,$$$cCLASSclientdatatype)
+ s i%CompileAfter=$$$defClassKeyGet(classname,$$$cCLASScompileafter)
+ s i%DDLAllowed=$$$defClassKeyGet(classname,$$$cCLASSddlallowed)
+ s i%Description=$$$defClassKeyGet(classname,$$$cCLASSdescription)
+ s i%Dynamic=$$$defClassKeyGet(classname,$$$cCLASSdynamic)
+ s i%Final=$$$defClassKeyGet(classname,$$$cCLASSfinal)
+ s i%Hidden=$$$defClassKeyGet(classname,$$$cCLASShidden)
+ s i%IncludeCode=$$$defClassKeyGet(classname,$$$cCLASSincludecode)
+ s i%IncludeGenerator=$$$defClassKeyGet(classname,$$$cCLASSincludegenerator)
+ s i%Modified=$$$defClassKeyGet(classname,$$$cCLASSmodified)
+ s i%Language=$$$defClassKeyGet(classname,$$$cCLASSlanguage)
+ s i%NoContext=$$$defClassKeyGet(classname,$$$cCLASSnocontext)
+ s i%OdbcType=$$$defClassKeyGet(classname,$$$cCLASSodbctype)
+ s i%Owner=$$$defClassKeyGet(classname,$$$cCLASSowner)
+ s i%PropertyClass=$$$defClassKeyGet(classname,$$$cCLASSpropertyclass)
+ s i%SqlRoutinePrefix=$$$defClassKeyGet(classname,$$$cCLASSsqlroutineprefix)
+ s i%SqlCategory=$$$defClassKeyGet(classname,$$$cCLASSsqlcategory)
+ s i%SqlRowIdName=$$$defClassKeyGet(classname,$$$cCLASSsqlrowidname)
+ s i%SqlRowIdPrivate=$$$defClassKeyGet(classname,$$$cCLASSsqlrowidprivate)
+ s i%SqlTableName=$$$defClassKeyGet(classname,$$$cCLASSsqltablename)
+ s i%StorageStrategy=$$$defClassKeyGet(classname,$$$cCLASSstoragestrategy)
+ s i%Super=$$$defClassKeyGet(classname,$$$cCLASSsuper)
+ s i%System=$$$defClassKeyGet(classname,$$$cCLASSsystem)
+ s i%TimeCreated=$$$defClassKeyGet(classname,$$$cCLASStimecreated)
+ s i%ViewQuery=$$$defClassKeyGet(classname,$$$cCLASSviewquery)
+ ;
+ s i%ForeignKeys=$$$oidForm($lb($name($$$defClassKeyRaw(classname,$$$cCLASSfkey)),classname,"%Library.ForeignKeyDefinition"))
+ s i%Indices=$$$oidForm($lb($name($$$defClassKeyRaw(classname,$$$cCLASSindex)),classname,"%Library.IndexDefinition"))
+ s i%Methods=$$$oidForm($lb($name($$$defClassKeyRaw(classname,$$$cCLASSmethod)),classname,"%Library.MethodDefinition"))
+ s i%Parameters=$$$oidForm($lb($name($$$defClassKeyRaw(classname,$$$cCLASSparameter)),classname,"%Library.ParameterDefinition"))
+ s i%Properties=$$$oidForm($lb($name($$$defClassKeyRaw(classname,$$$cCLASSproperty)),classname,"%Library.PropertyDefinition",""))
+ s i%Queries=$$$oidForm($lb($name($$$defClassKeyRaw(classname,$$$cCLASSquery)),classname,"%Library.QueryDefinition",""))
+ s i%Storages=$$$oidForm($lb($name($$$defClassKeyRaw(classname,$$$cCLASSstorage)),classname,"%Library.StorageDefinition"))
+ s i%Triggers=$$$oidForm($lb($name($$$defClassKeyRaw(classname,$$$cCLASStrigger)),classname,"%Library.TriggerDefinition"))
+
+ q $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%SaveData">
+<FormalSpec>id:%String</FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+ n ismatched $$$IsClassDefVersionMatched(ismatched) i ismatched=0 q $$$ERROR($$$ClassDictionaryVersionMismatch)
+ ;
+ i i%Name="" q $$$ERROR($$$ClassNameRequired)
+ ;
+ s i%Name=$$$NormalizeClassname(i%Name)
+ n classname
+ s classname=i%Name
+ If $$CheckProtect^%occSAX(classname_".cls") q $$$ERROR($$$ItemProtect,classname_".cls")
+ New rc
+ Set rc=$$IsClassnameValid^%occName(,classname) If $$$ISERR(rc) Quit rc
+ Set rc=$$IsClassnameConflict^%occName(classname) If $$$ISERR(rc) Quit rc
+ ;
+ i id="" n sc s sc=..%IdSet(classname) i $$$ISERR(sc) q sc
+ ;
+ #define SAVEstring(%class,%keyword,%value) if %value'=$$$tableDefaultGet($$$cROOTclass,%keyword) { $$$defClassKeySet(%class,%keyword,%value) } else { $$$defClassKeyKill(%class,%keyword) }
+ #define SAVEnumber(%class,%keyword,%value) if +%value'=$$$tableDefaultGet($$$cROOTclass,%keyword) { $$$defClassKeySet(%class,%keyword,+%value) } else { $$$defClassKeyKill(%class,%keyword) }
+ ;
+ $$$SAVEstring(classname,$$$cCLASSname,i%Name)
+ $$$SAVEnumber(classname,$$$cCLASSabstract,i%Abstract)
+ $$$SAVEnumber(classname,$$$cCLASSprocedureblock,0)
+ If i%ClassType'=$char(0) { $$$defClassKeySet(classname,$$$cCLASSclasstype,i%ClassType) } Else { $$$defClassKeyKill(classname,$$$cCLASSclasstype) }
+ $$$SAVEstring(classname,$$$cCLASSclientdatatype,i%ClientDatatype)
+ $$$SAVEstring(classname,$$$cCLASScompileafter,i%CompileAfter)
+ $$$SAVEnumber(classname,$$$cCLASSddlallowed,i%DDLAllowed)
+ $$$SAVEstring(classname,$$$cCLASSdescription,i%Description)
+ $$$SAVEnumber(classname,$$$cCLASSdynamic,i%Dynamic)
+ $$$SAVEnumber(classname,$$$cCLASSfinal,i%Final)
+ $$$SAVEnumber(classname,$$$cCLASShidden,i%Hidden)
+ $$$SAVEstring(classname,$$$cCLASSincludecode,i%IncludeCode)
+ $$$SAVEstring(classname,$$$cCLASSincludegenerator,i%IncludeGenerator)
+ $$$SAVEstring(classname,$$$cCLASSmodified,i%Language)
+ $$$SAVEnumber(classname,$$$cCLASSmodified,i%Modified)
+ $$$SAVEnumber(classname,$$$cCLASSnocontext,i%NoContext)
+ $$$SAVEstring(classname,$$$cCLASSodbctype,i%OdbcType)
+ $$$SAVEstring(classname,$$$cCLASSowner,i%Owner)
+ $$$SAVEstring(classname,$$$cCLASSpropertyclass,i%PropertyClass)
+ $$$SAVEstring(classname,$$$cCLASSsqlcategory,i%SqlCategory)
+ $$$SAVEstring(classname,$$$cCLASSsqlroutineprefix,i%SqlRoutinePrefix)
+ $$$SAVEstring(classname,$$$cCLASSsqlrowidname,i%SqlRowIdName)
+ $$$SAVEnumber(classname,$$$cCLASSsqlrowidprivate,i%SqlRowIdPrivate)
+ $$$SAVEstring(classname,$$$cCLASSsqltablename,i%SqlTableName)
+ $$$SAVEstring(classname,$$$cCLASSstoragestrategy,i%StorageStrategy)
+ $$$SAVEstring(classname,$$$cCLASSsuper,i%Super)
+ $$$SAVEnumber(classname,$$$cCLASSsystem,i%System)
+ $$$SAVEstring(classname,$$$cCLASStimecreated,i%TimeCreated)
+ $$$SAVEstring(classname,$$$cCLASSviewquery,i%ViewQuery)
+ ;
+ $$$defClassKeySet(classname,$$$cCLASStimechanged,$zutil(188))
+ $$$defClassVersionSet(classname,i%ClassVersion)
+ Do RebuildItemIndex^%R(classname,"CLS")
+ Set i%ClassVersion=$$$CLASSDEFINITIONVERSION
+ Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%DeleteData">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>id:%String,concurrency:%Integer</FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+ n ismatched $$$IsClassDefVersionMatched(ismatched) i ismatched=0 q $$$ERROR($$$ClassDictionaryVersionMismatch)
+ ;
+ i id="" q $$$ERROR($$$ClassNameRequired)
+ n classname
+ s classname=$$$NormalizeClassname(id)
+ QUIT $$Delete^%apiOBJ(classname,"-d",,$$$GetddlNo30)
+]]></Implementation>
+</Method>
+
+<Method name="%Exists">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>oid:%ObjectIdentity</FormalSpec>
+<ReturnType>%Boolean</ReturnType>
+<Implementation><![CDATA[
+ n id s id=$$$oidPrimary(oid) QUIT:id="" 0
+ Set id=$$$NormalizeClassname(id)
+ Quit $$$defClassDefined(id)\10
+]]></Implementation>
+</Method>
+
+<Method name="DatatypeGet">
+<ReturnType>%CacheString</ReturnType>
+<Implementation><![CDATA[
+ QUIT:i%ClassType'=$char(0) i%ClassType=$$$cCLASSCLASSTYPEDATATYPE
+ Quit $$$classIsDataType($$$NormalizeClassname(i%Name))
+]]></Implementation>
+</Method>
+
+<Method name="DatatypeSet">
+<FormalSpec>value:%CacheString</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+ i value s i%ClassType=$$$cCLASSCLASSTYPEDATATYPE
+ i 'value,i%ClassType=$$$cCLASSCLASSTYPEDATATYPE s i%ClassType=""
+ QUIT $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="PersistentGet">
+<ReturnType>%CacheString</ReturnType>
+<Implementation><![CDATA[
+ QUIT i%ClassType=$$$cCLASSCLASSTYPEPERSISTENT
+ Quit $$$classIsPersistent($$$NormalizeClassname(i%Name))
+]]></Implementation>
+</Method>
+
+<Method name="PersistentSet">
+<FormalSpec>value:%CacheString</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+ i value s i%ClassType=$$$cCLASSCLASSTYPEPERSISTENT
+ i 'value,i%ClassType=$$$cCLASSCLASSTYPEPERSISTENT s i%ClassType=""
+ QUIT $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="QuerytypeGet">
+<ReturnType>%CacheString</ReturnType>
+<Implementation><![CDATA[
+ QUIT:i%ClassType'=$char(0) i%ClassType=$$$cCLASSCLASSTYPEQUERYTYPE
+ Quit $$$getClassType($$$NormalizeClassname(i%Name))=$$$cCLASSCLASSTYPEQUERYTYPE
+]]></Implementation>
+</Method>
+
+<Method name="QuerytypeSet">
+<FormalSpec>value:%CacheString</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+ i value s i%ClassType=$$$cCLASSCLASSTYPEQUERYTYPE
+ i 'value,i%ClassType=$$$cCLASSCLASSTYPEQUERYTYPE s i%ClassType=""
+ QUIT $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="SerialGet">
+<ReturnType>%CacheString</ReturnType>
+<Implementation><![CDATA[
+ QUIT:i%ClassType'=$char(0) i%ClassType=$$$cCLASSCLASSTYPESERIAL
+ Quit $$$classIsSerial($$$NormalizeClassname(i%Name))
+]]></Implementation>
+</Method>
+
+<Method name="SerialSet">
+<FormalSpec>value:%CacheString</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+ i value s i%ClassType=$$$cCLASSCLASSTYPESERIAL
+ i 'value,i%ClassType=$$$cCLASSCLASSTYPESERIAL s i%ClassType=""
+ QUIT $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="ViewGet">
+<ReturnType>%CacheString</ReturnType>
+<Implementation><![CDATA[
+ QUIT:i%ClassType'=$char(0) i%ClassType=$$$cCLASSCLASSTYPEVIEW
+ Quit $$$getClassType($$$NormalizeClassname(i%Name))=$$$cCLASSCLASSTYPEVIEW
+]]></Implementation>
+</Method>
+
+<Method name="ViewSet">
+<FormalSpec>value:%CacheString</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+ i value s i%ClassType=$$$cCLASSCLASSTYPEVIEW
+ i 'value,i%ClassType=$$$cCLASSCLASSTYPEVIEW s i%ClassType=""
+ QUIT $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="GetClassLocalList">
+<ReturnType>%ListOfDataTypes</ReturnType>
+<Implementation><![CDATA[
+ n class,list,data
+ i ..list=$$$NULLOREF s ..list=##class(%ListOfDataTypes).%New()
+ Set list=..list
+ d list.Clear()
+ If $Get(^rINDEXCLASS)="" Do RebuildIndex^%R()
+ s class="" f  s class=$o(^rINDEXCLASS(class),1,data) q:class=""  d list.Insert($List(data,2))
+ q list
+]]></Implementation>
+</Method>
+
+<Method name="GetClassFullList">
+<FormalSpec>flag:%String=""</FormalSpec>
+<ReturnType>%ListOfDataTypes</ReturnType>
+<Implementation><![CDATA[
+ n classlist,class
+ d GetClassFullList^%occLibrary(.classlist,flag)
+ i ..list=$$$NULLOREF s ..list=##class(%ListOfDataTypes).%New()
+ d ..list.Clear()
+ s class="" f  s class=$o(classlist(class)) q:class=""  d ..list.Insert(class)
+ q ..list
+]]></Implementation>
+</Method>
+
+<Method name="CompileClasses">
+<FormalSpec>classlist:%String,flag:%String</FormalSpec>
+<ReturnType>%ListOfDataTypes</ReturnType>
+<Implementation><![CDATA[
+ n error,i
+ d CompileList^%apiOBJ(classlist,.flag,.error)
+ i ..list=$$$NULLOREF s ..list=##class(%ListOfDataTypes).%New()
+ d ..list.Clear()
+ f i=1:1:error d ..list.Insert(error(i))
+ q ..list
+]]></Implementation>
+</Method>
+
+<Method name="CompileAllClasses">
+<FormalSpec>flag:%String</FormalSpec>
+<ReturnType>%ListOfDataTypes</ReturnType>
+<Implementation><![CDATA[
+ n error,i
+ d CompileAll^%apiOBJ(.flag,.error)
+ i ..list=$$$NULLOREF s ..list=##class(%ListOfDataTypes).%New()
+ d ..list.Clear()
+ f i=1:1:error d ..list.Insert(error(i))
+ q ..list
+]]></Implementation>
+</Method>
+
+<Method name="ExportCPP">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>classname:%String,dir:%String</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[ q $$ExportCPPList^%apiOBJ(classname,dir,"-d")
+]]></Implementation>
+</Method>
+
+<Method name="ExportODL">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>classname:%String,file:%String</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[ q $$ExportODLList^%apiOBJ(classname,file,"-d")
+]]></Implementation>
+</Method>
+
+<Method name="ExportJava">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>classes:%String,dir:%String</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[ q $$ExportJavaList^%apiOBJ(classes,dir,"-d")
+]]></Implementation>
+</Method>
+
+<Method name="Export">
+<ClassMethod>1</ClassMethod>
+<FormalSpec><![CDATA[classes:%String,type:%String,&objs:%ArrayOfObjects]]></FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+ New %sc,i,stream
+ Set %sc=$$$ERR($$$NotImplemented),err=""
+ Set objs=##class(%ArrayOfObjects).%New()
+ If (type="odl") Do
+ . Set stream=##class(%FileCharacterStream).%New()
+ . Do stream.Write("")
+ . If type="odl" Set %sc=..ExportODL(classes,stream.Filename)
+ . If $$$ISOK(%sc) Do objs.SetAt(stream,stream.Filename)
+ Else  If (type="cpp")!(type="java") Do
+ . ; !!!TODO!!!
+
+ #; Clean up and exit on error
+ If $$$ISERR(%sc) Do  Quit %sc
+ . Set i="" For  Set i=objs.Next(i) Quit:i=""  Do objs.RemoveAt(i)
+ . Set objs=""
+
+ #; Rewind all of the streams
+ Set i="" For  Set i=objs.Next(i) Quit:i=""  Set stream=objs.GetAt(i) Do stream.Rewind()
+
+ Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Query name="ClassInfo">
+<Description><![CDATA[
+The <b>ClassInfo</b> query provides a summary of information about classes contained in the 
+<i>Cach&eacute Dictionary</i>.]]></Description>
+<Type>%Query</Type>
+<FormalSpec>initvalue:%String,mapped:%Boolean=1</FormalSpec>
+<Parameter name="CONTAINID" value="1"/>
+<Parameter name="ROWSPEC" value="Name:%String:ClassName,Super:%String,Hidden:%Boolean,Datatype:%Boolean,System:%Integer,Final:%Boolean,Persistent:%Boolean,Serial:%Boolean,TimeChanged,SqlTableName,Abstract:%Boolean"/>
+</Query>
+
+<Method name="ClassInfoExecute">
+<ClassMethod>1</ClassMethod>
+<FormalSpec><![CDATA[&QHandle:%Binary,initvalue:%String,mapped:%Boolean=1]]></FormalSpec>
+<ProcedureBlock>1</ProcedureBlock>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	If 'mapped,$extract($namespace)'="^" {
+		Set dest=$$GetGlobalSourceDatabase^%SYS.SECURITY($name(^oddDEF))
+	} Else {
+		Set dest=$namespace
+	}
+	Set QHandle=$lb(initvalue,dest)
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="ClassInfoFetch">
+<Description><![CDATA[
+<b>Fetch</b> returns the next row in the query.]]></Description>
+<ClassMethod>1</ClassMethod>
+<CodeMode>expression</CodeMode>
+<FormalSpec><![CDATA[&QHandle:%Binary,&Row:%List,&AtEnd:%Integer=0]]></FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[..ClassInfoFetchRows(.QHandle,1,.Row,,.AtEnd)
+]]></Implementation>
+</Method>
+
+<Method name="ClassInfoFetchRows">
+<Description><![CDATA[
+<b>RoutineListFetchRows</b> returns the next <var>FetchCount</var> rows in the query.]]></Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec><![CDATA[&QHandle:%Binary,FetchCount:%Integer=0,&RowSet:%List,&ReturnCount:%Integer,&AtEnd:%Integer]]></FormalSpec>
+<ProcedureBlock>1</ProcedureBlock>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set RowSet="",position=$listget(QHandle),ns=$listget(QHandle,2)
+	If '$get(FetchCount) Set FetchCount=10000
+	If $get(AtEnd) Set position="" Quit $$$OK
+	Set name=$zcvt(position,"U"),AtEnd=0
+	For no=1:1:FetchCount {
+		Set name=$order(^|ns|rINDEXCLASS(name),1,data)
+		If name="" Set AtEnd=1,QHandle="" Quit
+		Set time=$listget(data) If time'="" Set time=$zdth(time,3)
+		Set classtype=$$ClassType^%occName($list(data,2))
+		Set RowSet=RowSet_$lb($list(data,2),$lg(data,7),''$lg(data,4),classtype=$$$cCLASSCLASSTYPEDATATYPE,''$lg(data,3),''$lg(data,9),classtype=$$$cCLASSCLASSTYPEPERSISTENT,classtype=$$$cCLASSCLASSTYPESERIAL,time,$lg(data,8),$lg(data,10))
+		If $length(RowSet)>20000 Quit
+	}
+	If $get(AtEnd) Set ReturnCount=no-1 Quit $$$OK
+	Set QHandle=$listbuild(name,ns),ReturnCount=no
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="ClassInfoClose">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>QHandle:%Binary</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Query name="SubclassOf">
+<Description><![CDATA[
+The <b>SubclassOf</b> query produces a list of classes that are subclasses of the
+<var>super</var> class starting the search at <var>initval</var>. For example this
+allows you to find all the subclasses of %CSP.Page very easily.]]></Description>
+<Type>%Query</Type>
+<FormalSpec>super:%String,initval:%String=""</FormalSpec>
+<Parameter name="CONTAINID" value="1"/>
+<Parameter name="ROWSPEC" value="Name:%String:ClassName"/>
+</Query>
+
+<Method name="SubclassOfExecute">
+<ClassMethod>1</ClassMethod>
+<FormalSpec><![CDATA[&QHandle:%Binary,super:%String,initval:%String=""]]></FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	New class,answer,idx,data
+	Set idx=$increment($$$ISCQUERYTEMP)
+	#; Make sure this is cleaned up if the process crashes
+	Set super=$$$NormalizeClassname(super)
+	Set $$$ISCQUERYTEMP(idx,super)=1
+	Set class=$order(^rINDEXCLASS($zconvert(initval,"u")),1,data)
+	While class'="" {
+	Do check($list(data,2))
+	Set class=$order(^rINDEXCLASS(class),1,data)
+	}
+	Kill $$$ISCQUERYTEMP(idx,super)
+	Set QHandle=$listbuild(idx,initval)
+	Quit $$$OK
+check(class) 	If class="" Quit 0
+	If $data($$$ISCQUERYTEMP(idx,class)) Quit ^(class)
+	#; Set the node to 0 here so if we detect a loop then we report it is not a subclass
+	Set $$$ISCQUERYTEMP(idx,class)=0
+	New thissuper,no,item,return
+	Set return=0
+	Set thissuper=$listget($get(^rINDEXCLASS($zconvert(class,"U"))),7)
+	For no=1:1:$length(thissuper,",") {
+		Set item=$zstrip($piece(thissuper,",",no),"<>W")
+		If item'="" Do NormalizeClassnameByDef^%occName(.item,item,class) If $$check(item) Set return=1 Quit
+	}
+	Set $$$ISCQUERYTEMP(idx,class)=return
+	Quit return
+]]></Implementation>
+</Method>
+
+<Method name="SubclassOfClose">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>QHandle:%Binary</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	If $listget(QHandle)'="" {
+		Kill $$$ISCQUERYTEMP($list(QHandle))
+	}
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="SubclassOfFetch">
+<Description><![CDATA[
+<b>Fetch</b> returns the next row in the query.]]></Description>
+<ClassMethod>1</ClassMethod>
+<CodeMode>expression</CodeMode>
+<FormalSpec><![CDATA[&QHandle:%Binary,&Row:%List,&AtEnd:%Integer=0]]></FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[..SubclassOfFetchRows(.QHandle,1,.Row,,.AtEnd)
+]]></Implementation>
+</Method>
+
+<Method name="SubclassOfFetchRows">
+<Description><![CDATA[
+<b>SubclassOfFetchRows</b> returns the next <var>FetchCount</var> rows in the query.]]></Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec><![CDATA[&QHandle:%Binary,FetchCount:%Integer=0,&RowSet:%List,&ReturnCount:%Integer,&AtEnd:%Integer]]></FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	New dir,idx,no,number,class,val
+	If QHandle="" Set AtEnd=1 Quit $$$OK
+	If FetchCount=0 Set FetchCount=2000
+	Set RowSet="",number=0
+	Set class=$listget(QHandle,2),idx=$listget(QHandle)
+	Set class=$order($$$ISCQUERYTEMP(idx,class),1,val)
+	While class'="" {
+		If val {
+			Set RowSet=RowSet_$listbuild(class),number=number+1
+			If number=FetchCount||($length(RowSet)>20000) Quit
+		}
+		Set class=$order($$$ISCQUERYTEMP(idx,class),1,val)
+	}
+	#; Check if we are done
+	If class="" Set AtEnd=1,QHandle="" Kill $$$ISCQUERYTEMP(idx) Quit $$$OK
+	Set ReturnCount=number
+	Set QHandle=$ListBuild(idx,class)
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="CacheSQLInstalled">
+<ClassMethod>1</ClassMethod>
+<CodeMode>expression</CodeMode>
+<ReturnType>%Integer</ReturnType>
+<Implementation><![CDATA[$$$ISOK($$CacheSQLInstalled^%ocsSQLRTDict())
+]]></Implementation>
+</Method>
+
+<UDLText name="T">
+<Content><![CDATA[
+// %ClassDefinition itself doesn't nest TranstateState
+
+]]></Content>
+</UDLText>
+
+<Method name="GetTransientState">
+<CodeMode>generator</CodeMode>
+<ReturnType>%String</ReturnType>
+<Implementation><![CDATA[
+	n prop,runtimetype
+	s %code=0
+	$$$GENERATE(" n state,oid s state=""""")
+	s prop="" f  s prop=$$$comMemberNext(%class,$$$cCLASSproperty,prop) q:prop=""  d
+	. i $$$comMemberKeyGet(%class,$$$cCLASSproperty,prop,$$$cPROPcalculated) q
+	. i $$$comMemberKeyGet(%class,$$$cCLASSproperty,prop,$$$cPROPtransient) q
+	. $$$comMemberKeyGetLvar(runtimetype,%class,$$$cCLASSproperty,prop,$$$cPROPruntimetype)
+	. i $$$classIsDataType(runtimetype) $$$GENERATE(" s state=state_..lb(i%"_prop_")") q
+	$$$GENERATE(" QUIT state")
+	QUIT $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="SetTransientState">
+<CodeMode>generator</CodeMode>
+<FormalSpec>state</FormalSpec>
+<Implementation><![CDATA[
+	n prop,count,runtimetype
+	s %code=0,count=0
+	$$$GENERATE(" n oref")
+	s prop="" f  s prop=$$$comMemberNext(%class,$$$cCLASSproperty,prop) q:prop=""  d
+	. i $$$comMemberKeyGet(%class,$$$cCLASSproperty,prop,$$$cPROPcalculated) q
+	. i $$$comMemberKeyGet(%class,$$$cCLASSproperty,prop,$$$cPROPtransient) q
+	. $$$comMemberKeyGetLvar(runtimetype,%class,$$$cCLASSproperty,prop,$$$cPROPruntimetype)
+	. i $$$classIsDataType(runtimetype) s count=count+1 $$$GENERATE(" s i%"_prop_"=..li(state,"_count_")") q
+	$$$GENERATE(" QUIT")
+	QUIT $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="PublishUserClasses">
+<ClassMethod>1</ClassMethod>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	i '$$$isWINDOWS Quit $$$OK
+	Quit ##class(%Documatic).PublishUserClasses()
+]]></Implementation>
+</Method>
+
+<Method name="PublishUserClass">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>classname:%String</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	i '$$$isWINDOWS Quit $$$OK
+	Quit ##class(%Documatic).PublishUserClass(.classname)
+]]></Implementation>
+</Method>
+
+<Method name="UpdateUserIndex">
+<ClassMethod>1</ClassMethod>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	i '$$$isWINDOWS Quit $$$OK
+	Quit ##class(%Documatic).UpdateUserIndex()
+]]></Implementation>
+</Method>
+
+<Method name="CurrentNameSpace">
+<ClassMethod>1</ClassMethod>
+<ReturnType>%String</ReturnType>
+<Implementation><![CDATA[	Quit $zu(5)
+]]></Implementation>
+</Method>
+
+<Storage name="custom">
+<Type>%CustomStorage</Type>
+<StreamLocation>^%Library.ClassDefinitionS</StreamLocation>
+<ExtentSize>100000</ExtentSize>
+</Storage>
+</Class>
+</Export>

@@ -1,0 +1,1133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Export generator="Cache" version="25" zv="Cache for Windows (x86-64) 2018.1.7 (Build 721U)" ts="2025-08-07 11:47:54">
+<Routine name="%GSIZE" type="INT" languagemode="0" generated="1" timestamp="66186,80398.360571"><![CDATA[
+%GSIZE ;Global Size Utility   ;$Change: 5311706 $
+ ; Revision: $Id: //ce/2018.1.7/databases/sys/rtn/global/_gsize.mac#1 $
+ /*
+ +--------------------------------------------------------+
+ | Copyright 1986-2015 by InterSystems Corporation,       |
+ | Cambridge, Massachusetts, U.S.A.                       |
+ | All rights reserved.                                   |
+ |                                                        |
+ | Confidential, unpublished property of InterSystems.    |
+ |                                                        |
+ | This media contains an authorized copy or copies       |
+ | of material copyrighted by InterSystems and is the     |
+ | confidential, unpublished property of InterSystems.    |
+ | This copyright notice and any other copyright notices  |
+ | included in machine readable copies must be reproduced |
+ | on all authorized copies.                              |
+ +--------------------------------------------------------+
+ */
+ Do gsize() Quit
+gsize() [IO,IOM,IOF,IOSL,DX,DY,RM,XY,POP] Private {
+    If $$isrem^%SYS.GLO {
+	Write !,*7,$ZN," does not currently support default global directory"
+	Write !,"  located on a remote system."
+	Quit
+    }
+    New
+    New $namespace
+    Set IOMS=$System.Device.GetRightMargin()
+    For {
+	Set DIR=$$GETDIR
+	Quit:DIR=""
+	Set dirinfo=$zu(49,DIR)
+	If dirinfo<0 {
+	    Write !,*7,DIR," is not available"
+	    Continue
+	}
+	If $system.Security.Check($Piece(dirinfo,",",25))="" {
+	    Write !,*7,"Access not allowed to: ",DIR
+	    Continue
+	}
+	Set blksiz=$Piece(dirinfo,",",2)
+	Set datasize=$Case(blksiz,2048:2036,:(blksiz-$zu(40,32,10)))
+	Do INT^%T
+	Do OPT^%GSET(,,,1,1,DIR,,,,1,1,.%glolist,.gloutil)
+	Quit:$o(%glolist(""))=""
+	Set detail=($$YN("Show details?","N")="Y")
+	Quit:POP
+	Do OUT^%IS
+	Set RM=IOM
+	Set:IOF="" IOF="#"
+	Quit:POP
+	Set GLO="",PAGE=1,tbytes=0,tblks=0,tcont=0,DX=0
+	If 'detail {
+            Do showless
+	} Else {
+	    Do showmore
+	    If 'POP,PAGE'=1 { Do stop }
+	    Write @IOF
+	}
+	Quit:POP
+	Use 0
+	If $d(IO),$I'=IO {
+	    Close IO
+	}
+    }
+    If $d(IO) {
+	Use 0
+	If IO'=$I {
+	    Close IO
+	} Else {
+	    Use IO:/MAR=IOMS
+	} 
+    } 
+    Quit
+GETDIR()
+    Write !
+    Set R=$$GetDir("Directory name",$zu(12,""))
+    Write !
+    Quit:R="QUIT"!(R="quit")!(R="^")!(R="") ""
+    Quit $zu(12,R,3) ;not really necessary as GetDir checked R already
+showmore
+    Use IO
+    Do hdr(DIR,.PAGE)
+    If IO=$P {
+	Do CURRENT^%IS
+	If $G(XY)'="" { S DX=18 }
+    }
+    Set GSEL=$name(%glolist(""))
+    For {
+        Set GSEL=$Q(@GSEL,1,GLO)
+	Quit:GSEL=""
+	Quit:POP
+	Set:GLO="" GLO=$QS(GSEL,1)
+	Write ?6,GLO 
+	Write:$x>18 !  ; (Col 18 is where # blocks goes)
+	Set DY=$Y
+	If '$p(gloutil($P(GLO,"(")),"^",3) {
+	    Write " - implicit",!
+	} Else {
+	    Set x=$S(GLO["(":$$detailsub,1:$$detail)
+	    If x'="" {
+	        Set bytes=$p(x,","),blks=$p(x,",",2),cont=$p(x,",",3)
+		Set tbytes=tbytes+bytes,tblks=tblks+blks,tcont=tcont+cont
+		Write:'DX ?18,$J($fn(blks,","),8)
+		Write ?28,$J($fn(bytes,","),15),?45
+		Write $j($s(blks:100*(bytes/(blks*datasize)),1:0),5,0)," %"
+		Write ?55,$j($fn(cont,","),7),$p(x,"?",2),!
+		Do:$y>(IOSL-4) hdr(DIR,.PAGE)
+	    }
+	}
+    }
+    Write !!?6,"TOTAL"
+    Do hdr1()
+    Write ?18,$J($fn(tblks,","),8)
+    Write ?28,$J($fn(tbytes,","),15)
+    Write:tblks ?45,$j(100*(tbytes/(tblks*datasize)),5,0)," %"
+    Write ?55,$j($fn(tcont,","),7)
+    Quit
+showless 
+    Use IO
+    Write @IOF
+    Do CURRENT^%IS
+    Set H="Global Size Display of "_DIR
+    Use IO
+    Write @IOF
+    Write !,$J(H,$L(H)+IOM\2)
+    Do INT^%T
+    Set H=%TIM_"  "_$zd($h,7)
+    Write !,$J(H,$L(H)+IOM\2),!!
+    Set GSEL=$name(%glolist(""))
+    Set GMAX=0
+    For {
+	Set GSEL=$Q(@GSEL,1,GLO) 
+	Quit:GSEL=""  
+	Set:GLO="" GLO=$QS(GSEL,1)
+	Set GLEN=$L(GLO)
+	If GLEN>GMAX {
+	    Set GMAX=GLEN
+	    ; 31 is the longest global name so if we reach that,
+	    ; we can stop searching
+	    Quit:GMAX=31
+	}
+    }
+    Set GMAX=GMAX+1  ;for space between columns
+    Set:GMAX<12 GMAX=12
+    Set GSEL=$name(%glolist(""))
+    For {
+        Set GSEL=$Q(@GSEL,1,GLO)
+	Quit:GSEL=""
+	Quit:POP
+	Set:GLO="" GLO=$QS(GSEL,1)
+	Write:($x+8+GMAX)>RM !
+	Write $j(GLO,GMAX)
+	If '$p(gloutil($P(GLO,"(")),"^",3) {
+	    Write $j(" - ",8),!
+	} Else {
+	    Set x=$S(GLO["(":$$briefsub(DIR,GLO,.IO),1:$$briefloc(DIR,GLO,.IO))
+	    Set blks=+x
+	    Set tblks=tblks+blks
+	    Write $J($s(x["?":$p(x,"?",2),1:blks),8)
+	}
+    }
+    Write !!,$j("TOTAL:",12),$j(tblks,8),!
+    Quit
+detail() 	;detailed version
+    Set datasize=$Case(blksiz,2048:2036,:(blksiz-$zu(40,32,10)))
+    Set rc=$$GetGlobalPointers^%SYS.DATABASE(DIR,GLO,,.blk)
+    If ('rc) {
+	Do ShowMessage(rc,$Get(IO,0))
+	Quit ""
+    }
+    Open 63:"^^"_DIR
+    Quit $$intdetail(blk,blksiz)
+detailsub()	;detailed version with subscript.
+    Set n=0,k=0,contig=0 ;n:bytes,k:blocks,c:contiguous blocks?
+    Set rc=$$GetBPnt(DIR,GLO,.blk,.db,.idx,.data,.IG,.err)
+    If ('rc) {
+	Do ShowMessage(rc,$Get(IO,0))
+	Quit ""
+    }
+    Quit:blk<1 "0,0,0"_$g(err,"?GLOBAL")
+    Quit:'data "0,0,0"_$g(err)
+    Set IGL=$L(IG),blk=db,first=1,end=0
+    Set keyoff=0
+    Try {
+	Set keyoff=$zu(40,1,56)
+    } Catch {}
+    Open 63:"^^"_DIR
+    For {
+	Quit:'blk
+	View blk
+	Set t=$v($Zutil(40,32,1),0,1)
+	If t'=8 {
+	    Set err="?TOB: "_blk_":"_t
+	    Set:contig contig=contig-(prev=blk)
+	    Quit  ;unexpected type of block
+	}
+	If 'first,$e($v(1,-6)_$c(0),1,IGL)'=IG {
+	    Set end=1
+	    Set:contig contig=contig-(prev=blk)
+	    Quit
+	}
+	Set n=n+$v($zu(40,32,0),0,4)+$zu(40,32,10)-$zu(40,32,10),k=k+1 ;so much for normal data blocks
+	For i=1:1 {
+	    Set x=$v(i*2-1,-6)
+	    Quit:x=""
+	    Set x=x_$c(0)
+	    If first,IG]x { continue }
+	    If $e(x,1,IGL)'=IG {
+	        Set end=1
+		Set:keyoff v=$v(i*2,-6),n=n-($v($zu(40,32,0),0,4)+$zu(40,32,10)-$v(keyoff,-1,4))
+		if i=1 {
+		    s k=k-1
+		    Set:contig contig=contig-(prev=blk)
+		}
+		Quit
+	    }
+	    Set v=$v(i*2,-6)
+	    If first {
+		Set first=0
+		Set:keyoff n=n-($v(keyoff,-1,4)-$zu(40,32,10))
+	    }
+	    If ($c(3,5,7)[$e(v)) {
+		Set nb=$p(v,",",2) ;nb: # of blocks
+		Set r=$p(v,",",3) ;r:#bytes in last block
+		Set n=n+((nb-1)*blksiz)+r,k=k+(nb-1)+''r
+		Set next=blk+1
+		For j=1:1:nb {
+		    Set cur=$P(v,",",j+3)
+		    Set contig=contig+(cur=next)
+		    Set next=cur+1
+		}
+	    }
+	}
+	If DX,'(k#100) {
+	    Use 0
+	    Xecute XY
+	    Write $J(k,8)
+	    Use IO
+	}
+	Quit:$d(err)
+	Quit:end
+	Set prev=blk+1
+	Set blk=$v($Zutil(40,32,4),0,4)
+	Set contig=contig+(prev=blk)
+    }
+    If DX {
+	Use 0
+	Xecute XY
+	Write $J(k,8)
+	Use IO
+    }
+    Close 63 
+    Quit n_","_k_","_contig_$g(err)
+}
+hdr(DIR,&PAGE) [POP,IO,IOM,IOF] {
+    Do:PAGE'=1 stop()
+    Quit:POP
+    Write @IOF
+    If IO=$P {
+	Use IO:/MAR=IOM
+    }
+    Write "directory: ",DIR,!
+    Write "Page: ",PAGE,?34,"GLOBAL SIZE",?(IOM-11),$ZDATE($h,2,,4),!,?(IOM-8),%TIM,!
+    Write ?6,"Global"
+    Set PAGE=PAGE+1
+    Do hdr1()
+}
+hdr1() [] {
+    Write ?18,"  Blocks",?28,"     Bytes Used",?45,"Packing",?55,"Contig.",!
+    Write ?6,"--------",?18,"--------",?28,"---------------",?45,"-------",?55,"-------",!
+}
+stop() [IOST,POP] {
+    Quit:(IOST'["C-")
+    Read !?40,"<RETURN> to continue or '^' to STOP: ",X
+    Set:X="^" POP=1
+}
+intdetail(blk,blksiz) [IO,XY,DX] Private {
+    Set n=0,k=0,contig=0
+    For {
+	Quit:'blk
+	View blk
+	Set t=$v($Zutil(40,32,1),0,1)
+	If t'=8 {
+	    Set err="?TOB: "_blk_":"_t
+	    Quit  ;unexpected type of block
+	}
+	Set n=n+$v($zu(40,32,0),0,4)+$zu(40,32,10)-$zu(40,32,10),k=k+1
+	For i=1:1 {
+	    Set x=$v(i*2-1,-6)
+	    Quit:x=""
+	    Set v=$v(i*2,-6)
+	    If ($c(3,5,7)[$e(v)) {
+		Set nb=$p(v,",",2)	;nb: # of blocks
+		Set r=$p(v,",",3)	;r:#bytes in last block
+		Set n=n+((nb-1)*blksiz)+r
+		Set k=k+(nb-1)+''r
+		Set next=blk+1
+		For j=1:1:nb {
+		    Set cur=$P(v,",",j+3)
+		    Set contig=contig+(cur=next),next=cur+1
+		}
+	    }
+	}
+	If DX,'(k#100) {
+	    Use 0
+	    Xecute XY
+	    Write $J(k,8)
+	    Use IO
+	}
+	Quit:$d(err)
+	Set prev=blk+1
+	Set blk=$v($Zutil(40,32,4),0,4)
+	Set contig=contig+(prev=blk)
+    }
+    If DX {
+	Use 0
+	Xecute XY
+	Write $J(k,8)
+	Use IO
+    }
+    Close 63 
+    Quit n_","_k_","_contig_$g(err)
+}
+briefloc(DIR,GLO,&IO) [] Private {
+    Set rc=$$GetGlobalPointers^%SYS.DATABASE(DIR,GLO,.blk)
+    If ('rc) {
+	Do ShowMessage(rc,$Get(IO,0))
+	Quit "0?"
+    }
+    Quit:blk<1 "0?GLOBAL"
+    Open 63:"^^"_DIR
+    Quit $$intbrief(blk)
+}
+intbrief(blk) Private {
+    Set k=0 ;k:blocks
+    For {
+	Quit:'blk
+	View blk
+	Set t=$v($Zutil(40,32,1),0,1)
+	Quit:t=6
+	Quit:t=70
+	Set blk=$v(2,-5)
+    }
+    If 'blk {
+	Close 63
+	Quit "0?BOTPNT"
+    }
+    For {
+        Kill big
+	Set lastbig=-1,big=0
+	Quit:'blk
+	View blk
+	For i=1:1 {
+	    Set p=$v(i*2,-6)
+	    Quit:p=""
+	    If $Piece(p,",") {
+		Set p=$Piece(p,",",2) ;block number with big string 
+		If lastbig=(i-1) {
+		    Set $p(big(big),",",2)=p
+		} Else {
+		    Set big=big+1,big(big)=p
+		}
+		Set lastbig=i
+	    }
+	}
+	Set blk=$v($Zutil(40,32,4),0,4)
+	Set j=""
+	For {
+	    Set j=$o(big(j))
+	    Quit:j=""
+	    Set k=k+$$bigblk(big(j))
+	}
+        Set k=k+i-1
+    }
+    Close 63
+    Quit k_$g(err)
+}
+bigblk(blk) [] PUBLIC {
+    Set end=+$p(blk,",",2),blk=+$p(blk,",")
+    Set:'end end=blk
+    Quit:'blk 0
+    Quit:blk<1 0
+    Quit:blk\1'=blk 0
+    Set k=0
+    Do {
+	View blk
+	Quit:$v($Zutil(40,32,1),0,1)'=8
+	For i=1:1 {
+	    Set x=$v(i*2-1,-6)
+	    Quit:x=""
+	    Set v=$v(i*2,-6)
+	    If ($c(3,5,7)[$e(v)) {
+	        Set k=k+$p(v,",",2)
+	    }
+	}
+	Quit:blk=end
+	Set blk=$v($Zutil(40,32,4),0,4)
+    } While blk
+    Quit k
+}
+GetBPnt(DIR,GLO,&pb,&db,&idx,&data,&IG,&err) [] {
+    Try {
+	Kill pb
+	Set pb=0
+	Set:$E(GLO)="^" $E(GLO)=""
+	Set data=$Data(@($s(DIR=""||(DIR=$C(0)):"^",1:"^|"_"""^^"_DIR_"""|")_GLO))
+	If 'data,DIR'=$C(0) {
+	    Return 1
+	}
+	if DIR=""||(DIR=$C(0)) {
+	    s ns=$qs("^"_GLO,-1),glo=$qs("^"_GLO,0)
+	    i ns="" s ns=$zu(5)
+	    s DB=$$getdest^%SYS.GXLINF1(ns,glo,$p(GLO,"(",2,*))
+	    if DB="" s err="?NOTFOUND" return 1
+	    s sysname=$p(DB,"^")
+	    if sysname'=""&&(sysname'=$zu(63,4,0)) s err="?REMOTE" return 1
+	    s DIR=$p(DB,"^",2)
+	}
+	Set IG=$$GetGloInt^%SYS.DATABASE()
+	Set rc=$$GetGlobalPointers^%SYS.DATABASE(DIR,$P(GLO,"("),.pb)
+	If ('rc) {
+	    Return rc
+	}
+	If pb<1||(pb\1'=pb) {
+	    Set err="?GLOBAL"
+	    Return 1
+	}
+	Open 63:"^^"_DIR
+	Set db=pb
+	For {
+	    Set found=0,pb=db
+	    s pb($i(level))=db
+	    View pb
+	    Set typ=$v($Zutil(40,32,1),0,1)
+	    For idx=1:1 {
+	        Set x=$v(idx*2-1,-6)
+		Quit:x=""
+		Set x=x_$c(0)
+		If IG=x {
+		    Set db=$V(idx*2,-5)
+		    Set found=1
+		    Quit
+		}
+		If x]IG {
+		    Set:idx>1 idx=idx-1 Set db=$V(idx*2,-5)
+		    Set found=1
+		    Quit
+		}
+	    }
+	    If 'found {
+		Set idx=idx-1,db=$V(idx*2,-5)
+		Quit:typ=6
+		Quit:typ=70
+	    } Else {
+	        Quit:typ=6
+		Quit:typ=70
+	    }
+	}
+    } Catch {
+        Set pb=0,err="?$ZE "_$ZE
+    }
+    Close 63
+    Quit 1 
+}
+briefsub(DIR,GLO,&IO) [] {
+    Set k=0 ;k:blocks
+    Set rc=$$GetBPnt(DIR,GLO,.blk,.db,.idx,.data,.IG,.err)
+    If ('rc) {
+	Do ShowMessage(rc,$Get(IO,0))
+	Quit "0"_$g(err,"?")
+    }
+    If blk<1||(blk\1'=blk) {
+	Quit "0"_$g(err,"?GLOBAL")
+    }
+    Quit:'$g(data) "0"_$g(err)
+    Set IGL=$L(IG)
+    Open 63:"^^"_DIR
+    Set first=1
+    For {
+	Kill big
+	Set lastbig=-1,big=0
+	Quit:'blk
+	View blk
+	For i=idx:1 {
+	    Set x=$v(i*2-1,-6)
+	    Quit:x=""
+	    If 'first,$e(x_$c(0),1,IGL)'=IG {
+		Quit
+	    }
+	    Set p=$v(i*2,-6),first=0
+	    If $Piece(p,",") {
+	        Set p=$Piece(p,",",2) ;block number with big string 
+		If lastbig=(i-1) {
+		    Set $p(big(big),",",2)=p
+		} Else {
+		    Set big=big+1,big(big)=p
+		}
+		Set lastbig=i
+	    }
+	}
+	Set blk=$v($Zutil(40,32,4),0,4) ;get next linked block before doing big blocks
+	Set j=""
+	For {
+	    Set j=$o(big(j))
+	    Quit:j=""
+	    Set k=k+$$bigblksub(big(j),IG,IGL)
+	}
+	Set k=k+i-idx,idx=1
+	Quit:x'=""
+    }
+    Close 63 
+    Quit k_$g(err)
+}
+bigblksub(blk,IG,IGL) {
+    Set end=+$p(blk,",",2),blk=+$p(blk,",")
+    Set:'end end=blk
+    Quit:blk<1 0
+    Quit:blk\1'=blk 0
+    Set k=0
+    Do {
+	View blk
+	Quit:$v($Zutil(40,32,1),0,1)'=8
+	For i=1:1 {
+	    Set x=$v(i*2-1,-6)
+	    Quit:x=""
+	    If $e(x_$c(0),1,IGL)=IG {
+	        Set v=$v(i*2,-6)
+		If ($c(3,5,7)[$e(v)) {
+		    Set k=k+$p(v,",",2)
+		}
+	    }
+	}
+	Quit:blk=end
+	Set blk=$v($Zutil(40,32,4),0,4)
+    } While blk
+    Quit k
+}
+AllocatedSize(gbl) [] public {
+    Quit:'$data(@gbl) 0
+    Set db=$$GetGlobalSourceDatabase^%SYS.SECURITY(gbl)
+    Quit:$piece(db,"^",2)'="" -1
+    Set DIR=$piece(db,"^",3)
+    Set dirinfo=$zu(49,DIR)
+    Quit:dirinfo<0 -1
+    Quit:'$Piece(dirinfo,",",21) -1
+    Quit $$briefsub(DIR,gbl)*$Piece(dirinfo,",",2)
+}
+YN(P,D,t) N R,X S P=$G(P),D=$E($G(D)_"?"),t=$G(t) ;ask Yes/No w/ Prompt,Default
+ S D=$S("Yy"[D:"Yes => ","Nn"[D:"No => ",1:"") ;Yes, No or no default
+ F  W !,P_"? "_D Read:t R:t Read:'t R DO  I "^YN"[R Q  ;timed or non-timed read
+ . S X=R,R=$TR($E(R_D_"?"),"yn","YN") I "^YN"'[R W "  enter Yes or No, please"
+ S POP=(R="^") W $E($S(R="N":"No",R="Y":"Yes",1:""),$L(X)+1,3) Q R
+GetDir(prompt,defdir,exists,quit) ;ask for a directory, allow defaults
+GetDirLoop ; Loop until we get something valid or exit
+ s $zt="GetDirE"
+ n exist,dir,x
+ s exist=+$g(exists,1) ; default is to check if exists
+ w !,prompt_": "_$s($g(defdir)'="":$g(defdir)_" => ",1:"") r dir s:dir="" dir=$g(defdir)
+ i $$STOP(dir) Set quit=1 Q ""
+ i $E(dir)="?" Q dir ;pass-on request for elaboration
+ q:exist<0 dir ;exist<0 means don't check valid or exists
+ s x=$S(exist:$$ChkDirOrSpecEXISTS(dir),1:$$ChkDirVALID(dir)) 
+ i x="" W *7,"  "_$s(exist:"Directory '"_dir_"' does not exist",1:"Invalid directory specification '"_dir_"'") G:exist GetDirLoop d  g:x="N" GetDirLoop
+ . s x=$$YN("Use this directory anyway","N")
+ i x="^" s quit=1 Quit ""
+ q dir
+GetDirE S $ZT=""
+ i $ze["<INTERRUPT>" q ""
+ w !,"Error: "_$ZE
+ zquit 1 i $ZT'="" G @$ZT
+ q ""
+Touch(D)
+ q
+ChkDirVALID(R) S $ZE="",$ZT="ChkBad" q:R[":mirror:" R q $ZU(12,R,1)
+ChkDirEXISTS(R) S $ZE="",$ZT="ChkBad" q:R[":mirror:" R q $ZU(12,R,2)
+ChkDirOrSpecEXISTS(R) S $ZE="",$ZT="ChkBad" q:R[":mirror:" R q $ZU(12,R,3)
+ChkDir(R) N N S $ZE="",$ZT="ChkBad" q:R[":mirror:" R q $ZU(12,R,2)
+ChkBad S $ZT="" W !,"<"_$P($P($ZE,"<",2),">")_"> error -- invalid directory"
+ Q ""
+STOP(x) S x=$$UC($E(x,1,4)) Q (x["EXIT")!(x["STOP")!(x["QUIT")!(x["HALT")!($E(x)="^")
+UC(x) q $zcvt(x,"u")
+ShowMessage(sc,device) [] PRIVATE {
+    Do DecomposeStatus^%SYS.DATABASE(sc,.msglist,0,"")
+    Do wrtmsg($C(13,10),device)
+    For i=1:1:msglist {	Do wrtmsg(msglist(i)_$C(13,10),device) }
+}
+wrtmsg(msg,device) [] PRIVATE {
+    Quit:'$L(msg)  ; Avoid argumentless writes...
+    If device=-1 { Do $zu(9,"",msg,0,0) Quit }
+    If $g(%UI,"CHUI")="CHUI" { Use device Write msg Quit }
+    Do:$$IjcMsg^%Wprima("DI"_msg)="CANCEL"  ; Return value could be cancel message 
+    . i $$IjcMsg^%Wprima("DI"_$C(13,10)_"Abort received!"_$C(13,10))
+    . zt "Abort"
+}
+INTbrief(blk,bigdb) PUBLIC {
+    If 'bigdb {
+	Close 63
+	Quit ""
+    }
+    If blk<1||(blk\1'=blk) { 
+	Close 63
+	Quit "0?GLOBAL"
+    }
+    Quit $$intbrief(blk)
+}
+INTdetail(blk,bigdb,blksiz) [DX] PUBLIC {
+    If 'bigdb {
+	Close 63
+	Quit ""
+    }
+    If blk<1||(blk\1'=blk) { 
+	Close 63
+	Quit "0?GLOBAL"
+    }
+    New DX
+    Set DX=0
+    Quit $$intdetail(blk,blksiz)
+}
+brief(GLO) [DIR,IO] PUBLIC {
+    New (DIR,IO)
+    Quit $$briefloc(DIR,GLO,.IO)
+}
+RemSplit() PUBLIC {
+	Set $zt="errsplit"
+	Set reqsem=##class(%SYSTEM.Semaphore).%New()
+	Set anssem=##class(%SYSTEM.Semaphore).%New()
+	Set oldval=$zu(68,7,0) 
+	Set reqnode=$name(^CacheTempUtil("SplitSize",+$J,"Request"))
+	Set ansnode=$name(^CacheTempUtil("SplitSize",+$J,"Answer"))
+	Do $zu(68,7,oldval)
+	I 'reqsem.Create(reqnode) {
+		s errmsg="RemSplit: Failed to create remote request semaphore named '"_reqnode_"'"
+		goto failed
+	}
+	I 'anssem.Create(ansnode) {
+		s errmsg="RemSplit: Failed to create remote answer semaphore named '"_ansnode_"'"
+		goto failed
+	}
+	Try {
+		Set rc=reqsem.Decrement(1,10)
+	} catch { Set rc = 0 }
+	if 'rc {
+		s errmsg="RemSplit: Failed to wait for client SplitSize job to start task"
+		goto failed
+	}
+	Set param=$G(@reqnode)
+	if param="" {
+		s errmsg=$LB(0,"RemSplit: Can't find passed parameter in node '"_reqnode_"'")
+		goto failed
+	}
+	Set GlobalRef=$LG(param,1)
+	Set dbpath=$p($p(GlobalRef,"""",2),"^",3)
+	If dbpath[":mirror:" {
+		s dbinfo=$SYSTEM.Mirror.DBGetInfoByName(0,dbpath)
+		if dbinfo="" {
+			s errmsg=$LB(0,"RemSplit: Failed to convert mirror DB name '"_dbpath_"' to directory path")
+			goto failed
+		}
+		s dbpath="^^"_$p(dbinfo,"^",1)
+		s $p(GlobalRef,"""",2)=dbpath
+	}
+	Set @ansnode=$$SplitSize(GlobalRef,$LG(param,2),$LG(param,3),$LG(param,4),$LG(param,5),$LG(param,6))
+	Try {
+		Set rc=anssem.Increment(1)
+	} catch { Set rc = 0 }
+	if 'rc {
+		d $zu(9,"","RemSplit: Failed to tell client job the work is done.",1 /* broadcast and log message*/,1  /* Warning */)
+	}
+	Quit
+errsplit s $zt=""
+	s errmsg="Cache error caught: $ZE="_$ZE
+failed ;
+	if $d(ansnode) s @ansnode=$LB(0,errmsg)
+	Try { Set rc=anssem.Increment(1) } catch {}
+	d $zu(9,"",errmsg,1 /* broadcast and log message*/,1  /* Warning */)
+	Quit
+}
+RemoteSplitSize(GlobalRef,Mode,Parameter,StartBound = "",EndBound="",Prefix=0) {
+	Set $zt="errsplit"
+	Set NSP=$QS(GlobalRef,-1)
+	Set System=$p(NSP,"^",2)
+	Set $p(GlobalRef,"^",3)=""
+	i '($e($roles,1,$l("%All"))="%All") { n $ET,$roles s $ET="",$roles=$roles_","_"%All"} ; verified 9/26/16 STC
+	If '$G(^|"^"_System_"^CACHESYS"|SYS("SupportRemoteSplitSize")) {
+		Quit $LB(0,"Remote SplitSize is not supported at remote system '"_System_"'")
+	}
+	Set tempdir=$g(^|"^"_System_"^CACHESYS"|%SYS("CacheTempDir"),$g(^|"^"_System_"^CACHESYS"|%SYS("tmpdir")))
+	Set $p(NSP,"^",3)=^|"^"_System_"^CACHESYS"|%SYS("sysdir")
+	Job RemSplit^%GSIZE[NSP]
+	If $zchild=0 Quit $LB(0,"Failed to start remote job at system '"_System_"'")
+	Set oldval=$zu(68,7,0) 
+	Set reqnode=$name(^|"^"_System_"^"_tempdir|CacheTempUtil("SplitSize",+$zchild,"Request"))
+	Set ansnode=$name(^|"^"_System_"^"_tempdir|CacheTempUtil("SplitSize",+$zchild,"Answer"))
+	Do $zu(68,7,oldval)
+	Set @reqnode=$LB(GlobalRef,Mode,Parameter,StartBound,EndBound,Prefix)
+	Set reqsem=##class(%SYSTEM.Semaphore).%New()
+	Set anssem=##class(%SYSTEM.Semaphore).%New()
+	I 'reqsem.Create(reqnode) Quit $LB(0,"Failed to create remote request semaphore named '"_reqnode_"'")
+	I 'anssem.Create(ansnode) {
+		s x=reqsem.Delete()
+		Quit $LB(0,"Failed to create remote ans semaphore named '"_ansnode_"'")
+	}
+	Try {
+		Set rc=reqsem.Increment(1)
+	} catch { Set rc = 0 }
+	if 'rc {
+		Set retstr=$LB(0,"Failed to tell remote SplitSize job to start")
+		goto done
+	}
+	Try {
+		Set rc=anssem.Decrement(1,10)
+	} catch { Set rc = 0 }
+	if 'rc {
+		Set retstr=$LB(0,"Failed to wait for remote SplitSize job to finish its task")
+		goto done
+	}
+	s retstr=$G(@ansnode)
+done ;
+	Try { s x=reqsem.Delete() } catch {}
+	Try { s x=anssem.Delete() } catch {}
+	kill @reqnode,@ansnode
+	Quit retstr
+errsplit s $zt=""
+	s dze=$ZE
+	if $d(reqnode) k @reqnode
+	if $d(ansnode) k @ansnode
+	Try { s x=reqsem.Delete() } catch {}
+	Try { s x=anssem.Delete() } catch {}
+    Quit $LB(0,"Cache error caught: $ZE="_dze)
+}
+SplitSize(GlobalRef,Mode,Parameter,StartBound = "",EndBound="",Prefix=0) PUBLIC {
+	s $ZT="Error"
+	If $E(GlobalRef)'="^" Set GlobalRef="^"_GlobalRef
+	if StartBound="" {
+		Set GStart=GlobalRef
+	} else {
+		Set GStart=$name(@GlobalRef@(StartBound))
+	}
+	if "LBN"'[Mode quit $LB(0,"Bad 'Mode' passed")
+	Set QSPos=$QLENGTH(GStart)
+	If StartBound="" Set QSPos=QSPos+1
+	Set ReachEnd=0
+	Set data=$Data(@GStart)
+	Set IGStart=$$GetGloInt^%SYS.DATABASE()
+	If 'data,StartBound="" Quit $LB(3,"")
+	Set ns=$qs(GStart,-1) If ns="" Set ns=$namespace
+	if $e(ns)'="^" {
+		s DB=$$getdest^%SYS.GXLINF1(ns,$qs(GStart,0),$p(GStart,"(",2,*))
+		if DB="" quit $LB(0,"Could not find the database location of the starting global node")
+	} else {
+		s DB=$p(ns,"^",2,*)
+	}
+	s sysname=$p(DB,"^")
+	if sysname'=""&&(sysname'=$zu(63,4,0)) {
+		s vms=$l($p(GlobalRef,"]"),"[")>2
+		s GlobalRef="^|""^"_DB_"""|"_$case($E(GlobalRef,2),"|":$p(GlobalRef,"|",3,*),"[":$p(GlobalRef,"]",2+vms,*),:$E(GlobalRef,2,*))
+		quit $$RemoteSplitSize(GlobalRef,Mode,Parameter,StartBound,EndBound,Prefix)
+	}
+	s DIR=$p(DB,"^",2)
+	If StartBound="" {
+		Set IG=IGStart
+	} else {
+		s IG=$p(IGStart,$c(0),1,*-2)_$c(0)
+	}
+	if Prefix {
+		set EndBound=""
+		if StartBound="" {
+			s IGEnd=IG_$char(255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255)_$c(0)
+		} else {
+			set IGEnd=$piece(IGStart,$char(0),1,*-1)_$char(255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255)_$c(0)
+		}
+	} elseif EndBound'="" {
+		Set GEnd = $name(@GlobalRef@(EndBound))
+		s x=$data(@GEnd)
+		Set IGEnd=$$GetGloInt^%SYS.DATABASE()
+	} else {
+		s IGEnd=IG_$char(255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255)_$c(0)
+	}
+	if Mode="L"&&(Parameter'>0) Set Mode="B",Parameter=1 ;(L,0) is same as (B,1)
+RetryTop ;
+	Set level=$s(Mode="N":1,1:65536)
+	Set idx=$$ViewBlockFromTop(.level,DIR,IGStart,.blk,.order)
+	if +idx<0 close 63 Quit $LB(3,"")
+	if +idx=0 close 63 Quit $LB(0,$p(idx,",",2,999))
+	if Mode="L" {
+		s Para=Parameter
+		while Para&&(level>1) {
+			s level=level-1
+			Set idx=$$ViewBlockFromTop(.level,DIR,IGStart,.blk,.order)
+			Quit:idx<=0
+			s Para=$i(Para,-1)
+		}
+		if +idx<0 close 63 Quit $LB(3,"")
+		if +idx=0 close 63 Quit $LB(0,$p(idx,",",2,999))
+		s Interval=1
+		s MaxItem=100
+	} elseif Mode="B" {
+		s Interval=Parameter
+		s MaxItem=100
+	} else {
+		If Parameter<=1 quit $LB(0,"Bad partition "_Parameter_" for 'N' mode.")
+	}
+	Set RetryTop=0  ; flag to go back to start over due to global tree has changed significantly.
+	Set IGL=$L(IG),SubList="",ErrorText=""
+	Set colrule=$Zutil(70,1,$View($Zutil(40,32,2),0,1))
+	if Mode'="N" {
+		Set prevsub="",Count=0,ListCount=0
+		For {
+			For i=idx:1 {
+				s internal=$v(i*2-1,-6)
+				Set x=$p(internal,$c(0),1,QSPos+1)_$c(0)
+				Quit:x=$c(0)
+				If $e(x,1,IGL)'=IG {
+					if x']IG continue
+					s ReachEnd=1
+					Quit
+				}
+				if IGStart]x continue
+				if x]IGEnd s ReachEnd=1 Quit
+				if $i(Count)<Interval Continue
+				if IGStart=x continue
+				s sub=$p(internal,$c(0),QSPos+1)
+				if sub=prevsub Continue
+				Try {
+					s printablesub=$zu(70,3,sub,colrule)
+					s good=1
+				} catch { s good=0 }
+				if 'good continue
+				s Count=0
+				s prevsub=sub
+				If $e(sub)=$c(31),$case($v($Zutil(40,32,1),0,1),70:1,66:1,6:1,2:1,:0),printablesub?.N {
+					s printablesub=printablesub_$c(0)
+				}
+				s SubList=SubList_$LB(printablesub)
+				if $i(ListCount)'<MaxItem Quit
+			}
+			Quit:x'=$c(0)||(ErrorText'="")
+			Set blk=$v($Zutil(40,32,4),0,4) ;get next linked block before doing big blocks
+			i 'blk s ReachEnd=1 Quit
+			s idx=$$ViewRightLink(.blk)
+			if idx=0 Set RetryTop=1 Quit
+		}
+	} else {
+		For {
+			s ItemCount=0,SubCount=0
+			k Items,Subs,prevsub
+			For {
+				For i=idx:1 {
+					s internal=$v(i*2-1,-6)
+					Set x=$p(internal,$c(0),1,QSPos+1)_$c(0)
+					Quit:x=$c(0)
+					If $e(x,1,IGL)'=IG {
+						if x']IG continue
+						Quit
+					}
+					if IGStart]x continue
+					if x]IGEnd Quit
+					s sub=$p(internal,$c(0),QSPos+1)
+					s ItemCount=ItemCount+1
+					if '$d(prevsub)||(prevsub'=sub) {
+						s prevsub=sub
+						If $e(sub)=$c(31),$case($v($Zutil(40,32,1),0,1),70:1,66:1,6:1,2:1,:0) {
+							s sub=sub_$c(0)
+						}
+						s SubCount=SubCount+1
+						s Subs(SubCount)=sub
+					} else {
+						s x=$i(Items(SubCount))
+					}
+				}
+				Set blk=$v($Zutil(40,32,4),0,4) ;get next linked block before doing big blocks
+				Quit:ErrorText'=""||('blk)||(x'=$c(0))
+				s idx=$$ViewRightLink(.blk)
+				if idx=0 Set RetryTop=1 Quit
+			}
+			Quit:ErrorText'=""||RetryTop
+			s NoBoundCnt=$s('SubCount:0,1:SubCount-$s(StartBound'=Subs(1):0,1:1)-$s(EndBound'=Subs(SubCount):0,1:1))
+			if NoBoundCnt'<(Parameter-1)||($v($Zutil(40,32,1),0,1)=8) {
+				if ItemCount'>(Parameter-1)||(SubCount'>(Parameter-1)) {
+One					s SubList=""
+					s idx=$o(Subs(""),1,sub)
+					while idx'="" {
+						if sub'="" {
+							s sub=$$ToPrintable(sub,colrule,.error)
+							s:'error SubList=SubList_$LB(sub)
+						}
+						s idx=$o(Subs(idx),1,sub)
+					}
+				} else {
+					s Interval=ItemCount\Parameter,CurItem=0
+					s lastentry=""
+					s idx=1
+					while idx<=SubCount&&(ItemCount>0) {
+						set chunk=Interval-CurItem-1
+						if chunk<0 set chunk=0
+						set nextval=$order(Items(idx-1),1,idxitems)
+						if nextval=""||(nextval-idx>chunk) {
+							set CurItem=CurItem+chunk,ItemCount=ItemCount-chunk
+							set idx=idx+chunk
+							If ItemCount<=0||(idx>SubCount) quit
+							set idxitems=1
+						} else {
+							set CurItem=CurItem+nextval-idx,ItemCount=ItemCount-(nextval-idx)
+							set idx=nextval
+							If ItemCount<=0 quit
+							set idxitems=idxitems+1
+						}
+						set NewCurItem=CurItem+idxitems
+						if NewCurItem>=Interval {
+							s sub=Subs(idx)
+							s Interval25=Interval/4
+							if ('Interval25||(sub="")||(lastentry=sub)||((NewCurItem-Interval)<=Interval25)||(CurItem<=Interval25)) {
+getnext							s deduct=idxitems
+								s idx=$o(Subs(idx),1,sub)
+								quit:idx=""
+								s prtsub=$$ToPrintable(sub,colrule,.error)
+								if error {
+									s previdx=$o(Subs(idx),-1,prevsub)
+									if prevsub'="" {
+										s prtsub=$$ToPrintable(prevsub,colrule,.error)
+										if error {
+											s prevsub = ""
+										} else {
+											s lastentry = prevsub
+											S SubList=SubList_$LB(prtsub)
+											s CurItem = deduct
+											if $increment(Parameter,-1)=1 quit
+											s Interval=ItemCount\Parameter
+											continue
+										}
+									}
+									if prevsub="" {
+										s ItemCount=ItemCount-deduct
+										s CurItem=NewCurItem
+										continue
+									}
+								}
+								s lastentry = sub
+								s ItemCount=ItemCount-deduct
+								S SubList=SubList_$LB(prtsub)
+								s CurItem=0
+							} else {
+								s prtsub=$$ToPrintable(sub,colrule,.error)
+								if error {
+									if $o(Subs(idx))'="" goto getnext
+									s previdx = $o(Subs(idx),-1,prevsub)
+									if lastentry=prevsub {
+										s CurItem=NewCurItem,ItemCount=ItemCount-idxitems
+										s idx=idx+1
+										continue
+									}
+									s prtsub=$$ToPrintable(prevsub,colrule,.error)
+									if error {
+										s CurItem=NewCurItem,ItemCount=ItemCount-idxitems
+										s idx=idx+1
+										continue
+									}
+									s sub = prevsub
+								}
+								s lastentry = sub
+								S SubList=SubList_$LB(prtsub)
+								s CurItem=idxitems
+								s idx=idx+1
+							}
+							if $increment(Parameter,-1)=1 quit
+							s Interval=ItemCount\Parameter
+							continue
+						}
+						s CurItem=NewCurItem,ItemCount=ItemCount-idxitems
+						s idx=idx+1
+					}
+				}
+				s ReachEnd=1
+				Quit
+			}
+			s level=$s($v($Zutil(40,32,1),0,1)=6||($v($Zutil(40,32,1),0,1)=70):0,1:level+1)
+			Set idx=$$ViewBlockFromTop(.level,DIR,IGStart,.blk,.order)
+			if +idx<0 s SubList="" Quit   ; No data available.
+			if +idx=0 s ErrorText=$p(idx,",",2,999) Quit
+		}
+	}
+	if RetryTop goto RetryTop
+	Close 63
+	if ErrorText'="" Quit $LB(0,ErrorText)
+	Quit $LB($s(SubList="":3,1:$s(ReachEnd:1,1:2)),SubList)
+Error s $zt="" Close 63
+	Quit $LB(0,$ZE)
+}
+ToPrintable(sub,colrule,error) {
+	if $e(sub,*)=$c(0) {
+		s sub=$e(sub,1,*-1)
+		s partial=1
+	} else {
+		s partial=0
+	}
+	Try {
+		s sub=$zu(70,3,sub,colrule)
+		s error=0
+	} catch { s error=1 }
+	if error quit ""
+	if partial,sub?.N s sub=sub_$c(0)
+	quit sub
+}
+ViewBlockFromTop(level,directory,reference,viewblk,order) PUBLIC {
+	set root="^|""^^"_directory_"""|"
+	if ($length($piece(reference,"("))<=$length($piece(reference,$c(0)))) {
+		if $extract(reference)="^" {
+			set reference=$extract(reference,2,*)
+		}
+		set tmp=$data(@(root_reference))
+		set encref=$list($zu(208),14)
+	} else { set encref=reference }
+	set root=root_$piece(encref,$c(0))
+	close 63
+	open 63:"^^"_directory
+retry
+	if $i(retries)>1000 { return "0,Too many retries" }
+	set curlevel=1
+	if '$data(@root) { return -1 }
+	set viewblk=$list($zu(208),5)
+	view viewblk
+	if ($piece(encref,$c(0))'=$piece($view(1,-6),$c(0))) 
+	     || '$case($v($Zutil(40,32,1),0,1),70:1,66:1,:0) { 
+		goto retry
+	}
+	set n=1
+nextlevel
+	set order=1
+	for {
+		set node=$view(n*2-1,-6)
+		if node="" {
+			if ($v($Zutil(40,32,1),0,1)=8) && ($v($Zutil(40,32,4),0,4)) && ($view(-1,-6)']encref) {
+				goto retry
+			}
+			set n=n-1
+			quit
+		}
+		if node=encref {
+			set order=0
+			quit
+		}
+		if node]encref {
+			set n=n-1
+			quit
+		}
+		set n=n+1
+	}
+	if $v($Zutil(40,32,1),0,1)=8 {
+		set level=curlevel
+		if 'n {
+			set order=-1
+			return 1
+		}
+		return n
+	}
+	if level && ((curlevel=level) || ($v($Zutil(40,32,1),0,1)=6) 
+	               || ($v($Zutil(40,32,1),0,1)=70)) {
+		set level=curlevel
+		return n
+	}
+	set n=$$ViewDownPointer(n,.viewblk)
+	goto:'n retry
+	set curlevel=curlevel+1
+	goto nextlevel
+}
+ViewDownPointer(nodenumber,viewblk) PUBLIC {
+	set blktype=$v($Zutil(40,32,1),0,1)
+	if '$case(blktype,70:1,66:1,6:1,2:1,:0) { 
+		zt "BLK"
+	}
+	set viewblk=$view(nodenumber*2,-5)
+	set pntref=$view(nodenumber*2-1,-6)
+	view viewblk
+	set lowertype=$v($Zutil(40,32,1),0,1)
+	if ((blktype=70) || (blktype=6))
+	      && (lowertype'=8) { 
+		return 0
+	}
+	if ((blktype=66) || (blktype=2))
+	      && (lowertype'=6) && (lowertype'=2) { 
+		return 0
+	}
+	set node=$view(1,-6)
+	return:($piece(pntref,$c(0))'=$piece(node,$c(0))) 0
+	if lowertype=8 {
+		set blpntlenref=$extract(node,1,$View($Zutil(40,32,3),0,2))
+		return:(blpntlenref]pntref) 0
+		return:(node]pntref) 1
+	}
+	set n=1
+	for {
+		return:node="" 0
+		return:node=pntref n
+		return:node]pntref n-1
+		set n=n+1
+		set node=$view(n*2-1,-6)
+	}
+}
+ViewRightLink(viewblk) PUBLIC {
+	set blktype=$v($Zutil(40,32,1),0,1)
+	if '$case(blktype,6:1,2:1,8:1,:0) { 
+		zt "BLK"
+	}
+	set viewblk=$v($Zutil(40,32,4),0,4)
+	if viewblk<1 { zt "BLK" }
+	set prevref=$view(-2,-6)
+	if blktype=8 {
+		set nextpntlen=$View($Zutil(40,32,8),0,2)
+		return:'nextpntlen 0
+		set nextpntref=$extract(prevref,1,nextpntlen-1)_$c($View($Zutil(40,32,9),0,1))
+		if nextpntref']prevref { zt "BLK" }
+	}
+	view viewblk
+	if $v($Zutil(40,32,1),0,1)'=blktype { return 0 }
+	if blktype=8 {
+		set pntref=$extract($view(1,-6),1,$View($Zutil(40,32,3),0,2))
+		return:pntref]nextpntref 0
+	}
+	if $piece(prevref,$c(0))'=$piece($view(1,-6),$c(0)) {
+		return 0
+	}
+	for n=1:1 {
+		set node=$view(n*2-1,-6)
+		return:node="" 0
+		return:node]prevref n
+	}
+}
+]]></Routine>
+</Export>

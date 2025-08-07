@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Export generator="Cache" version="25" zv="Cache for Windows (x86-64) 2018.1.7 (Build 721U)" ts="2025-08-07 11:49:29">
+<Routine name="%ASKSYS" type="INT" languagemode="0" generated="1" timestamp="66186,80398.06469"><![CDATA[
+%ASKSYS(PR,DFLT) ;RECONFIG- ASK DIRECTORY SET ; LFT1320 10/28/04
+ /*
+ +--------------------------------------------------------+
+ | Copyright 1986-2015 by InterSystems Corporation,       |
+ | Cambridge, Massachusetts, U.S.A.                       |
+ | All rights reserved.                                   |
+ |                                                        |
+ | Confidential, unpublished property of InterSystems.    |
+ |                                                        |
+ | This media contains an authorized copy or copies       |
+ | of material copyrighted by InterSystems and is the     |
+ | confidential, unpublished property of InterSystems.    |
+ | This copyright notice and any other copyright notices  |
+ | included in machine readable copies must be reproduced |
+ | on all authorized copies.                              |
+ +--------------------------------------------------------+
+ */
+ ;INPUT PARAMETER #1 = PROMPT TO DISPLAY, E.G., "SYSTEM: "
+ ;INPUT PARAMETER #2 = DEFAULT REMOTE SYSTEM TO OFFER. <NULL> IF NONE.
+ ;  CHECKS INPUT TO MAKE SURE IT'S IN THE ACTIVE CONFIGURATION.
+ ;  RETURNS NA=SYSNAME, OR <NULL> IF NO SELECTION.
+ ;        CP=COMPUTER (BASED ON ACTIVE CONFIG.), OR <NULL> IF NO SELEC.
+ ;        NU=SYSNUM (BASED ON ACTIVE CONFIG.), OR <NULL> IF NO SELEC.
+ ;        <NULL> MEANS <SAME SYSTEM>.
+ ;  RETURNS NA="", CP=this computer's name, NU=0 IF SELECTS <NULL>.
+ ;  RETURNS NA="^" IF USER PUNTS.
+1 N (PR,DFLT,NA,CP,NU) D GO
+K Q
+GO D ^|"%SYS"|ST S MGDIR=%ST("MGRNSP")
+ S THISCO=$G(^|MGDIR|NET(0,"THISCO"))
+ I $O(^|MGDIR|NET(1,"ACTIVE","NACP",""))=""
+ I  S NA="",CP=THISCO,NU=0 Q  ;No remote Directory Sets, so don't ask.
+ W !,PR_$S(DFLT="":"",1:" "_DFLT_" => ") R X:300 E  S X="^"
+ I X="" S X=DFLT I X="" W "(this system)"
+ I X="?" D HELP G GO
+ I X="^" S NA="^",CP="",NU="" Q
+ I X="" S NA="",CP=THISCO,NU=0 Q
+ I X'?1.31ANP W *7,"  ??" G GO
+ I $D(^|MGDIR|NET(1,"ACTIVE","NACP",X)) S NA=X,CP=^(X) DO
+ . S NU=$S(CP=THISCO:0,1:$g(^|MGDIR|NET(1,"ACTIVE","CPNU",CP),X))
+ E  DO  W ERR G GO
+ . W *7,"  ??" S ERR="  <NO SUCH SYSTEM>" W:$X+$L(ERR)+1>80 !
+ I $D(^|MGDIR|NET(1,"ACTIVE","BADBIT",NU)) DO  W ERR G GO
+ . W *7,"  ??" S ERR="  <NETWORK LINK DOWN>" W:$X+$L(ERR)+1>80 !
+ Q  ;successful.
+HELP S XNA="" ;DISPLAY DIRECTORY SETS
+ F J=0:1 S XNA=$O(^|MGDIR|NET(1,"ACTIVE","NACP",XNA)) Q:XNA=""  DO
+ . W:J>0 ",  " W:J=0 "  " W:$X+$L(XNA)+5>80 !,?3 W XNA
+ I 'J W !,"  <No Remote Systems defined in this Configuration!>"
+ Q
+]]></Routine>
+</Export>

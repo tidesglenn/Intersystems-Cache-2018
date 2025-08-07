@@ -1,0 +1,1338 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Export generator="Cache" version="25" zv="Cache for Windows (x86-64) 2018.1.7 (Build 721U)" ts="2025-08-07 12:01:12">
+<Class name="%ResultSet.Custom">
+<Description><![CDATA[
+<p>
+<b>This class has been superseded.</b> It will remain for compatibility with existing code and samples. 
+We recommend using <class>%SQL.CustomResultSet</class>.
+</p>]]></Description>
+<Abstract>1</Abstract>
+<Super>%Library.IResultSet</Super>
+<System>4</System>
+<TimeChanged>66186,77913</TimeChanged>
+<TimeCreated>60017,54124.172492</TimeCreated>
+
+<Method name="%OnNew">
+<Final>1</Final>
+<CodeMode>generator</CodeMode>
+<FormalSpec><![CDATA[&returnError:%SYSTEM.Error,pRuntimeMode:%Integer={$zu(115,5)}]]></FormalSpec>
+<GenerateAfter>%OpenCursor</GenerateAfter>
+<ReturnType>%Library.Status</ReturnType>
+<Implementation><![CDATA[
+	set %code = 0
+	if '$$$comMemberKeyGet(%class,$$$cCLASSmethod,"%OpenCursor",$$$cMETHrunnable) { set %codemode = $$$cMETHCODEMODEEXPRESSION, %code = "$$$ERROR($$$MethodNotImplemented,"""_%class_":%OpenCursor"")" quit $$$OK }
+	set callString = ""
+	$$$comMemberKeyGetLvar(ocformal,%class,$$$cCLASSmethod,"%OpenCursor",$$$cMETHformalspecparsed)
+	If $ListLength(ocformal) {
+		For argptr = 1:1:$ListLength(ocformal) {
+			Set formalarg = $List(ocformal,argptr), argname = $List(formalarg,1), type = $List(formalarg,2), byref = $Case($List(formalarg,3), "":0, "&":1, "*":2, ".":1, :0)
+			Set callString = callString_","_$Select('byref:"",1:".")_argname
+		}
+		set callString = $Extract(callString,2,$Length(callString))
+	}
+		#; Reset the formal list to the query declaration:
+	$$$comMemberKeyGetLvar(formal,%class,$$$cCLASSmethod,%method,$$$cMETHformalspecparsed)
+	set exformal = formal_ocformal
+	$$$comMemberKeySet(%class,$$$cCLASSmethod,%method,$$$cMETHformalspecparsed,exformal)
+	Set sc=$$rebuildFormal^%occName(exformal,.formalspec) If $$$ISERR(sc) Quit sc
+	$$$comMemberKeySet(%class,$$$cCLASSmethod,%method,$$$cMETHformalspec,formalspec)
+	$$$comMemberKeySet(%class,$$$cCLASSmethod,%method,$$$cMETHdefaultargs,$$ArgumentDefaultValues^%occName(exformal))
+	$$$comMemberKeySet(%class,$$$cCLASSmethod,%method,$$$cMETHuseractualtype,$$$normalize($$QueryMethodUserActualtype^%occName(exformal,%class)))
+		#; count the number of RESULTCOL properties
+	Set prop = $$$comMemberNext(%class,$$$cCLASSproperty,""), property = "", tObjectsMD = ""
+	While prop '= "" {
+		$$$comMemberKeyGetLvar(private,%class,$$$cCLASSproperty,prop,$$$cPROPprivate)
+		$$$comMemberKeyGetLvar(origin,%class,$$$cCLASSproperty,prop,$$$cPROPorigin)
+		If origin="%Library.IResultSet" Set private=1
+		If 'private set property = property + 1
+		If 'private {
+			$$$comMemberKeyGetLvar(runtimetype,%class,$$$cCLASSproperty,prop,$$$cPROPruntimetype)
+			if '$$$classIsDataType(runtimetype) {
+				$$$comClassKeyGetLvar(tSchema,runtimetype,$$$cCLASSsqlschemaname)
+				$$$comClassKeyGetLvar(tTable,runtimetype,$$$cCLASSsqltablename)
+				if (tSchema '= "") && (tTable '= "") { set tCall = $Get(^oddSQL(tSchema,tTable,"QL")) } else { set tCall = "" }
+				set tObjectsMD = tObjectsMD _ ",$lb(""" _ prop _ """,""" _ runtimetype _ """,""" _ tCall _ """)"
+			}
+		}
+		Set prop = $$$comMemberNext(%class,$$$cCLASSproperty,prop)
+	}
+	if tObjectsMD '= "" { set tObjectsMD = ", i%%Objects = $lb("_ $Extract(tObjectsMD,2,*) _ ")" }
+	$$$GENERATE("	set ..%RuntimeMode = pRuntimeMode" _ tObjectsMD _ ", status = ..%OpenCursor("_callString_")")
+	$$$GENERATE("	if $$$ISOK(status) { Set ..%NextColumn="_(property + 1) _ " } Else { Set returnError=##class(%SYSTEM.Error).%New(status,"""","""") }")
+	$$$GENERATE("	Quit status")
+	quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%Get">
+<Description>
+%Get(colname)
+	Get the value of the property whose column name is colname.</Description>
+<CodeMode>generator</CodeMode>
+<FormalSpec>colname:%String=""</FormalSpec>
+<ProcedureBlock>1</ProcedureBlock>
+<ReturnType>%Library.String</ReturnType>
+<Implementation><![CDATA[
+	Set %code=0
+	If $$$comClassKeyGet(%class,$$$cCLASSabstract) { Quit $$$OK }
+	Set prop = $$$comMemberNext(%class,$$$cCLASSproperty,"")
+	While prop '= "" {
+		$$$comMemberKeyGetLvar(private,%class,$$$cCLASSproperty,prop,$$$cPROPprivate)
+		$$$comMemberKeyGetLvar(origin,%class,$$$cCLASSproperty,prop,$$$cPROPorigin)
+		If origin="%Library.IResultSet" Set private=1
+		If 'private {
+			$$$comMemberKeyGetLvar(sqlname,%class,$$$cCLASSproperty,prop,$$$cPROPsqlfieldname)
+			$$$comMemberKeyGetLvar(runtimetype,%class,$$$cCLASSproperty,prop,$$$cPROPruntimetype)
+			if $$$classIsDataType(runtimetype) { Set property(sqlname) = prop, property(sqlname,1) = 1 }
+			else { Set property(sqlname) = prop, property(sqlname,1) = 0 }
+		}
+		Set prop = $$$comMemberNext(%class,$$$cCLASSproperty,prop)
+	}
+		#; construct the column value return lines
+	If $Data(property) {
+		$$$GENERATE("	try {")
+		Set case = 1, case(1) = "$Case($$$ucase(colname)",column = $Order(property(""))
+		While column '= "" {
+			If $Length(case(case)) > 500 { Set case = case + 1, case(case) = "		,"""_$$$ucase(column)_""":.."_property(column) _ $Select(property(column,1):"",1:"GetObjectId()") }
+			Else { set case(case) = case(case) _ ","""_$$$ucase(column)_""":.."_property(column) _ $Select(property(column,1):"",1:"GetObjectId()") }
+			Set column = $Order(property(column))
+		}
+		if case = 1 { $$$GENERATE("		set returnVal = "_case(1) _ ")") }
+		else {
+			$$$GENERATE("		set returnVal = "_case(1))
+			for ptr = 2:1:case-1 { $$$GENERATE(case(ptr)) }
+			$$$GENERATE(case(case)_")")
+		}
+		$$$GENERATE("	}")
+		$$$GENERATE("	catch {")
+		$$$GENERATE("		$$$ThrowPropertyDoesNotExistError(colname)")
+		$$$GENERATE("	}")
+		$$$GENERATE("	quit returnVal")
+	}
+	QUIT $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%GetData">
+<Description><![CDATA[
+%GetData(<column number>)
+
+		Returns the value of the column referenced by colnbr. Object values are not swizzled automatically.]]></Description>
+<CodeMode>generator</CodeMode>
+<FormalSpec>colnbr:%Integer=0</FormalSpec>
+<ReturnType>%Library.String</ReturnType>
+<Implementation><![CDATA[
+	Set %code=0, property = 0
+	If $$$comClassKeyGet(%class,$$$cCLASSabstract) { Quit $$$OK }
+	Set prop = $$$comMemberNext(%class,$$$cCLASSproperty,"")
+	While prop '= "" {
+		$$$comMemberKeyGetLvar(private,%class,$$$cCLASSproperty,prop,$$$cPROPprivate)
+		$$$comMemberKeyGetLvar(origin,%class,$$$cCLASSproperty,prop,$$$cPROPorigin)
+		If origin="%Library.IResultSet" Set private=1
+		If 'private {
+			$$$comMemberKeyGetLvar(sqlname,%class,$$$cCLASSproperty,prop,$$$cPROPsqlfieldname)
+			$$$comMemberKeyGetLvar(runtimetype,%class,$$$cCLASSproperty,prop,$$$cPROPruntimetype)
+			$$$comMemberKeyGetLvar(intSeq,%class,$$$cCLASSproperty,prop,$$$cXXXXsequencenumber)
+			set property = property + 1
+			if $$$classIsDataType(runtimetype) { Set property(intSeq) = prop, property(intSeq,1) = 1 }
+			else { Set property(intSeq) = prop, property(intSeq,1) = 0 }
+		}
+		Set prop = $$$comMemberNext(%class,$$$cCLASSproperty,prop)
+	}
+	$$$comMemberKeySet(%class,$$$cCLASSparameter,"COLUMNCOUNT",$$$cPARAMdefault,property)
+		#; construct the column value return lines
+	If property {
+		$$$GENERATE("	try {")
+		set intCol = 0, case = 1, case(1) = "$case(colnbr", ptr = $Order(property(""))
+		while ptr '= "" {
+			set intCol = intCol + 1
+			if $Length(case(case)) > 500 { set case = case + 1, case(case) = "	," _ intCol _ ":.."_property(ptr) _ $Select(property(ptr,1):"",1:"GetObjectId()") }
+			else { set case(case) = case(case) _ "," _ intCol _":.."_property(ptr) _ $Select(property(ptr,1):"",1:"GetObjectId()") }
+			Set ptr = $Order(property(ptr))
+		}
+		if case = 1 { $$$GENERATE("		set returnVal = "_case(1) _ ")") }
+		else {
+			$$$GENERATE("		set returnVal = "_case(1))
+			for ptr = 2:1:case-1 { $$$GENERATE(case(ptr)) }
+			$$$GENERATE(case(case)_")")
+		}
+		$$$GENERATE("	}")
+		$$$GENERATE("	catch {")
+		$$$GENERATE("		$$$ThrowPropertyDoesNotExistError(""Column #: ""_colnbr)")
+		$$$GENERATE("	}")
+		$$$GENERATE("	quit returnVal")
+	}
+	QUIT $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%SendODBC">
+<Description>
+Fetch and send a series of rows for the ODBC/JDBC server. For internal use only.</Description>
+<CodeMode>generator</CodeMode>
+<ProcedureBlock>0</ProcedureBlock>
+<ReturnType>%Library.Integer</ReturnType>
+<Implementation><![CDATA[
+	// GenerateSendODBC(class,qinfo,columns,rsstateprops) public {
+	new intCol,intSeq,prop,property,ptr,private,origin,runtimetype
+	Set %code=0
+	If $$$comClassKeyGet(%class,$$$cCLASSabstract) { Quit $$$OK }
+	Set property = 0
+		#; construct an array of query select properties.
+	Set prop = $$$comMemberNext(%class,$$$cCLASSproperty,"")
+	While prop '= "" {
+		$$$comMemberKeyGetLvar(private,%class,$$$cCLASSproperty,prop,$$$cPROPprivate)
+		$$$comMemberKeyGetLvar(origin,%class,$$$cCLASSproperty,prop,$$$cPROPorigin)
+		If (origin="%Library.IResultSet") || (origin="%SQL.StatementResult") { Set private=1 }
+		If 'private {
+			$$$comMemberKeyGetLvar(intSeq,%class,$$$cCLASSproperty,prop,$$$cXXXXsequencenumber)
+			$$$comMemberKeyGetLvar(runtimetype,%class,$$$cCLASSproperty,prop,$$$cPROPruntimetype)
+			Set property = property + 1
+			if $$$classIsDataType(runtimetype) { Set property(intSeq) = prop, property(intSeq,1) = 1 }
+			else { Set property(intSeq) = prop, property(intSeq,1) = 0 }
+		}
+		Set prop = $$$comMemberNext(%class,$$$cCLASSproperty,prop)
+	}
+	$$$GENERATE("	New tag Set tag = ""%t""_i%%NextColumn Goto @tag")
+	Set ptr = $Order(property("")), intCol = 0
+	While ptr '="" {
+		set intCol = intCol + 1
+		if property(ptr,1) { $$$GENERATE("%t"_intCol_"	If $zobjexport(i%"_property(ptr)_",7) { Set i%%NextColumn = "_intCol_" QUIT 0 }") }
+		else { $$$GENERATE("%t"_intCol_"	If $zobjexport(.." _ property(ptr)_"GetObjectId(),7) { Set i%%NextColumn = "_intCol_" QUIT 0 }") }
+		Set ptr = $Order(property(ptr))
+	}
+	$$$GENERATE("%t"_(intCol+1)_"	Set i%%NextColumn = 1")
+	$$$GENERATE("	If (..%Next(.sc)) Goto %t1")
+	$$$GENERATE("	Quit 100")
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%SendObjects">
+<Description>
+Fetch and send a series of rows for the ODBC/JDBC server. For internal use only.</Description>
+<Internal>1</Internal>
+<CodeMode>generator</CodeMode>
+<ReturnType>%Library.Integer</ReturnType>
+<Implementation><![CDATA[
+	Set %code=0, objects = 0
+	If $$$comClassKeyGet(%class,$$$cCLASSabstract) { Quit $$$OK }
+		#; construct an array of query select properties that are swizzlable objects
+	Set prop = $$$comMemberNext(%class,$$$cCLASSproperty,"")
+	While prop '= "" {
+		$$$comMemberKeyGetLvar(private,%class,$$$cCLASSproperty,prop,$$$cPROPprivate)
+		$$$comMemberKeyGetLvar(origin,%class,$$$cCLASSproperty,prop,$$$cPROPorigin)
+		If origin="%Library.IResultSet" Set private=1
+		If 'private {
+			$$$comMemberKeyGetLvar(runtimetype,%class,$$$cCLASSproperty,prop,$$$cPROPruntimetype)
+			if '$$$classIsDataType(runtimetype) {
+				$$$comClassKeyGetLvar(tSchema,runtimetype,$$$cCLASSsqlschemaname)
+				$$$comClassKeyGetLvar(tTable,runtimetype,$$$cCLASSsqltablename)
+				if (tSchema '= "") && (tTable '= "") { set tCall = $Get(^oddSQL(tSchema,tTable,"QL")) } else { set tCall = "" }
+				set objects($i(objects)) = $ListBuild(prop,runtimetype,tCall)
+			}
+		}
+		Set prop = $$$comMemberNext(%class,$$$cCLASSproperty,prop)
+	}
+
+	if objects {
+		Set code=0
+		$$$GENERATE("	new %rowid,%nolock,%qrc")
+		$$$GENERATE("	set %qrc = 0, %nolock = 0")
+		$$$GENERATE("	while (..%Next()) && ('%qrc) {")
+		for tPtr = 1:1:objects {
+			set t3=$List(objects(tPtr),3)
+			$$$GENERATE("		set %rowid = i%" _ $List(objects(tPtr),1))
+			if t3'="" $$$GENERATE("		if %rowid '= """" { do $classmethod(""" _ $List(t3) _ """,""" _ $List(t3,2) _ """,%rowid) if %qrc goto exit }")
+		}
+		$$$GENERATE("	}")
+		$$$GENERATE("exit	quit %qrc")
+	}
+	else { $$$GENERATE("	quit 0") }
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%ExecuteParametersGet">
+<CodeMode>generator</CodeMode>
+<GenerateAfter>%Execute</GenerateAfter>
+<Implementation><![CDATA[
+		#; %ExecuteParameters is a comma delimited list of actual arguments. For a custom result set this list
+		#; is just %qpar1,%qpar2,...%qparn
+	set calllist = ""
+	$$$comMemberKeyGetLvar(formalspec,%class,$$$cCLASSmethod,"%Execute",$$$cMETHformalspecparsed)
+	If $ListLength(formalspec) {
+		For argptr = 1:1:$ListLength(formalspec) {
+			Set formalarg = $List(formalspec,argptr), argname = $List(formalarg,1), type = $List(formalarg,2), byref = $Case($List(formalarg,3), "":0, "&":1, "*":2, ".":1, :0)
+			Set calllist = calllist_","_$Select('byref:"",1:".")_"%qpar"_(argptr)
+		}
+		set %codemode = $$$cMETHCODEMODEEXPRESSION, %code = """"_$Extract(calllist,2,$Length(calllist))_""""
+	}
+	else { set %codemode = $$$cMETHCODEMODEEXPRESSION, %code = """""" }
+	quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%MetadataGet">
+<Description>
+Override the %Metadata property's Get() method.</Description>
+<Implementation><![CDATA[	quit ..%GetSerializedMetaData()
+]]></Implementation>
+</Method>
+
+<Method name="%GetSerializedMetaData">
+<Description>
+Get the serialized %Metadata property value. Used by both the instance method %MetadataGet and the %PrepareMetaData class method.</Description>
+<ClassMethod>1</ClassMethod>
+<CodeMode>generator</CodeMode>
+<Implementation><![CDATA[
+	Set %code=0
+	If $$$comClassKeyGet(%class,$$$cCLASSabstract) { Quit $$$OK }
+	Set property = 0
+		#; We might consider some other mechanism for reporting the schema and table associated with the property. Hand-crafted queries
+		#; might have a difficult time with this.
+	$$$comClassKeyGetLvar(colSchema,%class,$$$cCLASSsqlschemaname) $$$comClassKeyGetLvar(colTablename,%class,$$$cCLASSsqltablename)
+	set colSchema = $$quoter^%occClass(colSchema), colTablename = $$quoter^%occClass(colTablename)
+		#; construct an array of query select properties.
+	Set prop = $$$comMemberNext(%class,$$$cCLASSproperty,"")
+	While prop '= "" {
+		$$$comMemberKeyGetLvar(private,%class,$$$cCLASSproperty,prop,$$$cPROPprivate)
+		$$$comMemberKeyGetLvar(origin,%class,$$$cCLASSproperty,prop,$$$cPROPorigin)
+		If origin="%Library.IResultSet" Set private=1
+		If 'private {
+			$$$comMemberKeyGetLvar(intSeq,%class,$$$cCLASSproperty,prop,$$$cXXXXsequencenumber)
+			Set property(intSeq) = prop, property = property + 1
+		}
+		Set prop = $$$comMemberNext(%class,$$$cCLASSproperty,prop)
+	}
+		#; construct metadata by regenerating the $list from literals. Cached queries store the metadata
+		#; in the query cache but result sets don't have any persistent storage. We could change that but we will
+		#; just use this mechanism for now.
+		#; 
+		#; Metadata versions are currently as follows:
+		#;     DPV2695 (07/11/2006) - %protocol cleanup - remove all %protocol < 39 code
+		#; 		Version 1: %protocol <15 <colmetadata> = $lb(colName,colODBCType,precision,scale,nullable,colName,colTablename)
+		#; 		Version 2: %protocol >14, <41 <colmetadata> = $lb(colName,colODBCType,precision,scale,nullable,colName,colTablename,colSchema,"")
+		#; 		Version 3: %protocol >40 <colmetadata> = $lb(colName,colODBCType,precision,scale,nullable,colName,colTablename,colSchema,"",bstr)	Set ptr = $Order(property(""))
+	Set metadata(1) = "$lb("_property_",", metadata(2) = metadata(1), metadata(3) = metadata(1)
+	set ptr = $Order(property(""))
+	While ptr '= "" {
+		$$$comMemberKeyGetLvar(colCacheType,%class,$$$cCLASSproperty,property(ptr),$$$cPROPtype)
+		$$$comMemberKeyGetLvar(colName,%class,$$$cCLASSproperty,property(ptr),$$$cPROPsqlfieldname)
+		$$$comMemberKeyGetLvar(colRequired,%class,$$$cCLASSproperty,property(ptr),$$$cPROPrequired)
+		Merge colParms = $$$comMemberKeyRaw(%class,$$$cCLASSproperty,property(ptr),$$$cPROPparameter)
+		set colName = $$quoter^%occClass(colName)
+		Do GetODBCColInfo^%ourODBC(colCacheType,.colParms,.colODBCTypeName,.colODBCType,.maxLen,.precision,.scale)
+			#; Extract the column information
+		Set nullable = 'colRequired
+		Set radix=$Select(";-6;-5;2;3;4;5;6;7;8;"[(";"_colODBCType_";"):10,1:"")
+		#;  Set metadata(1) = metadata(1) _ colName_","_colODBCType_","_precision_","_scale_","_nullable_","_colName_","_colTablename_","
+		Set metadata(2) = metadata(2) _ colName_","_colODBCType_","_precision_","_scale_","_nullable_","_colName_","_colTablename_"," _ colSchema _","""","
+			#; bstr = nullable|autoincrement|casesensitive|currency|readonly|rowversion|unique|aliased|expression|hidden|identity|keycolumn
+		set bstr = "$Char(0,0,0,0,0,0,0,0,0,0,0,0)"
+		Set metadata(3) = metadata(3) _ colName_","_colODBCType_","_precision_","_scale_","_nullable_","_colName_","_colTablename_"," _ colSchema _",""""," _ bstr_","
+		Set ptr = $Order(property(ptr))
+	}
+	#; set $Extract(metadata(1),$Length(metadata(1))) = ")"
+	set $Extract(metadata(2),$Length(metadata(2))) = ")"
+	set $Extract(metadata(3),$Length(metadata(3))) = ")"
+	$$$GENERATE("	if $Get(%protocol,41) > 40 { Set metadata = "_metadata(3) _ "}")
+	$$$GENERATE("	else { Set metadata = "_metadata(2)_"}")
+	$$$GENERATE("	Quit metadata")
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%OpenCursor">
+<Description>
+User written code to open the cursor here, you may also add arguments to the method</Description>
+<Private>1</Private>
+<ReturnType>%Library.Status</ReturnType>
+<Implementation><![CDATA[	quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%Prepare">
+<Description>
+%Prepare()
+
+This method is different for each type of result set class. This method has two tasks. First, instantiate the correct
+concrete result set class. Think of the first parameter, queryId, as being an "index key value" that is used to lookup
+the correct query implementation. For non-cached (static) queries this is simply the name of the class that implements
+the query, i.e. the %IResultSet interface. The second task is to prepare the resulting object for data
+retrieval by the caller which is done in %OnNew. The assumption is that if the query requires any parameters
+then the actual arguments are all literal or public variables.
+
+queryId		the concrete subclass of %IResultSet that implements the desired query. For dynamic cached results this value
+			is generally the query text that can be parsed, a hashed value computed and the cached result implementation class
+			looked up in the query cache index.
+%returnError	If an error occurs this is returned by reference and is a %SYSTEM.Error object
+                with properties set to describe information about the error
+%importPackages	This is a comma delimited list of packages to import. This is only relevant if the result set implementation is
+				generated and the query source might include unqualified names. The import packages list is used to resolve package/schema names for
+				unqualified names.</Description>
+<ClassMethod>1</ClassMethod>
+<CodeMode>generator</CodeMode>
+<FormalSpec><![CDATA[queryId:%String(MAXLEN=""),&%returnError:%SYSTEM.Error,%importPackages:%CacheString="",%args...]]></FormalSpec>
+<ReturnType>%Library.IResultSet</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[
+	if $$$comClassKeyGet(%class,$$$cCLASSabstract) {
+		$$$GENERATE("	New %resultSet Set %returnError=$$$NULLOREF")
+		$$$GENERATE("	Set execute=""Set %resultSet=##class(""_queryId_"").%New(.%returnError,,""")
+		$$$GENERATE("	For i=1:1:$get(%args) { Set execute=execute_$Select($Data(%args(i)):""%args(""_i_""),"",1:"""") }")
+		$$$GENERATE("	Set execute=$extract(execute,1,$length(execute)-1)_"")""")
+		$$$GENERATE("	Xecute execute")
+		$$$GENERATE("	Quit %resultSet")
+	}
+	else {
+		$$$GENERATE("	New %resultSet Set %returnError=$$$NULLOREF")
+		$$$GENERATE("	Set execute=""Set %resultSet=##class("_%class_").%New(.%returnError,,""")
+		$$$GENERATE("	For i=1:1:$get(%args) { Set execute=execute_$Select($Data(%args(i)):""%args(""_i_""),"",1:"""") }")
+		$$$GENERATE("	Set execute=$extract(execute,1,$length(execute)-1)_"")""")
+		$$$GENERATE("	Xecute execute")
+		$$$GENERATE("	Quit %resultSet")
+	}
+	quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%PrepareMetaData">
+<Description>
+%PrepareMetaData is similar to %Prepare except that no result set is instantiated. This
+method returns a %ResultSet.MetaData object. Be aware that the implementation of this
+method might cause the result set to be instantiated but that is up to the result set
+class itself and no result set is actually returned by this method - only metadata.
+
+class			This is the custom result set class
+
+returnError		If an error occurs this is returned by reference and is a %SYSTEM.Error object
+                with properties set to describe information about the error. %returnError.Status contains the %Status value.
+importPackages	This is a comma delimited list of packages to import. This is only relevant if the result set implementation is
+				generated and the query source might include unqualified names. The import packages list is used to resolve package/schema names for
+				unqualified names.</Description>
+<ClassMethod>1</ClassMethod>
+<CodeMode>generator</CodeMode>
+<FormalSpec><![CDATA[class:%String(MAXLEN=""),&returnError:%SYSTEM.Error="",importPackages:%CacheString=""]]></FormalSpec>
+<GenerateAfter>%MetadataGet</GenerateAfter>
+<ReturnType>%ResultSet.MetaData</ReturnType>
+<Implementation><![CDATA[
+	if %class = "%ResultSet.Custom" { $$$GENERATE("	quit $classmethod(class,""%PrepareMetaData"","""",.returnError,.importPackages)") }
+	else {
+		$$$GENERATE("	quit ##class(%ResultSet.MetaData).%New(..%GetSerializedMetaData())")
+	}
+	quit $$$OK
+]]></Implementation>
+</Method>
+</Class>
+
+
+<Class name="%ResultSet.MetaData">
+<Description><![CDATA[
+<p>
+	<b>This class has been superseded.</b> It will remain for compatibility with existing code and samples.
+	We recommend using <class>%SQL.Statement</class>.
+</p>
+	<p>
+	</p>]]></Description>
+<Super>%RegisteredObject</Super>
+<System>2</System>
+<TimeChanged>66186,77913</TimeChanged>
+<TimeCreated>60744,27378.203</TimeCreated>
+
+<Property name="columnCount">
+<Description>
+The number of columns defined as SQLRESULTCOL that are returned by executing this statement.
+This is the same as columns.Count().</Description>
+<Type>%Integer</Type>
+</Property>
+
+<Property name="columns">
+<Type>%ResultSet.MD.Column</Type>
+<Collection>list</Collection>
+</Property>
+
+<Property name="columnIndex">
+<Type>%String</Type>
+<MultiDimensional>1</MultiDimensional>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="parameters">
+<Type>%ResultSet.MD.Parameter</Type>
+<Collection>list</Collection>
+</Property>
+
+<Property name="objects">
+<Type>%ResultSet.MD.ObjectId</Type>
+<Collection>list</Collection>
+</Property>
+
+<Method name="%OnNew">
+<Description><![CDATA[
+This callback method is invoked by the <METHOD>%New</METHOD> method to 
+provide notification that a new instance of an object is being created.
+
+<P>If this method returns an error then the object will not be created.
+<p>It is passed the arguments provided in the %New call.
+When customizing this method, override the arguments with whatever variables and types you expect to receive from %New().
+For example, if you're going to call %New, passing 2 arguments, %OnNew's signature could be:
+<p>Method %OnNew(dob as %Date = "", name as %Name = "") as %Status
+
+%ResultSet.MetaData is a metadata class for result set metadata. The initial value is the metadata from a result set object
+or it is the result set object itself.]]></Description>
+<FormalSpec>initvalue:%CacheString="",pParameters:%CacheString="",pObjects:%CacheString=""</FormalSpec>
+<Private>1</Private>
+<ProcedureBlock>1</ProcedureBlock>
+<ReturnType>%Status</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[
+	if initvalue '= "" {
+		if $Isobject(initvalue) { set tMetadata = initvalue.%Metadata, tObjects = initvalue.%Objects } else { set tMetadata = initvalue, tObjects = pObjects }
+		set tCount = $ListGet(tMetadata), tElements = $Select($Get(%protocol,41)>39:10,1:9), columncount=0
+		for tPtr = 2:tElements:(tCount*tElements + 1) {
+			set tSerial = $List(tMetadata,tPtr,tPtr + 8)
+			if tElements > 9 {
+				set tBstr = $List(tMetadata,tPtr + 9)
+				for tPtr2 = 1:1:$Length(tBstr) {
+					set tSerial = tSerial _ $ListBuild($Ascii(tBstr,tPtr2))
+				}
+			}
+			set tColumn = $List(tSerial), i%columnIndex($$$ucase(tColumn)) = $ListBuild($Increment(tColumnNbr),tColumn)
+			do ..columns.InsertObject($$$oidForm(tSerial))
+			Set columncount=columncount+1
+		}
+		set i%columnCount = columncount
+		Set ptr=0
+		While $listnext(tObjects,ptr,id) {
+			do ..objects.InsertObject($$$oidForm(id))
+		}
+	}
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="print">
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	set tCount = ..columns.Count()
+	for i=1:1:tCount {
+		set tColumn = ..columns.GetAt(i)
+		write tColumn.colName,$Char(9)
+		write tColumn.ODBCType,$Char(9)
+		write tColumn.precision,$Char(9)
+		write tColumn.scale,$Char(9)
+		write tColumn.isNullable,$Char(9)
+		write tColumn.label,$Char(9)
+		write tColumn.tableName,$Char(9)
+		write tColumn.schemaName,$Char(9)
+		write tColumn.qualifier,$Char(9)
+		write tColumn.isAutoIncrement,$Char(9)
+		write tColumn.isCaseSensitive,$Char(9)
+		write tColumn.isCurrency,$Char(9)
+		write tColumn.isReadOnly,$Char(9)
+		write tColumn.isRowVersion,$Char(9)
+		write tColumn.isUnique,$Char(9)
+		write tColumn.isAliased,$Char(9)
+		write tColumn.isExpression,$Char(9)
+		write tColumn.isHidden,$Char(9)
+		write tColumn.isIdentity,$Char(9)
+		write tColumn.isKeyColumn,$Char(9)
+		write tColumn.isRowId,$Char(9)
+		write tColumn.propertyId,$Char(9)
+		write tColumn.clientType,!
+	}
+	set tCount = ..parameters.Count()
+	for i=1:1:tCount {
+		set tParameter = ..parameters.GetAt(i)
+		write tParameter.ODBCType,$Char(9)
+		write tParameter.precision,$Char(9)
+		write tParameter.scale,$Char(9)
+		write tParameter.isNullable,$Char(9)
+		write tParameter.label,$Char(9)
+		write tParameter.clientType,!
+	}
+	write !!,"Objects: ",!!
+	write "Column Name",$Char(9),"Extent",$Char(9),"ExportCall",!
+	write "-----------",$Char(9),"------",$Char(9),"----------",!
+	set tCount = ..objects.Count()
+	#DIM tObject as %ResultSet.MD.ObjectId
+	for i=1:1:tCount {
+		set tObject = ..objects.GetAt(i)
+		write tObject.columnName,?12,$Char(9)
+		write tObject.extentName,$Char(9)
+		write tObject.exportCall,!
+	}
+	quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="printMetaData">
+<FormalSpec>pMetadata:%CacheString</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	set tCount = $List(pMetadata), tElements = $Select($Get(%protocol,41)>39:10,1:9)
+	for tPtr = 2:tElements:(tCount*tElements + 1) {
+		for tPtr2 = tPtr:1:tPtr + 8 { write $List(pMetadata,tPtr2),$Char(9) }
+		if tElements > 9 { set tBstr = $List(pMetadata,tPtr + 9) for tPtr2 = 1:1:$Length(tBstr)-1 { write $Ascii(tBstr,tPtr2),$Char(9) } write $Ascii(tBstr,$Length(tBstr)),! }
+	}
+	quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%Display">
+<Description>
+Display metadata on the current device.</Description>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	write !!,"Columns (SQLRESULTCOL, property 'columns'): ",!!
+	write "Column Name",?13,"Type",?18,"Prec",?23,"Scale",?29,"Null",?34,"Label",?47,"Table",?60,"Schema",?73,"CType",!
+	write "-----------",?13,"----",?18,"----",?23,"-----",?29,"----",?34,"------------",?47,"------------",?60,"------------",?73,"-----",!
+	set tCount = ..columns.Count()
+	for i=1:1:tCount {
+		set tColumn = ..columns.GetAt(i)
+		write $Extract(tColumn.colName,1,12)
+		write ?13,$Justify(tColumn.ODBCType,4,0)
+		write ?18,$Justify(tColumn.precision,4,0)
+		write ?23,$Justify(tColumn.scale,5,0)
+		write ?29,$Justify(tColumn.isNullable,4,0)
+		write ?34,$Extract(tColumn.label,1,12)
+		write ?47,$Extract(tColumn.tableName,1,12)
+		write ?60,$Extract(tColumn.schemaName,1,12)
+		write ?75,$Justify(tColumn.clientType,2)
+		write !
+	}
+	write !!,"Extended Column Info (SQLRESULTCOL) ",!
+	write ?5,"Flags: 1:AutoIncrement,2:CaseSensitive,3:Currency,4:ReadOnly,5:RowVersion,",!
+	write ?5,"       6:Unique,7:Aliased,8:Expression,9:Hidden,10:Identity,11:KeyColumn,",!
+	write ?5,"       12:RowId",!!
+	write "Column Name",?13,"Linked Prop",?35,"Type Class",?57,"Flags",!
+	write "------------",?13,"---------------------",?35,"---------------------",?57,"-----------------------",!
+	set tCount = ..columns.Count()
+	for i=1:1:tCount {
+		set tColumn = ..columns.GetAt(i)
+		write tColumn.colName
+		if $Length(tColumn.colName) > 12 { write ! }
+		set tColumnProperty = tColumn.propertyId
+		write:tColumnProperty'="" ?13,tColumnProperty
+		if $Length(tColumnProperty) > 20 { write ! }
+		write ?57,$Select(tColumn.isAutoIncrement:"Y",1:"N"),","
+		write $Select(tColumn.isCaseSensitive:"Y",1:"N"),","
+		write $Select(tColumn.isCurrency:"Y",1:"N"),","
+		write $Select(tColumn.isReadOnly:"Y",1:"N"),","
+		write $Select(tColumn.isRowVersion:"Y",1:"N"),","
+		write $Select(tColumn.isUnique:"Y",1:"N"),","
+		write $Select(tColumn.isAliased:"Y",1:"N"),","
+		write $Select(tColumn.isExpression:"Y",1:"N"),","
+		write $Select(tColumn.isHidden:"Y",1:"N"),","
+		write $Select(tColumn.isIdentity:"Y",1:"N"),","
+		write $Select(tColumn.isKeyColumn:"Y",1:"N"),","
+		write $Select(tColumn.isRowId:"Y",1:"N"),!
+	}
+
+	write !!,"Statement Parameters (property 'parameters'): ",!!
+	write "Nbr. Type precision scale nullable colName      columntype",!
+	write "---- ---- --------- ----- -------- ------------ ----------",!
+	set tCount = ..parameters.Count()
+	for tPtr = 1:1:tCount {
+		set tParameter = ..parameters.GetAt(tPtr)
+		write ?1,$Justify(tPtr,3)
+		write ?5,$Justify(tParameter.ODBCType,4)
+		write ?10,$Justify(tParameter.precision,6)
+		write ?20,$Justify(tParameter.scale,5)
+		write ?30,tParameter.isNullable
+		write ?35,$Extract(tParameter.colName,1,15)
+		write ?51,tParameter.columnType,!
+	}
+	write !!,"Objects: ",!!
+	write "Col",?4,"Column Name",?16,"Extent",?34,"ExportCall",!
+	write "---",?4,"-----------",?16,"-----------------",?34,"-----------------------------",!
+	set tCount = ..objects.Count()
+	#DIM tObject as %SQL.StatementObject
+	for i=1:1:tCount {
+		set tObject = ..objects.GetAt(i)
+		write $Justify(i,3)
+		write ?4,tObject.columnName
+		if $Length(tObject.columnName) > 12 { write ! }
+		write ?16,tObject.extentName
+		if $Length(tObject.extentName) > 18 { write ! }
+		set tExportCall = $Piece(tObject.exportCall,"(",1)
+		write ?34,$Extract(tExportCall,1,42),$Select($Length(tExportCall)>42:"...",1:""),!
+	}
+	quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="GenerateRowType">
+<Internal>1</Internal>
+<ReturnType>%Library.String</ReturnType>
+<ServerOnly>1</ServerOnly>
+<ReturnTypeParams>MAXLEN=""</ReturnTypeParams>
+<Implementation><![CDATA[
+	set tCount = ..columns.Count()
+	if tCount {
+		set tColumn = ..columns.GetAt(1)
+		set tRowType = "ROW(" _ tColumn.colName _ " " _ $$GetODBCTypeString^%ourODBC(tColumn.ODBCType,tColumn.precision,tColumn.precision,tColumn.scale)
+		for tPtr = 2:1:tCount {
+			set tColumn = ..columns.GetAt(tPtr)
+			set tRowType = tRowType _ "," _ tColumn.colName _ " " _ $$GetODBCTypeString^%ourODBC(tColumn.ODBCType,tColumn.precision,tColumn.precision,tColumn.scale)
+		}
+		set tRowType = tRowType _ ")"
+	}
+	else { set tRowType = "" }
+	quit tRowType
+]]></Implementation>
+</Method>
+</Class>
+
+
+<Class name="%ResultSet.QuerySuper">
+<Description>
+Internal class that defines some common query properties</Description>
+<ClassType>donotuse</ClassType>
+<TimeChanged>66186,77913</TimeChanged>
+<TimeCreated>62602,53953.343153</TimeCreated>
+
+<Parameter name="%info">
+</Parameter>
+
+<Parameter name="%extinfo">
+</Parameter>
+
+<Parameter name="%colinfo">
+</Parameter>
+
+<Property name="%CursorDataerr">
+<Type>%CacheString</Type>
+<MultiDimensional>1</MultiDimensional>
+<Private>1</Private>
+</Property>
+
+<Property name="%CursorDatahstmt">
+<Type>%CacheString</Type>
+<MultiDimensional>1</MultiDimensional>
+<Private>1</Private>
+</Property>
+
+<Property name="%CursorDatahdbc">
+<Type>%CacheString</Type>
+<MultiDimensional>1</MultiDimensional>
+<Private>1</Private>
+</Property>
+
+<Property name="%CursorDataiot">
+<Type>%CacheString</Type>
+<MultiDimensional>1</MultiDimensional>
+<Private>1</Private>
+</Property>
+
+<Property name="%CursorDataparloop">
+<Type>%CacheString</Type>
+<MultiDimensional>1</MultiDimensional>
+<Private>1</Private>
+</Property>
+
+<Property name="%CursorDataparms">
+<Type>%CacheString</Type>
+<MultiDimensional>1</MultiDimensional>
+<Private>1</Private>
+</Property>
+
+<Property name="%CursorDatapdt">
+<Type>%CacheString</Type>
+<MultiDimensional>1</MultiDimensional>
+<Private>1</Private>
+</Property>
+
+<Property name="%CursorDatapl">
+<Type>%CacheString</Type>
+<MultiDimensional>1</MultiDimensional>
+<Private>1</Private>
+</Property>
+
+<Property name="%CursorDataps">
+<Type>%CacheString</Type>
+<MultiDimensional>1</MultiDimensional>
+<Private>1</Private>
+</Property>
+
+<Property name="%CursorDatarlist">
+<Type>%CacheString</Type>
+<MultiDimensional>1</MultiDimensional>
+<Private>1</Private>
+</Property>
+
+<Property name="%CursorDatasql">
+<Type>%CacheString</Type>
+<MultiDimensional>1</MultiDimensional>
+<Private>1</Private>
+</Property>
+
+<Property name="%CursorDataTS">
+<Type>%CacheString</Type>
+<MultiDimensional>1</MultiDimensional>
+<Private>1</Private>
+</Property>
+
+<Property name="%CursorDataTS2">
+<Type>%CacheString</Type>
+<MultiDimensional>1</MultiDimensional>
+<Private>1</Private>
+</Property>
+
+<Method name="Fetch">
+<ProcedureBlock>0</ProcedureBlock>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set AtEnd=1,Row=""
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="FetchRows">
+<ProcedureBlock>0</ProcedureBlock>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set FetchCount=0,AtEnd=1,Row=""
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="GetInfo">
+<ProcedureBlock>0</ProcedureBlock>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set idinfo=..#%info,colinfo=$lg(idinfo,1),parminfo=$lg(idinfo,2),idinfo=$lg(idinfo,3)
+	If $get(extoption) Set extinfo=..#%extinfo
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="GetODBCInfo">
+<ProcedureBlock>0</ProcedureBlock>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set colinfo=..#%colinfo,parminfo=""
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="Close">
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[	Quit $$$OK
+]]></Implementation>
+</Method>
+</Class>
+
+
+<Class name="%ResultSet.Result">
+<Description><![CDATA[
+<p>
+	<b>This class has been superseded.</b> It will remain for compatibility with existing code and samples.
+	We recommend using <class>%SQL.Statement</class>.
+</p>
+Simple resultset object that does not contain any rows, but just contains the result information]]></Description>
+<Super>%IResultSet</Super>
+<System>2</System>
+<TimeChanged>66186,77913</TimeChanged>
+<TimeCreated>60403,54067.773487</TimeCreated>
+
+<Parameter name="COLUMNCOUNT">
+<Default>0</Default>
+</Parameter>
+
+<Method name="%Get">
+<Description><![CDATA[
+Returns the value of the column with the name <var>name</var> in the current row of the result set.
+<p>If <var>name</var> is not a valid column name, this method returns an empty string.]]></Description>
+<CodeMode>expression</CodeMode>
+<FormalSpec>colname:%String=""</FormalSpec>
+<ReturnType>%Library.String</ReturnType>
+<Implementation><![CDATA[""
+]]></Implementation>
+</Method>
+
+<Method name="%GetData">
+<Description><![CDATA[
+Returns the value of column <var>n</var> in the current row of the result set.]]></Description>
+<CodeMode>expression</CodeMode>
+<FormalSpec>colnbr:%Integer=0</FormalSpec>
+<ReturnType>%Library.String</ReturnType>
+<Implementation><![CDATA[""
+]]></Implementation>
+</Method>
+
+<Method name="%Next">
+<Description>
+Advance the result set cursor to the next row. Returns 0 if the cursor is at the end of the 
+result set.</Description>
+<CodeMode>expression</CodeMode>
+<FormalSpec><![CDATA[&sc:%Library.Status=$$$OK]]></FormalSpec>
+<ReturnType>%Library.Integer</ReturnType>
+<Implementation><![CDATA[0
+]]></Implementation>
+</Method>
+
+<Method name="%SendODBC">
+<Description>
+Fetch and send a series of rows for the ODBC/JDBC server. For internal use only.</Description>
+<CodeMode>expression</CodeMode>
+<ReturnType>%Library.Integer</ReturnType>
+<Implementation><![CDATA[..%SQLCODE
+]]></Implementation>
+</Method>
+
+<Method name="%OnNew">
+<FormalSpec>SQLCode:%Integer=0,Message:%String(MAXLEN=256)="",RowCount:%Integer=0</FormalSpec>
+<Private>1</Private>
+<ProcedureBlock>1</ProcedureBlock>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set ..%Metadata=$listbuild(0)
+	Set ..%SQLCODE=SQLCode,..%Message=Message,..%ROWCOUNT=RowCount
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%Prepare">
+<ClassMethod>1</ClassMethod>
+<FormalSpec><![CDATA[queryId:%String(MAXLEN=""),&%returnError:%SYSTEM.Error,%importPackages:%CacheString="",%args...]]></FormalSpec>
+<ReturnType>%Library.IResultSet</ReturnType>
+<Implementation><![CDATA[	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%Display">
+<Description>
+Display the contents of this object on the current device</Description>
+<FormalSpec>pDelimiter:%String=$Char(9)</FormalSpec>
+<ReturnType>%Library.Status</ReturnType>
+<Implementation><![CDATA[
+	if ..%SQLCODE < 0 {
+		write !!,"[SQLCODE: <",..%SQLCODE,">:<",$$sqlcode^%apiSQL(..%SQLCODE),">]",!
+		if ..%Message'="" { write "[%msg: <",..%Message,">]" }
+	}
+	write ..%ROWCOUNT," Row"_$Select(..%ROWCOUNT'=1:"s",1:"")_" Affected"
+	quit $$$OK
+]]></Implementation>
+</Method>
+</Class>
+
+
+<Class name="%ResultSet.SQL">
+<Description><![CDATA[
+<p>
+	<b>This class has been superseded.</b> It will remain for compatibility with existing code and samples.
+	We recommend using <class>%SQL.Statement</class>.
+</p>
+<p>Cached ResultSet based on an SQL statement. This class only supports the SELECT statement.
+</p>]]></Description>
+<Super>%Library.IResultSet,%ResultSet.QuerySuper</Super>
+<System>4</System>
+<TimeChanged>66186,77913</TimeChanged>
+<TimeCreated>60019,60296.987311</TimeCreated>
+
+<Method name="%Prepare">
+<Description><![CDATA[
+%Prepare()
+
+This method is different for each type of result set class. This method has two tasks. First, instantiate the correct
+concrete result set class. For %ResultSet.SQL that means accepting the sql query text in the first parameter and
+looking up the query implementation in the query cache. The second task is to prepare the resulting object for data
+retrieval by the caller which is done in %OnNew. The assumption is that if the query requires any parameters
+then the actual arguments are all literal or public variables.</p>
+
+<p>For %ResultSet.SQL, the arguments are:
+<table cols=2>
+<tr><td width="20%" valign="top"><var>sqlStatement (byref)</var></td><td width="50%" valign="top">the SQL Select statement, either as a counted array or as a $$$NL delimited string;</td></tr>
+<tr><td width="20%" valign="top"><var>returnError (byref)</var></td><td width="20%" valign="top">if an error occurs, this will be an oref of an instance of %SYSTEM.Error. That object has
+a Status property as well as methods to convert that status value into message id's and text
+from other error domains. If no error is detected during %Prepare then returnError is $$$NULLOREF;</td>
+<tr><td width="20%" valign="top"><var>%importPackages</var></td><td width="20%" valign="top">this is a $list of package names to be used to resolve any unqualified names in the SELECT statement.<br>
+For example, SELECT %ID from MyTable<br>If %importPackages contains "Sample" then the schema associated with the Sample package would be used
+to qualify MyTable.</td></tr>
+<tr><td width="20%" valign="top"><var>%args...</var></td><td width="20%" valign="top">variable number of argument values that correspond to '?' parameters contained in the sqlStatement.</td></tr>
+</table></p>
+<p>This method returns an instance of %Library.IResultSet in the generic case. In the case of %ResultSet.SQL, an instance of %ResultSet.SQL is returned.
+<p>This method constructs a SaveSet containing objects that are part of the current %Save() for
+persistent classes or %GetSwizzleObject for serial classes. A queue of objects to be saved or
+serialized is also constructed. Only modified objects are included in the save queue. The value
+(OID or serial value in OID form) of each object is also placed in the SaveSet.</p>
+]]></Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec><![CDATA[&sqlStatement:%String(MAXLEN=""),&returnError:%SYSTEM.Error,%importPackages:%CacheString="",%args...]]></FormalSpec>
+<PublicList>SQLCODE,resultSet,returnStatus</PublicList>
+<ReturnType>%ResultSet.SQL</ReturnType>
+<Implementation><![CDATA[	Quit $$%Prepare^%SYS.ResultSet(.sqlStatement,.returnError,%importPackages,%args...)
+]]></Implementation>
+</Method>
+
+<Method name="%PrepareMetaData">
+<Description><![CDATA[
+<p>%PrepareMetaData is similar to %Prepare except that no result set is instantiated. This
+method returns a %ResultSet.MetaData object. Be aware that the implementation of this
+method might cause the result set to be instantiated but that is up to the result set
+class itself and no result set is actually returned by this method - only metadata.</p><br>
+<table cols=2>
+<tr><td width="20%" valign="top"><var>query</var></td><td width="50%" valign="top">This is the SQL SELECT statement</td></tr>
+<tr><td width="20%" valign="top"><var>returnError</var></td><td width="50%" valign="top">If an error occurs this is returned by reference and is a %SYSTEM.Error object
+with properties set to describe information about the error. %returnError.Status contains the %Status value.</td></tr>
+<tr><td width="20%" valign="top"><var>importPackages</var></td><td width="50%" valign="top">This is a comma delimited list of packages to import. This is only relevant if the result set implementation is
+generated and the query source might include unqualified names. The import packages list is used to resolve package/schema names for
+unqualified names.</td></tr></table>]]></Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec><![CDATA[&txtSQL:%String(MAXLEN=""),&returnError:%SYSTEM.Error="",importPackages:%CacheString=""]]></FormalSpec>
+<ReturnType>%ResultSet.MetaData</ReturnType>
+<Implementation><![CDATA[
+	set clsRS = $$Prepare^%SYS.ResultSet(.txtSQL,.returnError,importPackages,"","",.execute,,,1)
+	If $isobject(clsRS)=1,'$isobject($get(returnError)) { set rsmd = clsRS.%PrepareMetaData("",.returnError,.importPackages) } else { set rsmd = $$$NULLOREF }
+	quit rsmd
+]]></Implementation>
+</Method>
+
+<Method name="%NormalizeObject">
+<CodeMode>expression</CodeMode>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[$$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%ValidateObject">
+<CodeMode>expression</CodeMode>
+<FormalSpec>force:%Integer=0</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[$$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%SerializeObject">
+<CodeMode>expression</CodeMode>
+<FormalSpec><![CDATA[&serial:%Binary,partial:%Integer=0]]></FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[$$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%ConstructClone">
+<CodeMode>expression</CodeMode>
+<FormalSpec><![CDATA[deep:%Boolean=0,&cloned:%String,location:%String]]></FormalSpec>
+<ProcedureBlock>1</ProcedureBlock>
+<ReturnType>%RegisteredObject</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[$$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%AddToSaveSet">
+<Internal>1</Internal>
+<CodeMode>expression</CodeMode>
+<FormalSpec>depth:%Integer=3,refresh:%Integer=0,norecurseon:%String=""</FormalSpec>
+<ProcedureBlock>1</ProcedureBlock>
+<ReturnType>%Status</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[$$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%RemoveFromSaveSet">
+<Internal>1</Internal>
+<CodeMode>expression</CodeMode>
+<ProcedureBlock>1</ProcedureBlock>
+<ReturnType>%Status</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[$$$OK
+]]></Implementation>
+</Method>
+</Class>
+
+
+<Class name="%ResultSet.Static">
+<Description>
+A Static result set is one where the original data source (a result set object) is copied to a process
+private global upon instantiation. Future data requests then use that snapshot instead of the original
+data.</Description>
+<IncludeCode>%msql,%SYS.DBSRV</IncludeCode>
+<Super>%Library.IResultSet</Super>
+<System>4</System>
+<TimeChanged>66186,77913</TimeChanged>
+<TimeCreated>60435,33784.744932</TimeCreated>
+
+<Property name="%storageOffset">
+<Type>%Integer</Type>
+<Private>1</Private>
+</Property>
+
+<Property name="%currentRow">
+<Type>%Integer</Type>
+<Private>1</Private>
+</Property>
+
+<Property name="%columnCount">
+<Type>%Integer</Type>
+<Private>1</Private>
+</Property>
+
+<Property name="%Data">
+<Description>
+%Data is a multidimensional property of column values for the current row. It is subscripted by column
+number.</Description>
+<Type>%String</Type>
+<MultiDimensional>1</MultiDimensional>
+<Private>1</Private>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="%hasStreams">
+<Type>%Integer</Type>
+<InitialExpression>0</InitialExpression>
+<Private>1</Private>
+</Property>
+
+<Property name="%streams">
+<Type>%String</Type>
+<Internal>1</Internal>
+<MultiDimensional>1</MultiDimensional>
+</Property>
+
+<Property name="%streamColumns">
+<Type>%String</Type>
+<Internal>1</Internal>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="%lastRow">
+<Type>%Integer</Type>
+<Private>1</Private>
+</Property>
+
+<Method name="%ROWCOUNTGet">
+<Description>
+%RowCount for a static result set is always the number of rows in the static set.</Description>
+<CodeMode>expression</CodeMode>
+<ReturnType>%Integer</ReturnType>
+<Implementation><![CDATA[..%lastRow
+]]></Implementation>
+</Method>
+
+<Method name="%OnNew">
+<FormalSpec>initvalue:%CacheString,pRuntimeMode:%Integer={$zu(115,5)}</FormalSpec>
+<Private>1</Private>
+<ProcedureBlock>1</ProcedureBlock>
+<PublicList>SQLCODE</PublicList>
+<ReturnType>%Status</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[
+		#; allocate storage
+	new SQLCODE
+	set ..%storageOffset = $Increment($$$tFileRoot)
+	kill $$$tFile(..%storageOffset)
+	set $$$tFile(..%storageOffset) = 0
+		#; Take the snapshot
+	if $isobject(initvalue) {
+			#; Grab the result set data and metadata from the donor result set
+		set lastRow = 0, status = initvalue.%CreateSnapshot(..%storageOffset,.lastRow,.tRuntimeMode,$this), ..%lastRow = lastRow, ..%RuntimeMode = tRuntimeMode,..%Objects = initvalue.%Objects
+			#; This class only recognizes a single node of metadata
+		merge tMetadata = initvalue.%Metadata
+		if $Get(tMetadata) = "" { set tMetadata = tMetadata($Order(tMetadata(""))) }
+		set ..%Metadata = tMetadata
+			#; The result set will only return an error status if something went wrong. Otherwise we can assume that all rows are in the snapshot
+		if $$$ISOK(status) { set ..%columnCount = $List(..%Metadata,1) } else { set ..%SQLCODE = initvalue.%SQLCODE, ..%Message = "error encountered while taking result set snapshot" }
+	}
+	elseif initvalue {
+			#; must be a straight xDBC statement - probably SELECT or a query procedure
+		new %qacn
+		set %qacn = initvalue
+		if $G($$$SPName) '= "" {
+				#; query stored procedure
+			kill %qHandle Merge %qHandle=$$$SPHandle Set %sqlcontext=$$$SPContext If '$isobject(%sqlcontext) { set ..%SQLCODE = -430, ..%Message = "Context object invalid" Goto Error }
+			set ..%columnCount = $Get(%qsc(initvalue,13))
+				#; We'll take runtime mode from the parameter list
+			set ..%RuntimeMode = pRuntimeMode
+			set sc=$classmethod($$$SPClassName,$$$SPName_"Fetch",.%qHandle,.row)
+			while ($$$ISOK(sc))&&(row'="") {
+				set rowPtr = $increment($$$tFile(..%storageOffset)) 
+				for column=1:1:..%columnCount Set:$listdata(row,column) $$$tFile(..%storageOffset,rowPtr,column) = $list(row,column)
+				set sc=$classmethod($$$SPClassName,$$$SPName_"Fetch",.%qHandle,.row)
+			}
+			if $$$ISERR(sc) {  set ..%SQLCODE = -400, ..%Message = "error encountered while taking result set snapshot" }
+			set ..%lastRow = $$$tFile(..%storageOffset)
+			set qrc = $classmethod($$$SPClassName,$$$SPName_"Close",.%qHandle)
+			kill $$$LastPce, $$$FetchStatus,%sqlcontext,$$$SPHandle
+		}
+		else {
+				#; %RuntimeMode should really be the SELECTMODE of the donor select statement but I don't know how to get it.
+				#; Let's assume it is ODBC
+			set ..%RuntimeMode = 1
+				#; probably a select statement
+				#; cq oref should have been defined in Prepare^%SYS.SQLSRV earlier
+			if $G($$$FetchStatus) {
+				do %qsc(%qacn,1).%OnClose() set qrc=SQLCODE  // %OnClose implicitly sets SQLCODE
+				if qrc set ..%SQLCODE = -qrc, ..%Message = "error closing cursor from previous fetch in while taking result set snapshot"
+				kill $$$FetchStatus
+			}
+			new %col	// %col is used in the cached query as the INTO array.  New it here, then it could be set in %Open and FetchRows without needing to be new'd or killed in the cached query
+			set qrc=%qsc(%qacn,1).%Open()	// This Opens the SQL Query
+			if qrc set ..%SQLCODE = -qrc, ..%Message = "error opening cached query object to take result set snapshot"
+			set qrc = %qsc(%qacn,1).FetchRows(..%storageOffset)
+				#; A normal return is qrc = 100 - all other values, including 0, indicate that something is wrong. Of course, 0 should never be returned since we are asking for all rows
+			if qrc = 100 { set ..%columnCount = $Get(%qsc(initvalue,13)), ..%lastRow = $$$tFile(..%storageOffset) } else { set ..%SQLCODE = -qrc, ..%Message = "error encountered while taking result set snapshot" }
+			do %qsc(%qacn,1).%OnClose() set qrc=SQLCODE
+			kill $$$FetchStatus
+		}
+	}
+	else { set ..%SQLCODE = -400, ..%Message = "no current statement or result set to create snapshot from" }
+	set ..%hasStreams = $Find(..%streamColumns,$Char(1))
+		#; always return ok - we want the object. The object state will reflect any status information that the caller may need
+	quit $$$OK
+Error	set $ZTRAP= ""
+	quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%OnClose">
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	if ..%storageOffset { kill $$$tFile(..%storageOffset) }
+	quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%SendRows">
+<ReturnType>%Integer</ReturnType>
+<Implementation><![CDATA[
+	set qrc = 0, from = $$$ReadNext, nrows = $$$ReadNext, to = from + nrows - 1
+		#; get last row request
+	if from = 0 { set from = ..%lastRow, to = from set:'to qrc = 100 }
+	elseif ..%lastRow '> to { set to = ..%lastRow, qrc = 100 }
+	set a = to - from + 1 set:a<0 a = 0
+	set b = from set:qrc=100 b = ..%lastRow
+	set b = $Select(from'>..%lastRow:from,1:..%lastRow)
+	$$$WriteData(b)
+	if to > 0 {
+		#; number of rows processed
+		$$$WriteData(a)
+		for row = from:1:to {
+			set tRow = $Get($$$tFile(..%storageOffset,row)), tPtr = 0
+			for tColumn=1:1 { quit:'$Listnext(tRow,tPtr,tValue)  $$$WriteData(tValue) }
+			if tColumn '> ..%columnCount {
+				for tColumnOv = tColumn:1:..%columnCount {
+					$$$WriteData($Get($$$tFile(..%storageOffset,row,tColumnOv)))
+				}
+			}
+		}
+	}
+	else { $$$WriteData(0) }
+	quit qrc
+]]></Implementation>
+</Method>
+
+<Method name="%SendODBC">
+<Description>
+Fetch and send a series of rows for the ODBC/JDBC server. For internal use only.</Description>
+<ReturnType>%Library.Integer</ReturnType>
+<Implementation><![CDATA[
+	new %row
+		#; process any orphans
+	if ..%NextColumn {	// Should only be TRUE if %protocol<51 or there are stream columns
+		for ptr=..%NextColumn:1:..%columnCount {
+			if '($Ascii(..%streamColumns,ptr)) { set tVal = i%%Data(ptr) } 
+			else { set tVal = $Get(..%streams(..%currentRow,ptr)) if $Isobject(tVal) { set:$Get(%qacn) %qobjhandle(%qacn,tVal) = tVal set tVal = tVal _ "" } }
+			goto:$zobjexport(tVal,7) Done
+		}
+	}
+	set ..%NextColumn = 0
+Fetch2
+	if ..%Next(.sc) {
+		if %protocol>50,'..%hasStreams {
+				// Can't send $name(i%%Data) to $zobjexport, so move it into a public array() and then send the row
+			merge %row=i%%Data
+			quit:$zobjexport($name(%row),56) 0	// Buffer full, SQLCODE=0
+			goto Fetch2	// Get another row to put in this buffer
+		}
+		for ptr=1:1:..%columnCount {
+			set tVal = i%%Data(ptr)
+			if ($Ascii(..%streamColumns,ptr)) && ($Isobject(tVal)) { set:$Get(%qacn) %qobjhandle(%qacn,tVal) = tVal set tVal = tVal _ "" }
+			if $zobjexport(tVal,7) Goto Done
+		}
+		Goto Fetch2
+	}
+	else {	// ..%Next returned FALSE
+		set SQLCODE=100
+		if $d(sc)#2,('sc) { 
+			if SQLCODE=0||(SQLCODE=100) { set SQLCODE=-400,%msg=$$GetErrorText^%apiOBJ(sc) }
+		}
+		QUIT SQLCODE
+	}
+Done set ..%NextColumn=ptr Quit 0
+]]></Implementation>
+</Method>
+
+<Method name="%Next">
+<Description>
+Advance the result set cursor to the next row. Returns 0 if the cursor is at the end of the 
+result set.
+The global structure consists of a base $list with individual nodes for columns. The base $list() can contain zero or more column
+values. Additional column values are stored in the global subscripted by column number and equal to the column value.</Description>
+<FormalSpec><![CDATA[&sc:%Library.Status=$$$OK]]></FormalSpec>
+<ReturnType>%Library.Integer</ReturnType>
+<Implementation><![CDATA[
+	set ..%currentRow = ..%currentRow + 1
+	if ..%currentRow > ..%lastRow Quit 0
+	set tRowPtr = ..%currentRow
+	set tRow = $Get($$$tFile(..%storageOffset,tRowPtr)), tPtr = 0
+	for tColumn=1:1 { quit:'$Listnext(tRow,tPtr,tValue)  set i%%Data(tColumn) = tValue }
+	if tColumn '> ..%columnCount {
+		for tColumnOv = tColumn:1:..%columnCount {
+			set i%%Data(tColumnOv) = $Get($$$tFile(..%storageOffset,tRowPtr,tColumnOv))
+		}
+	}
+	if ..%hasStreams {
+		set tPtr = ..%hasStreams
+		do {
+			set tColumn = tPtr - 1
+			if $Data(..%streams(tRowPtr,tColumn)) { set ..%Data(tColumn) = ..%streams(tRowPtr,tColumn) }
+			set tPtr = $Find(..%streamColumns,$Char(1),tPtr)
+		} while tPtr
+	}
+	quit 1
+]]></Implementation>
+</Method>
+
+<Method name="%Get">
+<Description><![CDATA[
+Returns the value of the column with the name <var>name</var> in the current row of the result set.
+<p>If <var>name</var> is not a valid column name, this method returns an empty string.]]></Description>
+<FormalSpec>colname:%String=""</FormalSpec>
+<ReturnType>%Library.String</ReturnType>
+<Implementation><![CDATA[
+	set tRSMD = ..%GetMetaData()
+	set tCOLUMNNAME = $$$ucase(colname)
+	if $Data(tRSMD.columnIndex(tCOLUMNNAME)) { set rReturnValue = $Get(..%Data($List(tRSMD.columnIndex(tCOLUMNNAME),1))) }
+	else { $$$ThrowPropertyDoesNotExistError(colname) }
+	quit rReturnValue
+]]></Implementation>
+</Method>
+
+<Method name="%GetData">
+<Description><![CDATA[
+Returns the value of column <var>colnbr</var> in the current row of the result set.]]></Description>
+<FormalSpec>colnbr:%Integer=0</FormalSpec>
+<ReturnType>%Library.String</ReturnType>
+<Implementation><![CDATA[
+	if colnbr '> ..%columnCount { set rReturnValue = $Get(..%Data(colnbr)) }
+	else { $$$ThrowPropertyDoesNotExistError("Column #: "_colnbr) }
+	quit rReturnValue
+]]></Implementation>
+</Method>
+
+<Method name="%SetIterator">
+<FormalSpec>pRowNumber:%Library.Integer=0</FormalSpec>
+<ReturnType>%Library.Integer</ReturnType>
+<Implementation><![CDATA[
+	if pRowNumber '> ..%lastRow { set ..%currentRow = pRowNumber } else { set ..%currentRow = ..%lastRow }
+	quit ..%currentRow
+]]></Implementation>
+</Method>
+</Class>
+</Export>

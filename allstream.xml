@@ -1,0 +1,4812 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Export generator="Cache" version="25" zv="Cache for Windows (x86-64) 2018.1.7 (Build 721U)" ts="2025-08-07 11:58:14">
+<Class name="%Stream.FileBinary">
+<Description><![CDATA[
+Stream class that stores binary data in files.
+For example the following code opens a file binary stream, points it at a particular file
+on the filesystem and then reads it in chunks of 32,000 bytes:
+<example>
+Set stream=##class(%Stream.FileBinary).%New()
+Set sc=stream.LinkToFile("c:\myfile.txt")
+While 'stream.AtEnd {
+Set line=stream.Read()
+; Process the chunk here
+}
+</example>]]></Description>
+<ClientDataType>BINARYSTREAM</ClientDataType>
+<IncludeCode>%sySystem,%occStream</IncludeCode>
+<OdbcType>LONGVARBINARY</OdbcType>
+<Super>%Stream.Object</Super>
+<System>2</System>
+<TimeChanged>66186,77914</TimeChanged>
+<TimeCreated>59241,41415</TimeCreated>
+
+<Parameter name="STORAGE">
+<Default>OTHER</Default>
+</Parameter>
+
+<Parameter name="FILEEXT">
+<Default>stream</Default>
+</Parameter>
+
+<Parameter name="OPENREAD">
+<Default>RUK\RAW\</Default>
+</Parameter>
+
+<Parameter name="OPENWRITE">
+<Default>WUNK\RAW\</Default>
+</Parameter>
+
+<Parameter name="OPENAPPEND">
+<Default>AWUK\RAW\</Default>
+</Parameter>
+
+<Parameter name="OPENREADTERM">
+<Default>RSK\RAW\</Default>
+</Parameter>
+
+<Parameter name="GZIP">
+<Default>0</Default>
+</Parameter>
+
+<Method name="%IsNull">
+<CodeMode>expression</CodeMode>
+<ReturnType>%Boolean</ReturnType>
+<Implementation><![CDATA[i%Mode=$$$modeREADNODATA
+]]></Implementation>
+</Method>
+
+<Property name="StoreFile">
+<Description>
+Hold the filename part of the permanent storage location</Description>
+<Type>%String</Type>
+<Internal>1</Internal>
+<Private>1</Private>
+<Transient>1</Transient>
+</Property>
+
+<Method name="IdSet">
+<FormalSpec>id:%String</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	If $select($$$isVMS:id["[",1:id["/"||(id["\")) {
+		Set i%StoreFile=##class(%File).GetFilename(id)
+	} Else {
+		Set i%StoreFile=id
+	}
+	Set i%Id=id
+	Set i%"%%OID"=..%Oid()
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Property name="MakePermLoc">
+<Description>
+If true then when saving this file we need to move it to the default permanent location</Description>
+<Type>%Boolean</Type>
+<InitialExpression>0</InitialExpression>
+<Private>1</Private>
+<Transient>1</Transient>
+</Property>
+
+<Method name="%LocationSet">
+<Description><![CDATA[
+Note that setting the <property>%Location</property> will cause a few things to happen.
+It will delete any temporary file that may have been created. It will not touch any
+permanent file that this object was associated with, if you wish to delete this pre-existing
+permanent file then call <method>Clear</method> passing '1' as the argument before setting
+the %Location. It then marks this object as pointing to a null stream in the new directory
+you specified.]]></Description>
+<FormalSpec>dir:%String</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Do ..Clear(0)
+	Set i%NormalizedDirectory=$S(dir="":"",1:##class(%File).NormalizeDirectory(dir)),i%%Location=dir,i%MakePermLoc=0
+	#; Reset file to the null stream ready for new data in this new directory
+	Set i%TempFile="",..Id=""
+	Set i%Mode=$$$modeREADNODATA,i%AtEnd=1
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Property name="Filename">
+<Description>
+The filename that this stream is currently using</Description>
+<Type>%String</Type>
+<Calculated>1</Calculated>
+<Parameter name="MAXLEN" value="5000"/>
+</Property>
+
+<Method name="FilenameSet">
+<CodeMode>call</CodeMode>
+<FormalSpec>file:%String</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[..LinkToFile(file)
+]]></Implementation>
+</Method>
+
+<Method name="FilenameGet">
+<CodeMode>expression</CodeMode>
+<ReturnType>%String</ReturnType>
+<Implementation><![CDATA[$select((i%Mode=$$$modeREADNOTCHANGED)||(i%Mode=$$$modeWRITEJUSTSAVED):i%NormalizedDirectory_i%StoreFile,(i%Mode=$$$modeREADCHANGED)||(i%Mode=$$$modeWRITE)||(i%TempFile'=""):i%NormalizedDirectory_i%TempFile,1:"")
+]]></Implementation>
+</Method>
+
+<Property name="CanonicalFilename">
+<Description>
+Read only property that returns the canonical filename if the file is open and "" if the file is not open.
+On VMS this will include the file version number</Description>
+<Type>%String</Type>
+<Calculated>1</Calculated>
+<Parameter name="MAXLEN" value="5000"/>
+</Property>
+
+<Method name="CanonicalFilenameGet">
+<CodeMode>expression</CodeMode>
+<ReturnType>%String</ReturnType>
+<Implementation><![CDATA[##class(%File).CanonicalFilename(..Filename)
+]]></Implementation>
+</Method>
+
+<Property name="UseVMSVersion">
+<Description>
+If true then on VMS only do not delete the persistent file before replacing it with the new version. This will
+cause the new version to be written with a new version number and so will keep the old file version present.</Description>
+<Type>%Boolean</Type>
+<InitialExpression>0</InitialExpression>
+<Transient>1</Transient>
+</Property>
+
+<Property name="Mode">
+<Type>%Integer</Type>
+<InitialExpression>0</InitialExpression>
+<Private>1</Private>
+</Property>
+
+<Property name="NormalizedDirectory">
+<Description><![CDATA[
+Normalized form of the directory. This is used for access to the file (as it adds the
+extra '/' if needed), but it stores the <Property>%Location</Property> in the Id as
+this may be a relative path.]]></Description>
+<Type>%String</Type>
+<Private>1</Private>
+<Parameter name="MAXLEN" value="5000"/>
+</Property>
+
+<Property name="TempFile">
+<Description>
+Name of file (without directory) containing temporary stream.</Description>
+<Type>%String</Type>
+<Private>1</Private>
+<Transient>1</Transient>
+<Parameter name="MAXLEN" value="5000"/>
+</Property>
+
+<Property name="CurrFile">
+<Description>
+Full path name of currently opened file. Equal to "" if no file is open.</Description>
+<Type>%String</Type>
+<Private>1</Private>
+<Transient>1</Transient>
+<Parameter name="MAXLEN" value="5000"/>
+</Property>
+
+<Property name="RemoveOnClose">
+<Description>
+If true then remove the permanent file as well as any temp file when this object is closed.
+If you call %Save on a stream where RemoveOnClose is true it will set this to false as if you
+explicitly save the stream you no longer want it to be removed when the object is closed. In order
+to make sure %Save always runs the logic to reset the flag setting this to true 
+causes %IsModified/%ObjectModified to return true.</Description>
+<Type>%Boolean</Type>
+<InitialExpression>0</InitialExpression>
+<Transient>1</Transient>
+</Property>
+
+<Property name="VariableRecord">
+<Description>
+Set to true if this is a variable record format file on VMS</Description>
+<Type>%Boolean</Type>
+<Internal>1</Internal>
+<InitialExpression>0</InitialExpression>
+<Private>1</Private>
+<Transient>1</Transient>
+</Property>
+
+<Property name="Buffer">
+<Description>
+Holds the buffer data when reading variable record format files on VMS</Description>
+<Type>%String</Type>
+<Internal>1</Internal>
+<MultiDimensional>1</MultiDimensional>
+<Private>1</Private>
+<Transient>1</Transient>
+</Property>
+
+<Property name="ReadMode">
+<Description>
+Mode the device is opened in, either with terminators as delimitors or not.</Description>
+<Type>%Integer</Type>
+<InitialExpression>$$$modeREADNORMAL</InitialExpression>
+<Private>1</Private>
+<Transient>1</Transient>
+</Property>
+
+<Property name="ReadSize">
+<Description>
+While reading this holds the file size</Description>
+<Type>%Integer</Type>
+<Transient>1</Transient>
+</Property>
+
+<Property name="LineTerminator">
+<Description><![CDATA[
+For file streams the line will terminate on any of the characters set in the LineTerminator, it does not support
+multi-character line terminators because it uses the Cache file behavior which terminates on any of the characters.
+Updating this in the middle of a file on VMS will rewind the file to the beginning because of the way files work
+on VMS.<br>
+Also for %FileCharacterStream even if you set this when you call <method>WriteLine</method> as the file was opened in 'S'
+mode it will normalize the line terminator as the data is being written, so for example if you set LineTerminator to
+$char(13,10) on Unix systems when you call <method>WriteLine</method> it will only write $char(10) to the file.]]></Description>
+<Type>%String</Type>
+<InitialExpression>$get(^%SYS("Stream","LineTerminator"),$select($$$isUNIX:$char(10),1:$char(13,10)))</InitialExpression>
+<Transient>1</Transient>
+<Parameter name="MAXLEN" value="10"/>
+</Property>
+
+<Method name="LineTerminatorSet">
+<FormalSpec>terminator:%String</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set i%LineTerminator=terminator,i%ReadMode=$$$modeREADNORMAL
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%OnConstructClone">
+<FormalSpec><![CDATA[object:%RegisteredObject,deep:%Boolean=0,&cloned:%String]]></FormalSpec>
+<Private>1</Private>
+<ProcedureBlock>1</ProcedureBlock>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set i%Mode=$$$modeREADNODATA,i%AtEnd=0,i%TempFile="",i%CurrFile="",i%ReadMode=$$$modeREADNORMAL,i%ReadSize=0
+	#; If the existing Id contains the directory information then the clone should be in the same directory and it too needs the directory in the Id
+	If ..Id["/"||(..Id["\") {
+		Set i%TempFile=..NewFileName($select(i%StoreFile[".":$piece(i%StoreFile,".",*),1:""),i%NormalizedDirectory)
+		Set ..Id=i%NormalizedDirectory_i%TempFile
+	} Else {
+		Set ..Id=""
+	}
+	Do:'object.%IsNull() ..CopyFrom(object)
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%OnNew">
+<FormalSpec>initval:%String=""</FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Do ..LineTerminatorSetModified(0)
+	If initval=$char(0) {
+		Set initval=$get(^%SYS("StreamLocation",$namespace)),i%%Location=""
+	} Else {
+		Set i%%Location=initval
+	}
+	If initval="" {
+		Set initval=..DefaultStreamDir(1)
+		Set i%MakePermLoc=1
+	} Else {
+		Set i%MakePermLoc=0
+	}
+	Set i%NormalizedDirectory=$S(initval="":"",1:##class(%File).NormalizeDirectory(initval))
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="DefaultStreamDir">
+<Description>
+Return the default directory to use for streams if none specified</Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>skip:%Boolean=0</FormalSpec>
+<ReturnType>%String</ReturnType>
+<Implementation><![CDATA[
+	If 'skip Set dir=$get(^%SYS("StreamLocation",$namespace))
+	If $get(dir)="" Set dir=$get(^%SYS("TempDir",$namespace))
+	If dir="" Set dir=$get($$$SYSTempDir)
+	Quit dir
+]]></Implementation>
+</Method>
+
+<Method name="%LoadData">
+<FormalSpec>id:%String</FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	#; intialize member variables
+	Set i%AtEnd=0,filename=id
+	#; If the id contains the full path use this
+	If $select($$$isVMS:id["[",1:id["/"||(id["\")) {
+		Set dir=##class(%File).GetDirectory(id),filename=##class(%File).GetFilename(id)
+	} ElseIf i%%Location="" {
+		Set dir=..DefaultStreamDir()
+		If dir'="" Set i%MakePermLoc=0
+	} Else {
+		Set dir=i%%Location
+	}
+	Set i%NormalizedDirectory=$S(dir="":"",1:##class(%File).NormalizeDirectory(dir))
+	
+	If id=""||($$$FileExists(i%NormalizedDirectory_filename)=0) {
+		#; No file stored so it is a null stream
+		Set i%Mode=$$$modeREADNODATA,i%AtEnd=1,i%TempFile=filename
+	} Else {
+		#; Else the file really exists so link to it
+		Set i%Mode=$$$modeREADNOTCHANGED,i%AtEnd=($$$FileSize(i%NormalizedDirectory_filename)=0),i%TempFile=""
+	}
+	Set ..Id=id
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%OnClose">
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	If i%CurrFile'="" Close i%CurrFile
+	If (i%Mode=$$$modeREADCHANGED)||(i%Mode=$$$modeWRITE) If '$$$FileDelete(i%NormalizedDirectory_i%TempFile) Quit $$$ERROR($$$FileCanNotDelete,i%NormalizedDirectory_i%TempFile)
+	If i%RemoveOnClose,i%StoreFile'="" If '$$$FileDelete(i%NormalizedDirectory_i%StoreFile) Quit $$$ERROR($$$FileCanNotDelete,i%NormalizedDirectory_i%StoreFile)
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="Rewind">
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	If i%CurrFile'="" Close i%CurrFile Set i%CurrFile=""
+	Set i%AtEnd=$select(i%Mode=$$$modeREADNODATA:1,1:0)
+	Set i%Mode=$case(i%Mode,$$$modeWRITEJUSTSAVED:$$$modeREADNOTCHANGED,$$$modeWRITE:$$$modeREADCHANGED,:i%Mode)
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="Flush">
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	#; Empty and internal buffer to disk and reopen at end
+	If i%Mode'=$$$modeWRITE Quit $$$OK
+	Do ..Rewind(),..MoveToEnd()
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="SizeGet">
+<Description>
+Return the current size of the data stream. </Description>
+<CodeMode>expression</CodeMode>
+<ReturnType>%Integer</ReturnType>
+<Implementation><![CDATA[..FileBinarySize()
+]]></Implementation>
+</Method>
+
+<Method name="FileBinarySize">
+<Description>
+Return the current size of the file in bytes.</Description>
+<ReturnType>%Integer</ReturnType>
+<Implementation><![CDATA[
+	If (i%Mode=$$$modeWRITE) && (i%CurrFile'="") {
+		Try {
+			Set io=$io
+			Use i%CurrFile
+			Write *-1
+			Set size=$select($$$isVMS:$zpos,1:$$$FileSize(i%CurrFile))
+		} Catch {
+			#; If we get an error someone else closed the file, so report the file size and reset our state
+			Set size=$$$FileSize(i%CurrFile)
+			Set i%CurrFile="",i%Mode=$$$modeREADCHANGED
+		}
+		Use io
+		Quit size
+	}
+	Quit $select(i%Mode=$$$modeREADCHANGED||(i%Mode=$$$modeWRITE):$$$FileSize(i%NormalizedDirectory_i%TempFile),i%Mode=$$$modeREADNOTCHANGED||(i%Mode=$$$modeWRITEJUSTSAVED):$$$FileSize(i%NormalizedDirectory_i%StoreFile),1:0)
+]]></Implementation>
+</Method>
+
+<Method name="LinkToFile">
+<Description><![CDATA[
+This method lets you connect a file stream to a file called <var>filename</var> without
+making a copy of it. If the file does not already exist it will still allow you to link
+to this file, and %IsNull() will return true until you write to this file.
+<EXAMPLE>
+Do object.Image.LinkToFile("\temp\image.jpg")
+Do object.%Save()
+</EXAMPLE>
+The method as its name suggests creates a LINK to an EXISTING 
+file. So this is a 'shared public' file, as it can be shared by 
+several instances of a class, or even several classes. 
+Using the <method>CopyFrom</method> method, on the contrary, creates a 
+'private' image, not sharable by other instances/classes, so 
+these two methods are really different.<p>
+The problems with shared public images are that several instances 
+are all allowed to update and even delete the image, causing 
+problems for other instances.<p>
+For example, if dog #2 has image 'test.gif', I can also 
+assign that image to dog #5 or even person #24 
+If I change the image for dog #5, then the image is changed in 
+place to another image, thus upsetting dog#2 and person#24. 
+If I delete dog#5, the image is also deleted and thus dog#2 
+and person#24 are changed.<p>
+Also note that if there is currently some temporary data in the old stream when the
+<method>LinkToFile</method> is called this temporary data will be removed before the
+stream is linked to this filename.]]></Description>
+<FormalSpec>filename:%String</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	If filename="" Quit $$$ERROR($$$FileNameInvalid,filename)
+	#; Do not allow two objects to open the same file
+	Set filename=$$$FileNormalizeFilename(filename)
+	If ","_$translate($piece($View(-1,$job),"^",3),"*")_","[(","_$zutil(12,filename)_",") Quit $$$ERROR($$$FileAlreadyOpen,filename)
+	If $$$isVMS,filename["::" {
+		Set directory=""
+	} Else {
+		Set directory=##class(%File).GetDirectory(filename,1)
+	}
+	Set fileexists=$$$FileExists(filename)
+	If fileexists {
+		Set atend=($$$FileSize(filename)=0)
+	} ElseIf '$$$FileDirectoryExists(directory) {
+		Quit $$$ERROR($$$DirectoryNameInvalid,directory)
+	}
+	If i%CurrFile'="" Close i%CurrFile Set i%CurrFile=""
+	
+	#; Mode = $$$modeREADCHANGED or $$$modeWRITE: Delete new data
+	If (i%Mode=$$$modeREADCHANGED)||(i%Mode=$$$modeWRITE) {
+		If '$$$FileDelete(i%NormalizedDirectory_i%TempFile) Quit $$$ERROR($$$FileCanNotDelete,i%NormalizedDirectory_i%TempFile)
+	}
+	
+	Set i%MakePermLoc=0,i%NormalizedDirectory=directory
+	#; If linking to a file in expected location just store filename part in %Id, else store full path in id
+	Set location=i%%Location
+	If location="" Set location=..DefaultStreamDir()
+	If directory=##class(%File).NormalizeDirectory(location) {
+		Set filename=##class(%File).GetFilename(filename)
+	}
+	Set ..Id=filename
+	#; If the file does not exist then this is the name of the new file we will create
+	If fileexists=0 {
+		Set i%Mode=$$$modeREADNODATA,i%AtEnd=1,i%TempFile=i%StoreFile
+	} Else {
+		#; Else the stored file is of this name
+		Set i%Mode=$$$modeREADNOTCHANGED,i%TempFile="",i%AtEnd=atend
+	}
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%SaveData">
+<FormalSpec><![CDATA[&sid:%String]]></FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	#; If they save it then we should cancel any remove on close they have defined.
+	Set i%RemoveOnClose=0
+	If i%Mode=$$$modeREADNODATA||(i%Mode=$$$modeREADNOTCHANGED)||(i%Mode=$$$modeWRITEJUSTSAVED) Quit $$$OK
+	
+	#; close file (if open), go to read mode
+	If i%CurrFile'="" Close i%CurrFile Set i%CurrFile=""
+	If i%MakePermLoc,i%Id="" {
+		Set dir=$get(^%SYS("StreamLocation",$namespace),i%NormalizedDirectory)
+		#; Rename so that stored filename remains constant
+		If dir'=i%NormalizedDirectory {
+			If '$$$FileRename(i%NormalizedDirectory_i%TempFile,dir_i%TempFile) {
+				If '$$$FileCopy(i%NormalizedDirectory_i%TempFile,dir_i%TempFile) Quit $$$ERROR($$$FileCanNotRename,i%NormalizedDirectory_i%TempFile)
+				If '$$$FileDelete(i%NormalizedDirectory_i%TempFile) Quit $$$ERROR($$$FileCanNotDelete,i%NormalizedDirectory_i%TempFile)
+			}
+			Set i%NormalizedDirectory=dir,i%MakePermLoc=0
+		}
+		Set ..Id=i%TempFile,i%TempFile=""
+	} ElseIf i%Id'="" {
+		If i%StoreFile'=i%TempFile {
+			If ('$$$isVMS)||('i%UseVMSVersion) {
+				If $$$FileReadOnly(i%NormalizedDirectory_i%StoreFile)||('$$$FileDelete(i%NormalizedDirectory_i%StoreFile)),$$$FileExists(i%NormalizedDirectory_i%StoreFile) Quit $$$ERROR($$$FileCanNotDelete,i%NormalizedDirectory_i%StoreFile)
+			}
+			#; Rename so that stored filename remains constant
+			If '$$$FileRename(i%NormalizedDirectory_i%TempFile,i%NormalizedDirectory_i%StoreFile) {
+				If '$$$FileCopy(i%NormalizedDirectory_i%TempFile,i%NormalizedDirectory_i%StoreFile) Quit $$$ERROR($$$FileCanNotRename,i%NormalizedDirectory_i%TempFile)
+				If '$$$FileDelete(i%NormalizedDirectory_i%TempFile) Quit $$$ERROR($$$FileCanNotDelete,i%NormalizedDirectory_i%TempFile)
+			}
+		}
+	} Else {
+		Set ..Id=i%TempFile,i%TempFile=""
+	}
+	If i%Mode=$$$modeWRITE { Set i%Mode=$$$modeWRITEJUSTSAVED } Else { Set i%Mode=$$$modeREADNOTCHANGED }
+	Set sid = i%Id
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%DeleteData">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>streamvalue:%String,concurrency:%Integer</FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set node = $$$oidPrimary(streamvalue) Quit:(node="") $$$OK
+	If '$select($$$isVMS:node["[",1:node["/"||(node["\")) {
+		Set root=$$$oidSysAd1(streamvalue)
+		If $ascii(root)=0 Set root=$extract(root,2,*),root=$list(root)
+		If root="" Set root=$get(^%SYS("StreamLocation",$namespace))
+		If root="" Set root=$get(^%SYS("TempDir",$namespace),$get($$$SYSTempDir))
+		Set root=$S(root="":"",1:##class(%File).NormalizeDirectory(root))
+		Set node=root_node
+	}
+	If '$$$FileExists(node) Quit $$$OK
+	If $$$FileReadOnly(node)||($$$FileDelete(node)=0) Quit $$$ERROR($$$FileCanNotDelete,node)
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="NewFileName">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>ext:%String="",directory:%String=""</FormalSpec>
+<ReturnType>%String</ReturnType>
+<Implementation><![CDATA[
+	Set ext=$piece($translate(ext,"[]\","///"),"/",*)
+	If ext="" Set ext=..#FILEEXT
+	Quit $translate($zstrip($SYSTEM.Encryption.Base64Encode($system.Encryption.GenCryptRand(10)),">","="), "+/", "ab")_"."_ext
+]]></Implementation>
+</Method>
+
+<Method name="Read">
+<FormalSpec><![CDATA[&len:%Integer=32000,&sc:%Status]]></FormalSpec>
+<ReturnType>%CacheString</ReturnType>
+<Implementation><![CDATA[
+	Set sc=$$$OK,ze=$zerror
+	If i%Mode=$$$modeWRITEJUSTSAVED Set i%Mode=$$$modeREADNOTCHANGED
+	#; test if we've already read to the end, or there is no data
+	If i%AtEnd=1||(i%Mode=$$$modeREADNODATA),i%Mode'=$$$modeWRITE Set len=-1,i%AtEnd=1 Quit ""
+	
+	Set:len>$$$MaxLocalLength len=$$$MaxLocalLength
+	
+	Set io=$io,out=""
+	#; test for end of file
+	Set $ZTRAP="ReadError"
+	
+	#; This will switch to this device and set it up for us
+	If i%Mode=$$$modeWRITE Do ..Rewind()
+	If (i%ReadMode'=$$$modeREADNORMAL)||(i%CurrFile="") {
+		Set sc=..SetupRead($$$modeREADNORMAL) If $$$ISERR(sc) Use io Set $zerror=ze Quit ""
+	}
+	If len=0 Use io Quit ""
+	Use i%CurrFile
+	If i%VariableRecord {
+		Set need=len,node=""
+		While need'=0 {
+			Set node=$order(i%Buffer(node),1,buffer)
+			If node="" {
+				Read buffer If $ZEOF Set $ZE="<ENDOFFILE>" Goto ReadError
+				If $length(buffer)<32700 {
+					Set buffer=buffer_$char(13,10),i%Buffer(1)=buffer
+				} Else {
+					Set i%Buffer(1)=buffer,i%Buffer(2)=$char(13,10)
+				}
+				Set node=1
+			}
+			Set out=out_$extract(buffer,1,need)
+			If need'<$length(buffer) {
+				Kill i%Buffer(node)
+				Set need=need-$length(buffer)
+			} Else {
+				Set i%Buffer(node)=$extract(buffer,need+1,*),need=0
+			}
+		}
+	} Else {
+		Read:len out#len If $zeof Set $ZE="<ENDOFFILE>" Goto ReadError
+	}
+
+	#; If we read less than requested either we are at the end, or we have a surrogate pair
+	#; On VMS try to read the surrogate as no other way to see if we are at the end
+	If $$$isVMS {
+		If $length(out)<len {
+			Read tmp#2
+			If $ZEOF Set $ZE="<ENDOFFILE>" Goto ReadError
+			#; The surrogate pair is kind of one character so just append it to the data read so far
+			Set out=out_tmp
+		}
+	} Else {
+		If $zseek()=i%ReadSize Close i%CurrFile Set i%CurrFile="",i%AtEnd=1
+	}
+	Use io
+	Set len=$length(out),$zerror=ze
+	Quit out
+	
+ReadError Set $ZTRAP=""
+	Use io
+	#; if error (not EOF) close file
+	If i%CurrFile'="" Close i%CurrFile Set i%CurrFile=""
+	If $E($ze,1,11)'="<ENDOFFILE>" Set sc=$$$ERROR($$$CacheError,$zerror)
+	Set i%AtEnd=1,$zerror=ze
+	Set len=$S($L(out)=0:-1,1:$L(out))
+	Quit out
+]]></Implementation>
+</Method>
+
+<Method name="SetupRead">
+<FormalSpec>newMode:%Integer</FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	#; Mode $$$modeWRITE: in middle of Write with no rewind; rewind
+	If i%Mode=$$$modeWRITE Do ..Rewind()
+	
+	#; read data from file; return 0 if no more data
+	Set pos=0,fileexists=1,io=$io
+	Set $ZTRAP="SetupReadError"
+	
+	#; If we are changing read mode, then make a note of the position and force
+	#; it to reopen the file by setting i%CurrFile=""
+	If i%ReadMode'=newMode,i%CurrFile'="" {
+		If $zversion(1)'=1 Use i%CurrFile Set pos=$ZSEEK() Use io
+		Close i%CurrFile Set i%CurrFile=""
+	}
+	
+	#; is the first time we are reading?
+	#; if not changed, read from old file; else read from temp file
+	If i%CurrFile="" {
+		Set filename=i%NormalizedDirectory_$select(i%Mode=$$$modeREADNOTCHANGED:i%StoreFile,1:i%TempFile)
+		#; Do not allow two objects to open the same file
+		If ","_$translate($piece($View(-1,$job),"^",3),"*")_","[(","_$ZU(12,filename)_",") Set len=-1,i%AtEnd=1 Quit $$$ERROR($$$FileAlreadyOpen,filename)
+		Set sc=..OpenDevice(filename,newMode,pos'=0) If $$$ISERR(sc) Quit sc
+		#; Force position to where we left off if doing ReadLine()
+		If pos Use filename:pos
+	}
+	
+	Quit $$$OK
+
+SetupReadError	Set $ZTRAP="" Use io
+	Set len=-1,i%AtEnd=1 
+	Quit $$$ERROR($$$CacheError,$zerror)
+]]></Implementation>
+</Method>
+
+<Method name="Write">
+<FormalSpec>data:%CacheString=""</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	#; Mode '= $$$modeWRITE; clear TempFile; prepare for write
+	If i%Mode=$$$modeWRITEJUSTSAVED {
+		Set sc=..MoveToEnd() If $$$ISERR(sc) Quit sc
+	} ElseIf i%Mode'=$$$modeWRITE {
+		#; Mode = READNODATA or $$$modeREADNOTCHANGED: set up for write: create new file
+		If (i%Mode=$$$modeREADNODATA)||(i%Mode=$$$modeREADNOTCHANGED) Set:i%TempFile="" i%TempFile=..NewFileName($select(i%StoreFile[".":$piece(i%StoreFile,".",*),1:""),i%NormalizedDirectory)
+		If i%CurrFile'="" Close i%CurrFile Set i%CurrFile=""
+		Set i%Mode=$$$modeWRITE
+	}
+	
+	#; write is never at the end
+	Set i%AtEnd=0,sc=$$$OK
+	
+	#; Open the file if this is the first time;
+	If i%CurrFile="" {
+		#; Do not allow two objects to open the same file
+		If ","_$translate($piece($View(-1,$job),"^",3),"*")_","[(","_$ZU(12,i%NormalizedDirectory_i%TempFile)_",") Quit $$$ERROR($$$FileAlreadyOpen,i%NormalizedDirectory_i%TempFile)
+		Set parm=..GetWriteOpenParameter(i%NormalizedDirectory_i%TempFile,$$$modeWRITENORMAL)
+		Set i%CurrFile=i%NormalizedDirectory_i%TempFile
+		Open i%CurrFile:(parm:::/OBUFSIZE=32768:/NOXY=1:/GZIP=..#GZIP):0 Else  Set i%CurrFile="" Quit $$$ERROR($$$FileCanNotOpen,i%NormalizedDirectory_i%TempFile)
+	}
+	
+	#; write data to file
+	Try {
+		Set io=$io
+		Use i%CurrFile
+		#; On VMS it does not like writes of over 35216 and silently truncates the write at this size 
+		If $$$isVMS {
+			For i=1:32000:$length(data) {
+				Write $extract(data,i,i+32000-1)
+			}
+		} Else {
+			Write data
+		}
+		Use io
+	} Catch {
+		Use io
+		Close:i%CurrFile'="" i%CurrFile
+		Set sc=$$$ERROR($$$CacheError,$zerror),i%CurrFile=""
+	}
+	Quit sc
+]]></Implementation>
+</Method>
+
+<Method name="WriteLine">
+<Description><![CDATA[
+Appends the string <var>data</var> along with a line terminator to the stream and advances the 
+current stream position by the number of characters in <var>data</var> plus the line terminator.
+
+<p>Returns a <CLASS>%Status</CLASS> value indicating success or failure.]]></Description>
+<FormalSpec>data:%CacheString=""</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	If $length(data)+$length(i%LineTerminator)>$$$MaxLocalLength {
+		Set sc=..Write(data)
+		If $$$ISOK(sc) Set sc=..Write(i%LineTerminator)
+	} Else {
+		Set sc=..Write(data_i%LineTerminator)
+	}
+	Quit sc
+]]></Implementation>
+</Method>
+
+<Method name="MoveToEnd">
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	#; If no data or in write mode already nothing to do
+	If (i%Mode=$$$modeREADNODATA)||(i%Mode=$$$modeWRITE) Quit $$$OK
+	
+	If i%CurrFile'="" Close i%CurrFile Set i%CurrFile=""
+	#; Need to copy file
+	If i%Mode=$$$modeREADNOTCHANGED||(i%Mode=$$$modeWRITEJUSTSAVED) {
+		Set:i%TempFile="" i%TempFile=..NewFileName($select(i%StoreFile[".":$piece(i%StoreFile,".",*),1:""),i%NormalizedDirectory)
+		If '$$$FileCopy(i%NormalizedDirectory_i%StoreFile,i%NormalizedDirectory_i%TempFile) Quit $$$ERROR($$$FileCanNotCopy,i%NormalizedDirectory_i%StoreFile,i%NormalizedDirectory_i%TempFile)
+	}
+	
+	#; reopen file in append mode
+	If i%TempFile'="" {
+		Set filename=i%NormalizedDirectory_i%TempFile
+		Set parm=..GetWriteOpenParameter(filename,$$$modeWRITEAPPEND)
+		Open filename:(parm:::/OBUFSIZE=32768:/NOXY=1:/GZIP=..#GZIP):0 Else  Quit $$$ERROR($$$FileCanNotOpen,filename)
+		Set i%CurrFile=filename
+	}
+	
+	#; a write is never at the end
+	Set i%Mode=$$$modeWRITE,i%AtEnd=0
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="CopyFrom">
+<FormalSpec>source:%AbstractStream</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Quit:source=$$$NULLOREF $$$ERROR($$$OrefInvalid,"")
+	If $classname(source)'=$classname() Quit ##super(source)
+	If ..%Extends("%Stream.FileCharacter"),$this.TranslateTable'=source.TranslateTable Quit ##super(source)
+	
+	Set sc=$$$OK
+	
+	#; Optimise for copy from one file to another
+	If i%Mode=$$$modeWRITEJUSTSAVED Do ..MoveToEnd()
+	#; Make sure all the data is accessible, also comes out of WRITE mode into READCHANGED
+	Do source.Rewind()
+	Set sourceFile=$S(source.Mode=$$$modeREADNODATA:"",source.Mode=$$$modeREADCHANGED:source.NormalizedDirectory_source.TempFile,source.Mode=$$$modeREADNOTCHANGED||(source.Mode=$$$modeWRITEJUSTSAVED):source.NormalizedDirectory_source.StoreFile)
+	
+	#; If this is replacing the old data we can use a copy
+	If i%Mode'=$$$modeWRITE Do
+	. If i%CurrFile'="" Close i%CurrFile Set i%CurrFile=""
+	. If i%TempFile="" Do
+	. . Set i%TempFile=..NewFileName($select(sourceFile[".":$piece(sourceFile,".",*),1:""),i%NormalizedDirectory)
+	. Else  Do
+	    #; delete old stream location, not really needed but is a good idea
+	. . If $$$FileExists(i%NormalizedDirectory_i%TempFile),'$$$FileDelete(i%NormalizedDirectory_i%TempFile) Set sc=$$$ERROR($$$FileCanNotDelete,i%NormalizedDirectory_i%TempFile)
+	. If $$$ISERR(sc) Quit
+	
+	  #; Copy the data and setup the properties and make sure we are at the end in case we need to append more data
+	. If sourceFile'="" Do
+	. . If '$$$FileCopy(sourceFile,i%NormalizedDirectory_i%TempFile) Set sc=$$$ERROR($$$FileCanNotCopy,sourceFile,i%NormalizedDirectory_i%TempFile) Quit
+	. . Set i%Mode=$$$modeREADCHANGED,i%CurrFile=i%NormalizedDirectory_i%TempFile
+	    #; On Windows if the new file has the read only bit set then unset it
+	. . If $$$isWINDOWS,$zu(140,7,i%CurrFile)#2 Do ##class(%File).SetWriteable(i%CurrFile,0)
+	. . Do ..MoveToEnd()
+
+	#; Else we can copy the data as fast as we can
+	Else  If sourceFile'="" Do
+	. Set io=$IO
+	. Use i%CurrFile Set table=$$$GETIO
+	. Open sourceFile:(..#OPENREAD_"K\"_table_"\":/NOXY=1:/OBUFSIZE=32768:/GZIP=..#GZIP):0 Else  Use io Quit
+	. Set $ZTrap="EndCopyRead",eofmode=$ZU(68,40) Do $ZU(68,40,0)
+	. For  Use sourceFile Read data#32000 Use i%CurrFile Write data
+EndCopyRead	. Set $ZTrap="" Do $ZU(68,40,eofmode)
+	. Close sourceFile Use io
+	. If $E($ze,1,11)'="<ENDOFFILE>" Set sc=$$$ERROR($$$CacheError,$ze)
+	
+	Quit sc
+]]></Implementation>
+</Method>
+
+<Method name="OutputToDevice">
+<FormalSpec><![CDATA[&len:%Integer=-1]]></FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set $ZTrap="OutputError"
+	If i%Mode=$$$modeREADNODATA Set len=-1,i%AtEnd=1 Quit $$$OK
+	If len=0 Quit $$$OK
+	Set io=$io,sc=$$$OK,eofmode=$ZU(68,40),sc=$$$OK
+	Do $ZU(68,40,0)
+	
+	If len=-1 Do
+	#; Note that Rewind turns off WRITE mode so we do not need to test for this, and it closes the file
+	#; and sets i%CurrFile=""
+	. Do ..Rewind()
+	. Set filename=i%NormalizedDirectory_$S(i%Mode=$$$modeREADNOTCHANGED||(i%Mode=$$$modeWRITEJUSTSAVED):i%StoreFile,1:i%TempFile)
+	. Set sc=..OpenDevice(filename,..#OPENREAD,0) If $$$ISERR(sc) Quit
+	. Set $ZTrap="EndOutputRead"
+	. Set len=0
+	. For  Use i%CurrFile Read data#32000 Use io Write data Set len=len+$length(data)
+EndOutputRead	. Set $ZTrap=""
+	. If $E($ze,1,11)'="<ENDOFFILE>" Set sc=$$$ERROR($$$CacheError,$ze) Quit
+	. Do ..Rewind()
+	
+	#; Else we continue outputting from where we left off
+	Else  Do
+	. If i%AtEnd=1 Set len=-1 Quit
+	
+	. Set $ZTRAP="EndOutput2Read"
+	
+	  #; This will switch to this device and set it up for us
+	. If i%Mode=$$$modeWRITE||(i%Mode=$$$modeWRITEJUSTSAVED) Do ..Rewind()
+	. If (i%ReadMode'=$$$modeREADNORMAL)||(i%CurrFile="") Set sc=..SetupRead($$$modeREADNORMAL) If $$$ISERR(sc) Quit
+	
+	. Set written=0
+	. For  Quit:written=len  Use i%CurrFile Read data#$S(len-written<32000:len-written,1:32000) Use io Write data Set written=written+$L(data)
+	. If $zversion(1)'=1 Use i%CurrFile Set:$zseek()=i%ReadSize i%AtEnd=1 Use io 
+	. Set len=written
+	. Quit
+
+EndOutput2Read	. Set $ZTRAP=""
+	#; if error (not EOF) close file
+	. If $E($ze,1,11)'="<ENDOFFILE>" Close i%CurrFile Set i%CurrFile="",i%AtEnd=1,len=-1,sc=$$$ERROR($$$CacheError,$ze) Quit
+	. Set i%AtEnd=1
+	. Set len=written
+	
+	Use io
+	Do $ZU(68,40,eofmode)
+	Quit sc
+OutputError	Do:$G(eofmode)'="" $ZU(68,40,eofmode) Quit $$$ERROR($$$CacheError,$ZE)
+]]></Implementation>
+</Method>
+
+<Method name="Clear">
+<FormalSpec>permanent:%Boolean=1</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	If i%Mode=$$$modeREADNODATA Quit $$$OK
+	
+	#; close file if open
+	If i%CurrFile'="" Close i%CurrFile Set i%CurrFile=""
+	
+	#; Mode = $$$modeREADCHANGED or $$$modeWRITE: Delete new data
+	If (i%Mode=$$$modeREADCHANGED)||(i%Mode=$$$modeWRITE) {
+		If i%TempFile'="" If $$$FileReadOnly(i%NormalizedDirectory_i%TempFile)||($$$FileDelete(i%NormalizedDirectory_i%TempFile)=0) Quit $$$ERROR($$$FileCanNotDelete,i%NormalizedDirectory_i%TempFile)
+	}
+	If permanent {
+		#; File not deleted, assume read only
+		If i%StoreFile'="" {
+			If $$$FileReadOnly(i%NormalizedDirectory_i%StoreFile)||($$$FileDelete(i%NormalizedDirectory_i%StoreFile)=0) Quit $$$ERROR($$$FileCanNotDelete,i%NormalizedDirectory_i%StoreFile)
+			#; If we can reuse the old name do so
+			Set i%TempFile=i%StoreFile
+		}
+		Set i%Mode=$$$modeREADNODATA,i%AtEnd=1
+	} Else {
+		Set i%Mode=$$$modeREADNOTCHANGED,i%AtEnd=1
+	}
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="LastModifiedGet">
+<ReturnType>%TimeStamp</ReturnType>
+<Implementation><![CDATA[
+	Set timestamp=$$$FileDateModified(i%NormalizedDirectory_$S(i%Mode=$$$modeREADCHANGED||(i%Mode=$$$modeWRITE):i%TempFile,1:i%StoreFile))
+	Quit $select(timestamp<1:"",1:$zdt(timestamp,3))
+]]></Implementation>
+</Method>
+
+<Method name="OpenDevice">
+<FormalSpec>filename:%String,mode:%Integer,nocheck:%Boolean=0</FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set i%VariableRecord=0 Kill i%Buffer
+	Set parm = $select(mode=$$$modeREADLINE:..#OPENREADTERM,1:..#OPENREAD)
+	If $$$isVMS,$zutil(140,7,filename,1)="VAR" { Set parm="RK\RAW\",i%VariableRecord=1 }
+	Open filename:(parm::i%LineTerminator:/NOXY=1:/GZIP=..#GZIP):0 Else  Set i%ReadSize=-1,i%AtEnd=1  Quit $$$ERROR($$$FileDoesNotExist,filename)
+	Set i%ReadMode=mode,i%ReadSize=$zutil(140,1,filename),i%CurrFile=filename
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="GetWriteOpenParameter">
+<CodeMode>expression</CodeMode>
+<FormalSpec>filename:%String,mode:%Integer</FormalSpec>
+<Private>1</Private>
+<ReturnType>%String</ReturnType>
+<Implementation><![CDATA[$select(mode=$$$modeWRITEAPPEND:..#OPENAPPEND,1:..#OPENWRITE)
+]]></Implementation>
+</Method>
+
+<Method name="ReadLine">
+<Description><![CDATA[
+Read a line from the line. Note that besides the normal ReadLine arguments this can also be passed a <var>term</var> which
+will return the termintor that completed the line if we read in a whole line.]]></Description>
+<FormalSpec><![CDATA[&len:%Integer=32000,&sc:%Status,&eol:%Boolean,&term:%String]]></FormalSpec>
+<ReturnType>%CacheString</ReturnType>
+<Implementation><![CDATA[
+	Set sc=$$$OK,eol=0,term=""
+	#; test if we've already read to the end, or there is no data
+	If i%AtEnd=1||(i%Mode=$$$modeREADNODATA) Set len=-1 Quit ""
+	
+	Set:len>$$$MaxLocalLength len=$$$MaxLocalLength
+	
+	Set out="",io=$io
+	
+	#; test for end of file
+	Set $ZTRAP="ReadLineError"
+	
+	#; This will switch to this device and set it up for us
+	If i%Mode=$$$modeWRITE||(i%Mode=$$$modeWRITEJUSTSAVED) Do ..Rewind()
+	If (i%ReadMode'=$$$modeREADLINE)||(i%CurrFile="") {
+		Set sc=..SetupRead($$$modeREADLINE)  If $$$ISERR(sc) Quit ""
+	}
+	If len=0 Use io Quit ""
+	Use i%CurrFile
+	If i%VariableRecord {
+		Set need=len,node=""
+		If '$data(i%Buffer,buffer) {
+			Read buffer If $ZEOF Set $ZE="<ENDOFFILE>" Goto ReadLineError
+			Set i%Buffer=buffer
+		}
+		Set out=out_$extract(buffer,1,need)
+		If need'<$length(buffer) {
+			Kill i%Buffer
+			Set eol=1
+		} Else {
+			Set i%Buffer=$extract(buffer,need+1,*)
+		}
+	} Else {
+		Read out#len If $zb'="",i%LineTerminator[$extract($zb) Set eol=1,term=$zb
+		If $ZEOF||('$$$isVMS&&($zseek()=i%ReadSize)) Set $ZE="<ENDOFFILE>" Goto ReadLineError
+	}
+	Use io
+	Set len=$length(out)
+	Quit out
+
+ReadLineError	Set $ZTRAP=""
+	Use io
+	
+	#; if error (not EOF) close file
+	If $extract($zerror,1,11)'="<ENDOFFILE>" Close i%CurrFile Set i%CurrFile="",i%AtEnd=1,len=-1,sc=$$$ERROR($$$CacheError,$zerror) Quit ""
+	
+	#; if at end set AtEnd=1
+	Set i%AtEnd=1
+	
+	#;if we are at the end with no data return -1
+	Set len=$select($length(out)=0:-1,1:$length(out))
+	Quit out
+]]></Implementation>
+</Method>
+
+<Method name="ReadLineIntoStream">
+<FormalSpec><![CDATA[&sc:%Status]]></FormalSpec>
+<ReturnType>%AbstractStream</ReturnType>
+<Implementation><![CDATA[
+	Set sc=$$$OK
+	Set stream=..%New()
+	#; test if we've already read to the end, or there is no data
+	If i%AtEnd=1||(i%Mode=$$$modeREADNODATA) Quit stream
+	
+	Set out=""
+	Set io=$io
+	
+	#; test for end of file
+	Set $ZTRAP="ReadLineError"
+	
+	#; This will switch to this device and set it up for us
+	If i%Mode=$$$modeWRITE||(i%Mode=$$$modeWRITEJUSTSAVED) Do ..Rewind()
+	If (i%ReadMode'=$$$modeREADLINE)||(i%CurrFile="") {
+		Set sc=..SetupRead($$$modeREADLINE) If $$$ISERR(sc) Use io Quit ""
+	}
+	Use i%CurrFile
+	For  { 
+		Read out:0 If $zb=i%LineTerminator Quit
+		If $ZEOF||(($zversion(1)'=1)&&($zseek()=i%ReadSize)) Set $ZE="<ENDOFFILE>" Goto ReadLineError
+		Do stream.Write(out)
+	}
+	Use io
+	Do:out'="" stream.Write(out)
+	
+	Quit stream
+
+ReadLineError	Set $ZTRAP=""
+	Use io
+	
+	#; if error (not EOF) close file
+	If $E($ze,1,11)'="<ENDOFFILE>" Close i%CurrFile Set i%CurrFile="",i%AtEnd=1,len=-1,sc=$$$ERROR($$$CacheError,$zerror) Quit ""
+	
+	#; if at end set AtEnd=1
+	Set i%AtEnd=1
+	Do:out'="" stream.Write(out)
+	Quit stream
+]]></Implementation>
+</Method>
+
+<Method name="%NormalizeObject">
+<CodeMode>expression</CodeMode>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[$$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%ValidateObject">
+<CodeMode>expression</CodeMode>
+<FormalSpec>force:%Integer=0</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[$$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%Exists">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>soid:%ObjectIdentity</FormalSpec>
+<ReturnType>%Boolean</ReturnType>
+<Implementation><![CDATA[
+	Set root=$$$oidSysAd1(soid)
+	If $ascii(root)=0 Set root=$extract(root,2,*),root=$list(root)
+	Set root=$S(root="":$get(^%SYS("StreamLocation",$namespace)),1:##class(%File).NormalizeDirectory(root))
+	Set node = $$$oidPrimary(soid) Quit:(node="") $$$OK
+	Quit $$$FileExists(root_node)
+]]></Implementation>
+</Method>
+
+<Method name="%ObjectModified">
+<ReturnType>%Integer</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[	Quit $select(i%RemoveOnClose:1,1:$case(i%Mode,$$$modeREADNOTCHANGED:0,$$$modeREADNODATA:0,$$$modeWRITEJUSTSAVED:0,:1))
+]]></Implementation>
+</Method>
+
+<Method name="%IsModified">
+<ReturnType>%Integer</ReturnType>
+<Implementation><![CDATA[	Quit $select(i%RemoveOnClose:1,1:$case(i%Mode,$$$modeREADNOTCHANGED:0,$$$modeREADNODATA:0,$$$modeWRITEJUSTSAVED:0,:1))
+]]></Implementation>
+</Method>
+
+<Method name="%ObjectIsNull">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>soid:%ObjectIdentity</FormalSpec>
+<ReturnType>%Boolean</ReturnType>
+<Implementation><![CDATA[
+	If soid=$$$NULLOID Quit 1
+	If $isobject(soid)=1 Quit soid.%IsNull()
+	Set class=$$$oidClassName(soid)
+	If class'="" {
+		Set class=$$$NormalizeClassname(class) If $classname()'=class Quit $classmethod(class,"%ObjectIsNull",soid)
+	}
+	Quit '..%Exists(soid)
+]]></Implementation>
+</Method>
+</Class>
+
+
+<Class name="%Stream.FileBinaryGzip">
+<Super>FileBinary</Super>
+<TimeChanged>66186,77914</TimeChanged>
+<TimeCreated>63110,50844.177748</TimeCreated>
+
+<Parameter name="FILEEXT">
+<Default>stream.gz</Default>
+</Parameter>
+
+<Parameter name="GZIP">
+<Default>1</Default>
+</Parameter>
+
+<Method name="SizeGet">
+<Description>
+Return the current size of the data stream.</Description>
+<ReturnType>%Integer</ReturnType>
+<Implementation><![CDATA[
+	Set file=$select(i%Mode=$$$modeREADCHANGED||(i%Mode=$$$modeWRITE):i%NormalizedDirectory_i%TempFile,i%Mode=$$$modeREADNOTCHANGED||(i%Mode=$$$modeWRITEJUSTSAVED):i%NormalizedDirectory_..Id,1:"")
+	If file="" Quit 0
+	Do ..Rewind()
+	Set size=0,io=$io
+	
+	Set $ztrap="readError"
+	#; This will switch to this device and set it up for us
+	If (..ReadMode'=$$$modeREADNORMAL)||(..CurrFile="") {
+		Set sc=..SetupRead($$$modeREADNORMAL) If $$$ISERR(sc) Use io Quit 0
+	}
+	Use ..CurrFile
+	#; Enable $zeof handling to replace <ENDOFFILE> errors
+	#; Note that $zeof is set as a consequence of read and at EOF
+	#; an empty string is returned
+	Set tEOFMode=$ZU(68,40,1)
+	Do { Read out Set size=size+$length(out) } While '$zeof
+	Set $ztrap="" Do $ZU(68,40,tEOFMode)
+cont	Use io
+	If ..Mode=$$$modeWRITE Set ..Mode=$$$modeREADCHANGED Do ..MoveToEnd() Quit size
+	Do ..Rewind()
+	Quit size
+readError	Set $ztrap=""
+	If $D(tEOFMode) Do $ZU(68,40,tEOFMode)
+	If $zerror'["<READ>" ztrap $zerror
+	Goto cont
+]]></Implementation>
+</Method>
+</Class>
+
+
+<Class name="%Stream.FileCharacter">
+<Description><![CDATA[
+Stream class that stores character data in files.
+For example the following code opens a file binary stream, points it at a particular file
+on the filesystem and then reads it in chunks of 32,000 bytes:
+<example>
+Set stream=##class(%Stream.FileCharacter).%New()
+Set sc=stream.LinkToFile("c:\myfile.txt")
+While 'stream.AtEnd {
+Set line=stream.Read()
+; Process the chunk here
+}
+</example>
+The difference between file character stream and file binary streams is that the character
+stream understands that it is writing character data and this may be subject to characterset
+translation. For example you may wish to utf-8 encode character data being written to the file,
+but with a binary file stream it is just a series of binary data and so this is always read/written
+exactly as it is without and translation. Also the file is written in 'S' mode so for example
+writing cr/lf on a unix system will just append lf as this is the unix line terminator.]]></Description>
+<ClientDataType>CHARACTERSTREAM</ClientDataType>
+<IncludeCode>%DYNAMICDISPATCH</IncludeCode>
+<OdbcType>LONGVARCHAR</OdbcType>
+<Super>%Stream.FileBinary</Super>
+<System>2</System>
+<TimeChanged>66186,77914</TimeChanged>
+<TimeCreated>59241,41415</TimeCreated>
+<MemberSuper>%Library.CacheFileStream,%Library.CacheStream</MemberSuper>
+
+<Parameter name="OPENREAD">
+<Default>RU</Default>
+</Parameter>
+
+<Parameter name="OPENWRITE">
+<Default>WSN</Default>
+</Parameter>
+
+<Parameter name="OPENAPPEND">
+<Default>AWS</Default>
+</Parameter>
+
+<Parameter name="OPENREADTERM">
+<Default>RS</Default>
+</Parameter>
+
+<Property name="StreamFormatWrite">
+<Description>
+The StreamFormatWrite property controls whether file output is in stream or undefined format.
+If StreamFormatWrite is 1 (true), the default on Windows/Unix, the file is written in S (stream) format.
+If StreamFormatWrite is 0 (false), the default on VMS, the file is written in U (Undefined) format.
+For Unix file output, S format converts crlf to lf which can be a problem for MIME
+output such as email. The user can now set messagepart.TextData.StreamFormatWrite=0 
+to keep crlf in text message parts of the mail message.</Description>
+<Type>%Boolean</Type>
+<InitialExpression>'$$$isVMS</InitialExpression>
+<Transient>1</Transient>
+</Property>
+
+<Method name="%Oid">
+<Description>
+Returns the OID of this object.</Description>
+<ReturnType>%ObjectIdentity</ReturnType>
+<Implementation><![CDATA[	Quit $$$oidComposeAd1(i%Id,$classname(),$select(i%OidTranslateTable=0:i%%Location,1:$char(0)_$listbuild(i%%Location,$listbuild("TranslateTable",i%OidTranslateTable))))
+]]></Implementation>
+</Method>
+
+<Property name="TranslateTable">
+<Description><![CDATA[
+The translation table to be used when reading or writing the file.<br>
+Initial value of 0 indicates that the table has not yet been set.<br>
+If the translation table is set after the file has been opened
+then switch the table used for the file.
+If the translation table is set to "", then the "RAW" table is used.]]></Description>
+<Type>%String</Type>
+<InitialExpression>"0"</InitialExpression>
+<Transient>1</Transient>
+</Property>
+
+<Property name="OidTranslateTable">
+<Description>
+Used to create the oid, only defined if user has explicitly set this</Description>
+<Type>%String</Type>
+<Internal>1</Internal>
+<InitialExpression>0</InitialExpression>
+<Private>1</Private>
+<Transient>1</Transient>
+</Property>
+
+<Method name="TranslateTableSet">
+<Description>
+If translation table is set after the file has been opened
+then switch the table used for the file.
+If the translation table is set to "", then the "RAW" table is used.</Description>
+<FormalSpec>table:%String</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	If table="" Set table="RAW"
+	If i%TranslateTable=table Quit $$$OK
+	If table'="RAW",table'=0 {
+		Try {
+			Set x=$zconvert("","O",table)
+		} Catch {
+			Try {
+				Set x=$zconvert("","O",$zconvert(table,"U")),table=$zconvert(table,"U")
+			} Catch {
+				Try {
+					Set x=$zconvert("","O",$zconvert(table,"l")),table=$zconvert(table,"l")
+				} Catch {
+					$$$THROWILLEGALVALUE
+				}
+			}
+		}
+		If i%TranslateTable=table Quit $$$OK
+	}
+	Set i%TranslateTable=table,i%BOM="",i%OidTranslateTable=table
+	If i%TranslateTable="UnicodeLittle" {
+		Set i%BOM=$char(255,254)
+	} ElseIf i%TranslateTable="UnicodeBig" {
+		Set i%BOM=$char(254,255)
+	}
+	If (table'=0) && (i%CurrFile'="") {
+		Set io=$io
+		Use i%CurrFile $$$SETIO(table)
+		Use io
+	}
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Property name="BOM">
+<Description>
+BOM characters that appear at start of file to signify which encoding it is using</Description>
+<Type>%String</Type>
+<Transient>1</Transient>
+</Property>
+
+<Method name="IsFileUnicode">
+<Description>
+Returns true if the file is Unicode.
+This method may only be called after data has been read
+from the file stream.</Description>
+<ReturnType>%Boolean</ReturnType>
+<Implementation><![CDATA[	Quit ($extract(i%TranslateTable,1,7)="Unicode")
+]]></Implementation>
+</Method>
+
+<Method name="OpenDevice">
+<FormalSpec>filename:%String,mode:%Integer,nocheck:%Boolean=0</FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set i%VariableRecord=0 Kill i%Buffer
+	Set parm = $select(mode=$$$modeREADLINE:..#OPENREADTERM,1:..#OPENREAD)
+	If $$$isVMS,$zutil(140,7,filename,1)="VAR" { Set parm=$translate(parm,"U"),i%VariableRecord=1 }
+	If i%TranslateTable=0 Set i%TranslateTable=""
+	If 'nocheck {
+		Set io=$io
+		Set i%BOM=""
+		Open filename:(parm_"K\RAW\"::i%LineTerminator:/NOXY=1:/GZIP=..#GZIP):0 Else  Set i%ReadSize=-1,i%AtEnd=1 Quit $$$ERROR($$$FileDoesNotExist,filename)
+		Try {
+			Use filename Read header#2
+		} Catch {
+			Set header=""
+		}
+		If $extract(header,1,2)=$Char(255,254) Set i%TranslateTable="UnicodeLittle",i%BOM=$char(255,254)
+		If $extract(header,1,2)=$Char(254,255) Set i%TranslateTable="UnicodeBig",i%BOM=$char(254,255)
+		If $extract(header,1,2)=$char(239,187) {
+			Try {
+				Read header#1
+				If header=$char(191) Set i%TranslateTable="UTF8",i%BOM=$char(239,187,191)
+			} Catch {
+			}
+		}
+		If i%BOM'="" {
+			$$$SETIO(i%TranslateTable)
+			Use io
+		} Else {
+			Use io
+			Close filename
+		}
+	}
+	
+	If nocheck||(i%BOM="") {
+		Open filename:(parm_$select(i%TranslateTable'="":"K\"_i%TranslateTable_"\",1:"")::i%LineTerminator:/NOXY=1:/GZIP=..#GZIP):0 Else  Set i%ReadSize=-1,i%AtEnd=1 Quit $$$ERROR($$$FileDoesNotExist,filename)
+	}
+	Set i%ReadMode=mode,i%ReadSize=$zutil(140,1,filename),i%CurrFile=filename
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="GetWriteOpenParameter">
+<FormalSpec>filename:%String,mode:%Integer</FormalSpec>
+<Private>1</Private>
+<ReturnType>%String</ReturnType>
+<Implementation><![CDATA[
+	Set parm=$select(mode=$$$modeWRITEAPPEND:..#OPENAPPEND,1:..#OPENWRITE)
+	
+	If i%TranslateTable=0 Set i%TranslateTable=""
+	If mode'=$$$modeWRITEAPPEND,i%BOM'="" {
+		Set io=$io
+		Open filename:(..#OPENWRITE_"K\RAW\":/NOXY=1:/GZIP=..#GZIP):0 Else  Goto exit
+		Use filename
+		Write i%BOM
+		Use io
+		Close filename
+		Set parm=..#OPENAPPEND
+	}
+	#; On VMS we output in 'U' mode by default as 'S' mode will always append Cr/Lf to the stream
+	If '..StreamFormatWrite Set parm=$translate(parm,"S","U")
+exit	Quit parm_$select(i%TranslateTable'="":"K\"_i%TranslateTable_"\",1:"")
+]]></Implementation>
+</Method>
+
+<Method name="SizeGet">
+<Description>
+Return the current size of the data stream.
+Note this is complicated by having to worry about the translate table used to write the file.
+VMS does not support moving to a position in a file or providing the current position in a file.
+On VMS if a BOM is included at the start of the file it may be included in the size calculated.</Description>
+<ReturnType>%Integer</ReturnType>
+<Implementation><![CDATA[
+	Set file=$select(i%Mode=$$$modeREADCHANGED||(i%Mode=$$$modeWRITE):i%NormalizedDirectory_i%TempFile,i%Mode=$$$modeREADNOTCHANGED||(i%Mode=$$$modeWRITEJUSTSAVED):i%NormalizedDirectory_i%StoreFile,1:"")
+	If file="" Quit 0
+	Set size=..FileBinarySize()
+	If size=0 Quit 0
+	Set noread=(i%TranslateTable=0)
+	If noread Do ..Read(0)
+	Set table=i%TranslateTable
+	#; Fix this to set the default process file system translate table
+	If table="" Set table=$$GetPDefIO^%SYS.NLS(3)
+	If table="UnicodeLittle"||(table="UnicodeBig") Quit size-$length(i%BOM)/2
+	#; Check for translate table is a 1byte to 1char one
+	If table="RAW"||($extract(table,1,$length("Latin"))="Latin")||($extract(table,1,$length("CP"))="CP") Quit size-$length(i%BOM)
+	Set mode=i%Mode
+	Set pos=-(i%CurrFile=""),io=$io
+	#; On VMS we can not determine the file size because we can not goto the current position again
+	#; But if we are at the start of the file we can go back to this, or at the end
+	If mode'=$$$modeWRITE,pos=0 {
+		If $$$isVMS {
+			If 'noread Quit -1
+		} Else {
+			Use file Set pos=$zseek() Use io
+		}
+	}
+	If 'noread Do ..Rewind()
+	Set size=0
+	
+	Set $ztrap="readError"
+	#; This will switch to this device and set it up for us
+	If (i%ReadMode'=$$$modeREADNORMAL)||(i%CurrFile="") {
+		Set sc=..SetupRead($$$modeREADNORMAL) If $$$ISERR(sc) Use io Quit 0
+	}
+	Use ..CurrFile
+	#; Enable $zeof handling to replace <ENDOFFILE> errors
+	#; Note that $zeof is set as a consequence of read and at EOF
+	#; an empty string is returned
+	Set tEOFMode=$ZU(68,40,1)
+	Do { Read out Set size=size+$length(out) } While '$zeof
+	Set $ztrap="" Do $ZU(68,40,tEOFMode)
+cont	Use io
+	If mode=$$$modeWRITE Set i%Mode=$$$modeREADCHANGED Do ..MoveToEnd() Quit size
+	Do ..Rewind()
+	If pos'=-1 {
+		Do ..Read(0)
+		If '$$$isVMS Set io=$io Use file:pos Use io
+	}
+	Quit size
+readError	Set $ztrap=""
+	If $D(tEOFMode) Do $ZU(68,40,tEOFMode)
+	If $zerror'["<READ>" ztrap $zerror
+	Goto cont
+]]></Implementation>
+</Method>
+
+<Method name="%ObjectModified">
+<ReturnType>%Integer</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[	Quit $select(m%LineTerminator:1,1:$case(i%Mode,$$$modeREADNOTCHANGED:0,$$$modeREADNODATA:0,$$$modeWRITEJUSTSAVED:0,:1))
+]]></Implementation>
+</Method>
+
+<Method name="%IsModified">
+<ReturnType>%Integer</ReturnType>
+<Implementation><![CDATA[	Quit $select(m%LineTerminator:1,1:$case(i%Mode,$$$modeREADNOTCHANGED:0,$$$modeREADNODATA:0,$$$modeWRITEJUSTSAVED:0,:1))
+]]></Implementation>
+</Method>
+</Class>
+
+
+<Class name="%Stream.FileCharacterGzip">
+<Super>FileCharacter</Super>
+<TimeChanged>66186,77914</TimeChanged>
+<TimeCreated>63110,50972.750248</TimeCreated>
+
+<Parameter name="FILEEXT">
+<Default>stream.gz</Default>
+</Parameter>
+
+<Parameter name="GZIP">
+<Default>1</Default>
+</Parameter>
+
+<Method name="SizeGet">
+<Description>
+Return the current size of the data stream.</Description>
+<ReturnType>%Integer</ReturnType>
+<Implementation><![CDATA[
+	Set file=$select(i%Mode=$$$modeREADCHANGED||(i%Mode=$$$modeWRITE):i%NormalizedDirectory_i%TempFile,i%Mode=$$$modeREADNOTCHANGED||(i%Mode=$$$modeWRITEJUSTSAVED):i%NormalizedDirectory_..Id,1:"")
+	If file="" Quit 0
+	If ..FileBinarySize()=0 Quit 0
+	Set atstart=(..TranslateTable=0)
+	If atstart Do ..Read(0)
+	Set table=..TranslateTable
+	#; Fix this to set the default process file system translate table
+	If table="" Set table=$$GetPDefIO^%SYS.NLS(3)
+	#; On VMS we can not determine the file size because we can not goto the current position again
+	#; But if we are at the start of the file we can go back to this, or at the end
+	Set mode=..Mode
+	Set io=$io
+	If 'atstart Do ..Rewind()
+	Set size=0
+	
+	Set $ztrap="readError"
+	#; This will switch to this device and set it up for us
+	If (..ReadMode'=$$$modeREADNORMAL)||(..CurrFile="") {
+		Set sc=..SetupRead($$$modeREADNORMAL) If $$$ISERR(sc) Use io Quit 0
+	}
+	Use ..CurrFile
+	#; Enable $zeof handling to replace <ENDOFFILE> errors
+	#; Note that $zeof is set as a consequence of read and at EOF
+	#; an empty string is returned
+	Set tEOFMode=$ZU(68,40,1)
+	Do { Read out Set size=size+$length(out) } While '$zeof
+	Set $ztrap="" Do $ZU(68,40,tEOFMode)
+cont	Use io
+	If mode=$$$modeWRITE Set ..Mode=$$$modeREADCHANGED Do ..MoveToEnd() Quit size
+	Do ..Rewind()
+	Quit size
+readError	Set $ztrap=""
+	If $D(tEOFMode) Do $ZU(68,40,tEOFMode)
+	If $zerror'["<READ>" ztrap $zerror
+	Goto cont
+]]></Implementation>
+</Method>
+</Class>
+
+
+<Class name="%Stream.GblBinCompress">
+<Description>
+Stream class that stores binary data in compressed global nodes</Description>
+<ClientDataType>BINARYSTREAM</ClientDataType>
+<OdbcType>LONGVARBINARY</OdbcType>
+<Super>GblChrCompress</Super>
+<System>2</System>
+<TimeChanged>66186,77914</TimeChanged>
+<TimeCreated>61493,41305.062</TimeCreated>
+</Class>
+
+
+<Class name="%Stream.GblChrCompress">
+<Description>
+Stream class that stores character data in compressed global nodes</Description>
+<Super>GlobalCharacter</Super>
+<System>2</System>
+<TimeChanged>66186,77914</TimeChanged>
+<TimeCreated>61493,40434.515</TimeCreated>
+
+<Method name="%LogicalToStorage">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>val:%String</FormalSpec>
+<Private>1</Private>
+<ReturnType>%String</ReturnType>
+<Implementation><![CDATA[	Quit $System.Util.Compress(val)
+]]></Implementation>
+</Method>
+
+<Method name="%StorageToLogical">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>val:%String</FormalSpec>
+<Private>1</Private>
+<ReturnType>%String</ReturnType>
+<Implementation><![CDATA[	Quit $System.Util.Decompress(val)
+]]></Implementation>
+</Method>
+</Class>
+
+
+<Class name="%Stream.GlobalBinary">
+<Description>
+Stream class that stores binary data in global nodes.
+Note that on a unicode Cache although you can write unicode data into this class and read
+it back out this is not a supported use of this class and the Size property would be incorrect
+in this case as it would be the size in characters rather than the size in bytes.</Description>
+<ClientDataType>BINARYSTREAM</ClientDataType>
+<OdbcType>LONGVARBINARY</OdbcType>
+<Super>%Stream.GlobalCharacter</Super>
+<System>2</System>
+<TimeChanged>66186,77914</TimeChanged>
+<TimeCreated>59689,39798.783742</TimeCreated>
+
+<Storage name="Default">
+<Type>%Library.CacheStorage</Type>
+<DataLocation>^%Stream.GlobalBinaryD</DataLocation>
+<DefaultData>GlobalBinaryDefaultData</DefaultData>
+<IdLocation>^%Stream.GlobalBinaryD</IdLocation>
+<IndexLocation>^%Stream.GlobalBinaryI</IndexLocation>
+<StreamLocation>^%Stream.GlobalBinaryS</StreamLocation>
+<Data name="GlobalBinaryDefaultData">
+<Value name="1">
+<Value>%%CLASSNAME</Value>
+</Value>
+</Data>
+</Storage>
+</Class>
+
+
+<Class name="%Stream.GlobalCharacter">
+<Description>
+Stream class that stores character data in global nodes.</Description>
+<Super>TmpCharacter</Super>
+<System>2</System>
+<TimeChanged>66186,77914</TimeChanged>
+<TimeCreated>59241,41418</TimeCreated>
+
+<Method name="%LoadData">
+<FormalSpec>id:%String</FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set i%Id=id,i%NodeNo=0
+	If i%%Location="" Set i%%Location=$$$streamGlobal
+
+	If id="" {
+		Set i%Mode=$$$modeREADNODATA,i%AtEnd=1,i%IOSize=0,i%MaxNodeNo=0
+	} Else {
+		#; Turn on batch mode so reading stream does not kill the cache
+		Set batch=$zu(68,25,1)
+		Set maxnode="",size=0,location=i%%Location
+		If $data(@location@(id),maxnode)=10 Set maxnode=+$order(^(id,""),-1)
+		#; read size from "0" node, if present, if not calculate it
+		If maxnode'="",'$data(@location@(id,0),size) {
+			Set size=0 For i=1:1:maxnode Set size=size+$length(^(i))
+		}
+		Set i%IOSize=size,i%AtEnd='size,i%Mode=$select(maxnode="":$$$modeREADNODATA,1:$$$modeREADNOTCHANGED),i%MaxNodeNo=+maxnode
+		Do $zu(68,25,batch)
+	}
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%SaveData">
+<FormalSpec><![CDATA[&sid:%String]]></FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	set tStatus = $$$OK, tLocked = 0
+	#; save the stream;
+	Set mode=i%Mode
+	If mode=$$$modeREADNODATA||(mode=$$$modeREADNOTCHANGED)||(mode=$$$modeWRITEJUSTSAVED) Quit $$$OK
+	try {
+		#; Before changing anything we need to remember what the current state is in case of a rollback
+		Kill i%rollback Set i%rollback("Buffer")=i%Buffer,i%rollback("Mode")=mode,i%rollback("MaxNodeNo")=i%MaxNodeNo
+	
+		#; Turn on batch mode so reading stream does not kill the cache
+		Set batch=$zu(68,25,1)
+		If mode=$$$modeWRITE||(mode=$$$modeREADBUFFER) { Set buffer=i%Buffer } Else { Set buffer="" }
+		If i%%Location="" Set i%%Location=$$$streamGlobal
+		Set location=i%%Location
+		#; kill original data and save size in "0" node
+		Set bufferlen=..#BUFFERLEN
+		If bufferlen["," Set bufferlen=+$piece(bufferlen,",",$select($$$MaxLocalLength>32768:2,1:1))
+		Set maxnodeno=i%MaxNodeNo+($length(buffer)+bufferlen-1\bufferlen),killdest=0
+		#; allocate new stream no if needed
+		If $$$streamTmpGlobalDefault {
+			If i%Id="" {
+				Set i%Id=$increment(@location)
+			} Else {
+				Set killdest=1
+			}
+			if i%%Concurrency {
+				set tLockRef = ..%GetLockReference(location,i%Id)
+				if tLockRef '= "" {
+					lock +@(tLockRef):$$$LockTimeout if $test { set tLocked = 1 } else { set tLocked = 0 throw ##class(%Exception.StatusException).CreateFromStatus($$$ERROR($$$LockFailedToAcquireExclusive,tLockRef)) }
+				}
+			}
+			If killdest Do ..BuildValueArray(.subvalue)
+		} ElseIf i%%Concurrency {
+			#; Make sure we unlock when we are done, lock originally taken out in Write method
+			set tLockRef = ..%GetLockReference(location,i%Id)
+			If tLockRef'="" Set tLocked=1
+		}
+		Set sid=i%Id
+		If killdest {
+			If $data(@location@(sid)) Kill ^(sid)
+			Set ^(sid)=maxnodeno,^(sid,0)=i%IOSize
+		} Else {
+			Set @location@(sid)=maxnodeno,^(sid,0)=i%IOSize
+		}
+		Set maxnodeno=i%MaxNodeNo
+		Set movedata=0
+		If i%TempGbl'="",$$$streamTmpGlobalDefault {
+			Set tmpgbl=i%TempGbl,movedata=1
+			For i=1:1:maxnodeno Set @location@(sid,i)=@tmpgbl@(i)
+		}
+		
+		#; If in WRITE mode have to write out buffer, do not update i%MaxNodeNo here as we keep the temporary stream
+		While buffer'="" {
+			Set @location@(sid,$increment(maxnodeno))=..%LogicalToStorage($extract(buffer,1,bufferlen))
+			Set buffer=$extract(buffer,bufferlen+1,*)
+		}
+
+		#; If we did not move the temp data we have to setup so next write will copy the permanent data to temp storage
+		If 'movedata {
+			#; Clear i%TempGbl so permanent location is not removed on stream close
+			Set i%TempGbl=""
+			If mode=$$$modeREADBUFFER {
+				#; Can leave all settings the same
+			} ElseIf mode=$$$modeWRITE {
+				Set i%Mode=$$$modeWRITEJUSTSAVED
+				Set i%NodeNo=0,i%Position=1,i%Buffer="",i%AtEnd=0
+			} Else {
+				#; As data did not move we must update i%MaxNodeNo as this is the max on disk
+				Set i%MaxNodeNo=maxnodeno
+				Set i%Mode=$$$modeREADNOTCHANGED
+			}
+		}
+
+		#; Save the subvalue array for index updates
+		If $data(subvalue) Merge ^||%isc.strv(..%Oid())=subvalue
+
+		if tLocked { lock -@(tLockRef)#"I" }
+		Do $zu(68,25,batch)
+	}
+	catch tException {
+		if $Get(tLocked) { lock -@(tLockRef)#"I" }
+		set tStatus = tException.AsStatus()
+	}
+	Quit tStatus
+]]></Implementation>
+</Method>
+
+<Method name="%DeleteData">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>streamvalue:%String,concurrency:%Integer</FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set root=$$$oidSysAd1(streamvalue)
+	If $ascii(root)=0 Set root=$extract(root,2,*),root=$list(root)
+	If root="" Set root=$$$streamGlobal
+	Set node = $$$oidPrimary(streamvalue)
+	Quit:(root="")||(node="") $$$OK
+	if concurrency {
+		set tLockRef = ..%GetLockReference(root,node)
+		if tLockRef '= "" {
+			lock +@(tLockRef):$$$LockTimeout if $test { set tLocked = 1 } else { quit $$$ERROR($$$LockFailedToAcquireExclusive,tLockRef) }
+		}
+	}
+	else { set tLocked = 0 }
+	Kill @root@(node)
+	if tLocked { lock -@(tLockRef)#"I" }
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="SetupTmpGbl">
+<Description>
+Setup the TempGbl location of where we will write the temp stream to</Description>
+<Private>1</Private>
+<Implementation><![CDATA[
+	If i%%Location="" Set i%%Location=$$$streamGlobal
+	#; Optimistically write temp stream to permanent destination if location of stream is not the default and this is a new stream
+	If i%%Location=$$$streamGlobal||(i%Id'="") {
+		$$$streamInitTmpGlobal
+	} Else {
+		Set batch=$zu(68,25,1)
+		Set i%Id=$increment(@i%%Location),tLocked=1
+		if i%%Concurrency {
+			set tLockRef = ..%GetLockReference(i%%Location,i%Id)
+			if tLockRef '= "" {
+				lock +@(tLockRef):$$$LockTimeout Set tLocked=$test
+			}
+		}
+		If 'tLocked {
+			$$$streamInitTmpGlobal
+		} Else {
+			Set i%TempGbl=$name(@i%%Location@(i%Id))
+			Set journal=$zu(139,2)
+			#; Dummy initial node count and size values to avoid block insert later, these will be overwritten on %Save by real values
+			Set @i%TempGbl=0,^(i%Id,0)=999
+			Do $zu(139,journal)
+		}
+		Do $zu(68,25,batch)
+	}
+]]></Implementation>
+</Method>
+
+<Method name="CopyFromAndSave">
+<FormalSpec>source:%Stream.Object</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set sc=$$$OK
+	
+	#; Optimise for copy from one global to another
+	If $classname(source)=$classname() {
+		Set mode=source.Mode
+		Set sourceGlvn=$S(mode=$$$modeREADCHANGED||(mode=$$$modeWRITE):source.TempGbl,mode=$$$modeREADNODATA||(mode=$$$modeREADBUFFER):"",1:$na(@(source.%Location)@(source.Id)))
+		If mode=$$$modeWRITEJUSTSAVED {
+			Set maxnodeno=+$get(@sourceGlvn)
+		} Else {
+			Set maxnodeno=source.MaxNodeNo
+		}
+		#; Update the last modified timestamp
+		Set i%mLastModified=$ZTimeStamp
+
+		#; Turn on batch mode so reading stream does not kill the cache
+		Set batch=$zu(68,25,1)
+		If i%TempGbl'="" {
+			Set journal=$zu(139,2)
+			Kill @i%TempGbl
+			Do $zu(139,journal)
+			If '$$$streamTmpGlobalDefault,i%%Concurrency {
+				Set lockref = ..%GetLockReference(i%%Location,i%Id)
+				If lockref'="" lock -@(lockref)#"I"
+			}
+			Set i%TempGbl=""
+		}
+
+		#; allocate new stream no if needed
+		If i%Id="" Set i%Id=$increment(@i%%Location)
+		If mode=$$$modeWRITE||(mode=$$$modeREADBUFFER) { Set buffer=source.Buffer } Else { Set buffer="" }
+
+		#; kill original data and save size in "0" node
+		Set bufferlen=..#BUFFERLEN
+		If bufferlen["," Set bufferlen=+$piece(bufferlen,",",$select($$$MaxLocalLength>32768:2,1:1))
+	
+		Set location=i%%Location,id=i%Id
+		If $data(@location@(id)) Kill ^(id)
+		For i=1:1:maxnodeno Set @location@(id,i)=@sourceGlvn@(i)
+		
+		#; If in WRITE mode have to write out buffer
+		While buffer'="" {	
+			Set @location@(id,$increment(maxnodeno))=..%LogicalToStorage($extract(buffer,1,bufferlen))
+			Set buffer=$extract(buffer,bufferlen+1,*)
+		}
+		Set i%MaxNodeNo=maxnodeno
+		Set @location@(id)=maxnodeno,^(id,0)=source.Size
+		Do $zu(68,25,batch)
+		Set i%Mode=$$$modeREADNOTCHANGED,i%IOSize=source.Size,i%Buffer=""
+		#; Now copy the LineTerminator attribute
+		Set ..LineTerminator=source.LineTerminator
+		Set i%"%%OID"=..%Oid()
+
+	} Else {
+		Set sc=..Rewind() Quit:$$$ISERR(sc) sc
+		Set sc=..CopyFrom(source) Quit:$$$ISERR(sc) sc
+		Set sc=..%Save()
+	}
+	
+	Quit sc
+]]></Implementation>
+</Method>
+
+<Method name="%ObjectSizeInternal">
+<Description>
+Return the size of the stream pointed to by soid</Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>soid:%ObjectIdentity</FormalSpec>
+<Private>1</Private>
+<ReturnType>%Integer</ReturnType>
+<Implementation><![CDATA[
+	Set size=0
+	Set location=$$$oidSysAd1(soid)
+	Set:$ascii(location)=0 location=$list($extract(location,2,*))
+	Set:location="" location=$$$streamGlobal
+	Set loctmp=$$$oidPrimary(soid)
+	Quit:location=""||(loctmp="") 0
+		#; read size from "0" node, if present
+	If $data(@location@(loctmp,0),size)#10=0 {
+		Set size=##class(%Stream.Object)$this.%ObjectSizeInternal(soid)
+	}
+	Quit size
+]]></Implementation>
+</Method>
+
+<Method name="%LOBPrefetchInternal">
+<ClassMethod>1</ClassMethod>
+<FormalSpec><![CDATA[soid:%ObjectIdentity,prefetchsize:%Integer,&data:%String]]></FormalSpec>
+<Private>1</Private>
+<ReturnType>%Integer</ReturnType>
+<Implementation><![CDATA[
+	Set location=$$$oidSysAd1(soid)
+	If $ascii(location)=0 { Set location=$list($extract(location,2,*)) }
+	Set:location="" location=$$$streamGlobal
+	Set loctmp=$$$oidPrimary(soid)
+	Quit:location=""||(loctmp="") 0
+		#; read size from "0" node, if present
+	If $data(@location@(loctmp,0),size)#10=0 {
+		Quit ##class(%Stream.Object)$this.%LOBPrefetchInternal(soid,prefetchsize,.data)
+	}
+	Quit:size>prefetchsize 0
+	Set:$data(@location@(loctmp),maxnode)#10=0 maxnode=+$order(^(loctmp,""),-1)
+	For i=1:1:maxnode {
+		Set data=data_@location@(loctmp,i)
+	}
+	Quit $select(size=0:3,..IsCharacter():1,1:2)
+]]></Implementation>
+</Method>
+</Class>
+
+
+<Class name="%Stream.GlobalCharacterSearchable">
+<Description><![CDATA[
+This class provides the ability to index and search a character stream from SQL.
+Specify this class as the type class for a stream property and supply values for
+the <PARAMETER>LANGUAGECLASS</PARAMETER> and (optionally) <PARAMETER>SIMILARITYINDEX</PARAMETER>
+parameters.
+]]></Description>
+<Super>%Stream.GlobalCharacter</Super>
+<System>4</System>
+<TimeChanged>66186,77914</TimeChanged>
+<TimeCreated>60860,31562.875</TimeCreated>
+<MemberSuper>%Library.TextStreamInterface</MemberSuper>
+
+<Property name="container">
+<Type>%ObjectHandle</Type>
+<Transient>1</Transient>
+</Property>
+
+<Property name="containerProperty">
+<Type>%CacheString</Type>
+<Transient>1</Transient>
+</Property>
+
+<Method name="ReadPassage">
+<FormalSpec><![CDATA[&len:%Integer=24576,&sc:%Status]]></FormalSpec>
+<ReturnType>%CacheString</ReturnType>
+<Implementation><![CDATA[
+	Set sc=$$$OK
+	#; Read the next chunk of length len or less.  This may cause one or more buffers to be read.
+	Set atEnd = i%AtEnd
+	Set chunk = ..ReadLine(.len,.sc,.eol)
+	Set bufferPos = i%Position
+	Quit:i%AtEnd=1 chunk
+	
+	#; Find a word delimiter near the end of the chunk
+	Set maxWordLen = 256  // Intention: $$$MaxSubscriptLen
+	Set windowStart = len-(maxWordLen*2) 
+	Quit:windowStart<1 chunk
+	For i=len:-1:windowStart quit:$e(chunk,i)?.(1P,1C)
+	Set:i<windowStart i=$s(len-maxWordLen>(len\2):len-maxWordLen,1:len\2)
+	Set:i<len i%AtEnd=0
+	Set i%Position=bufferPos-len+i
+	Quit $e(chunk,1,i)
+]]></Implementation>
+</Method>
+
+<Method name="BuildValueArray">
+<FormalSpec><![CDATA[&subvalue:%String]]></FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	if ($Isobject(i%container)) && (i%containerProperty '= "" ) && ($Data(@(i%%Location)@(i%Id))) {
+		try {
+			do $method(i%container,i%containerProperty_"BuildValueArray",..%Oid(),.subvalue)
+		} catch {}
+	}
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%SVAExists">
+<Internal>1</Internal>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>pStream:%String(MAXLEN="")</FormalSpec>
+<ReturnType>%Integer</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[
+	set tStreamType = $$$oidClassName(pStream)
+	if tStreamType '= "%Stream.GlobalCharacterSearchable" { quit $classmethod(tStreamType,"ValueArrayExists",.pStream) }
+	set tStreamId = $$$oidPrimary(pStream), tStreamLocation = $$$oidSysAd1(pStream)
+	if pStream = "" { quit 0 }
+	quit $Select($Data(^||%isc.strv(pStream)):1,1:0)
+]]></Implementation>
+</Method>
+
+<Method name="%GetValueArray">
+<Internal>1</Internal>
+<ClassMethod>1</ClassMethod>
+<FormalSpec><![CDATA[pStream:%String(MAXLEN=""),pContainer:%String(MAXLEN="")="",pContainerProperty:%String(MAXLEN="")="",&pValueArray:%String(MAXLEN="")]]></FormalSpec>
+<ReturnType>%Integer</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[
+	set tStreamType = $$$oidClassName(pStream)
+	if tStreamType '= "%Stream.GlobalCharacterSearchable" { quit $classmethod(tStreamType,"ValueArrayExists",.pStream,.pValueArray) }
+	if pStream = "" { quit 0 }
+	if $Data(^||%isc.strv(pStream)) { merge pValueArray = ^||%isc.strv(pStream) quit 1 }
+	elseif (pContainer '= "") && (pContainerProperty '= "" ) {
+		try {
+			if $$$ISOK($classmethod(pContainer,pContainerProperty_"BuildValueArray",..%Open(pStream),.tSubValue)) { set tIndex = 1 } else { set tIndex = 0 }
+		}
+		catch tException { set tIndex = 0 }
+	}
+	else { set tIndex = 0 }
+	quit 0
+]]></Implementation>
+</Method>
+
+<Method name="%PutValueArray">
+<Internal>1</Internal>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>pStream:%String(MAXLEN=""),pContainer:%String(MAXLEN="")="",pContainerProperty:%String(MAXLEN="")=""</FormalSpec>
+<ReturnType>%Integer</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[
+	set tStreamType = $$$oidClassName(pStream)
+	if tStreamType '= "%Stream.GlobalCharacterSearchable" { quit $classmethod(tStreamType,"ValueArrayExists",.pStream,.pValueArray) }
+	if pStream = "" { quit 0 }
+	if (pContainer '= "") && (pContainerProperty '= "" ) {
+		try {
+			if $$$ISOK($classmethod(pContainer,pContainerProperty_"BuildValueArray",..%Open(pStream),.tSubValue)) { set tIndex = 1 } else { set tIndex = 0 }
+		}
+		catch tException { set tIndex = 0 }
+	}
+	else { set tIndex = 0 }
+	if tIndex { merge ^||%isc.strv(pStream) = pValueArray }
+	quit tIndex
+]]></Implementation>
+</Method>
+</Class>
+
+
+<Class name="%Stream.Interface">
+<Super>%RegisteredObject</Super>
+<System>3</System>
+<TimeChanged>66186,77914</TimeChanged>
+<TimeCreated>59296,58361</TimeCreated>
+
+<Method name="ReadStream">
+<ClassMethod>1</ClassMethod>
+<FormalSpec><![CDATA[handle:%Stream.Object,length:%Integer,&msg:%String]]></FormalSpec>
+<ReturnType>%Integer</ReturnType>
+<Implementation><![CDATA[
+	If handle.IsCharacter() {
+		Set x=$zu(96,18,2,"UTF8") 
+		Set rc=..OutputToDevice(handle,length) 
+		Set x=$zu(96,18,2,"RAW") 
+ 	} Else {
+		Set rc=..OutputToDevice(handle,length)
+ 	}
+ 	Quit:rc 0
+ 	Set msg=..GetError(rc)
+ 	Quit 412
+]]></Implementation>
+</Method>
+
+<Method name="ReadStreamAt">
+<ClassMethod>1</ClassMethod>
+<FormalSpec><![CDATA[handle:%Stream.Object,position:%Integer,length:%Integer,&msg:%String]]></FormalSpec>
+<ReturnType>%Integer</ReturnType>
+<Implementation><![CDATA[
+ 	Do handle.MoveTo(position)
+ 	Quit ..ReadStream(handle,length,.msg)
+]]></Implementation>
+</Method>
+
+<Method name="WriteStream">
+<ClassMethod>1</ClassMethod>
+<FormalSpec><![CDATA[handle:%Stream.Object,length:%Integer,&msg:%String]]></FormalSpec>
+<ReturnType>%Integer</ReturnType>
+<Implementation><![CDATA[
+ 	If handle.IsCharacter() {
+		Set x=$zu(96,18,2,"UTF8") 
+		Set rc=..InputFromDevice(handle,.length) 
+		Set x=$zu(96,18,2,"RAW") 
+ 	} Else {
+ 		Set rc=..InputFromDevice(handle,.length)
+ 	}
+ 	Quit:rc 0
+ 	Set msg=..GetError(rc)
+ 	Quit 412
+]]></Implementation>
+</Method>
+
+<Method name="OutputToDevice">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>handle:%Stream.Object,len:%Integer=-1</FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set $ZTrap="Error",sc=$$$OK
+	If len=0 Quit $$$OK
+	If len=-1 {
+		Set sc=handle.Rewind() If $$$ISERR(sc) Quit sc
+		For  Quit:handle.AtEnd  Set rc=$zobjexport(handle.Read(,.sc),5) If $$$ISERR(sc) Quit
+		If $$$ISOK(sc) Set sc=handle.Rewind()
+	} Else {
+		Set total=0
+		For  Quit:handle.AtEnd  Set chunk=$select(len-total>32000:32000,1:len-total) Set rc=$zobjexport(handle.Read(chunk,.sc),5),total=total+chunk Quit:total=len||($$$ISERR(sc))
+	}
+	Quit sc
+Error	Quit $$$ERROR($$$CacheError,$ZE)
+]]></Implementation>
+</Method>
+
+<Method name="InputFromDevice">
+<ClassMethod>1</ClassMethod>
+<FormalSpec><![CDATA[handle:%Stream.Object,&len:%Integer=0]]></FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set $Ztrap="Error",sc=$$$OK
+	If len=0 Quit handle.Write("")
+	For  Set data=$zobjexport($select(len>32000:32000,1:len),13) Set sc=handle.Write(data),len=len-$length(data) Quit:len=0||($$$ISERR(sc))
+	If len'=0 Set sc=$select($$$ISOK(sc):$$$ERROR($$$FileDoesNotExist),1:sc)
+	Quit sc
+Error	Quit $$$ERROR($$$CacheError,$ZE)
+]]></Implementation>
+</Method>
+
+<Method name="AppendFromDevice">
+<ClassMethod>1</ClassMethod>
+<FormalSpec><![CDATA[&handle:%Stream.Object,len:%Integer,&written:%Integer]]></FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set $Ztrap="Error",sc=$$$OK
+	Set written=0
+	For  Set data=$zobjexport($select(len>32000:32000,1:len),13) Set sc=handle.Write(data) Set len=len-$length(data),written=written+$length(data) Quit:len=0||($$$ISERR(sc))
+	If len'=0 Set sc=$select($$$ISOK(sc):$$$ERROR($$$FileDoesNotExist),1:sc)
+	Quit sc
+Error  Quit $$$ERROR($$$CacheError,$ZE)
+]]></Implementation>
+</Method>
+
+<Method name="CopyFrom">
+<ClassMethod>1</ClassMethod>
+<FormalSpec><![CDATA[source:%Stream.Object,&target:%Stream.Object,offset:%Integer,length:%Integer]]></FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Quit:source=$$$NULLOREF $$$ERR($$$OrefInvalid)	
+	Set sc=$$$OK
+	If offset>source.Size {
+		Quit $$$OK
+	}
+	If source.IsCharacter() {
+		Set target=##class(%GlobalCharacterStream).%New()
+	} Else {
+		Set target=##class(%GlobalBinaryStream).%New()
+	}
+	If length>source.Size {
+		Set length=source.Size
+	}
+	Do source.MoveTo(offset)
+	While (length>0) {
+		Quit:(source.AtEnd)
+		If (length>32000) { Set len=32000,length=length-32000 } Else { Set len=length,length=0 }
+		Set data=source.Read(len,.sc) If $$$ISERR(sc) Quit
+		Set sc=target.Write(data) If $$$ISERR(sc) Quit
+	}	
+	Quit sc
+]]></Implementation>
+</Method>
+
+<Method name="Truncate">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>source:%Stream.Object,length:%Integer</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Quit:source=$$$NULLOREF $$$ERR($$$OrefInvalid)	
+	Set sc=$$$OK
+	Quit:length>source.Size 0
+	If source.IsCharacter() {
+		Set temp=##class(%GlobalCharacterStream).%New()
+	} Else {
+		Set temp=##class(%GlobalBinaryStream).%New()
+	}
+	Do source.Rewind()
+	While (length>0) {
+		Quit:(source.AtEnd)
+		If (length>32000) { Set len=32000,length=length-32000 } Else { Set len=length,length=0 }
+		Set data=source.Read(len,.sc) If $$$ISERR(sc) Quit
+		Set sc=temp.Write(data) If $$$ISERR(sc) Quit
+	}
+	Goto:$$$ISERR(sc) Error
+	Set sc=source.CopyFrom(temp)
+	Goto:$$$ISERR(sc) Error
+	Do source.Rewind()
+	Set sc=source.%Save() If $$$ISERR(sc) Goto Error
+	Quit 0
+Error
+ 	Set msg=..GetError(sc)
+ 	Quit 412
+]]></Implementation>
+</Method>
+
+<Method name="SetBytesAt">
+<ClassMethod>1</ClassMethod>
+<FormalSpec><![CDATA[&source:%Stream.Object,offset:%Integer,length:%Integer,&written:%Integer]]></FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set rc=..CopyFrom(source,.target,0,offset)
+	Goto:$$$ISERR(rc) Error
+	Set rc=..AppendFromDevice(.target,length,.written)
+	Goto:$$$ISERR(rc) Error
+	If written<source.Size {
+		Set offset=offset+written+1
+		Do source.MoveTo(offset)
+	}
+	Set sc=$$$OK
+	For  Quit:(source.AtEnd)||($$$ISERR(rc))  Set len=32000,rc=target.Write(source.Read(len,.sc)) If $$$ISERR(sc) Set rc=sc Quit
+	If $$$ISERR(rc) Goto Error
+	Set rc=source.CopyFrom(target)
+	Goto:$$$ISERR(rc) Error
+	Set rc=source.%Save() If $$$ISERR(rc) Goto Error
+	Set rc=source.Rewind() If $$$ISERR(rc) Goto Error
+	Quit 0
+Error
+ 	Set msg=..GetError(rc)
+	Quit 412
+]]></Implementation>
+</Method>
+
+<Method name="GetError">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>rc:%Status</FormalSpec>
+<Private>1</Private>
+<ReturnType>%String</ReturnType>
+<Implementation><![CDATA[
+	Set msg=$$DecomposeStatus^%apiOBJ(rc,.msg) 
+ 	Set:msg msg=msg(1)
+ 	Quit msg
+]]></Implementation>
+</Method>
+
+<Method name="CopyFromFileStream">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>source:%Stream.FileBinary,dest:%Stream.Object</FormalSpec>
+<Implementation><![CDATA[
+	do source.%Save()
+	set filename = source.Filename
+	set source = ##class(%Stream.FileCharacter).%New()
+	do source.LinkToFile(filename)
+	do dest.CopyFrom(source)
+	do source.Clear()
+]]></Implementation>
+</Method>
+</Class>
+
+
+<Class name="%Stream.MethodGenerator">
+<Description>
+Provided by the object based method generator so you have a stream to write
+the code to and to set the type of code.</Description>
+<Super>%Stream.GlobalCharacter</Super>
+<System>2</System>
+<TimeChanged>66186,77914</TimeChanged>
+<TimeCreated>59241,41415</TimeCreated>
+
+<Property name="CodeMode">
+<Description><![CDATA[
+Specified the type of code this stream represents. This is one of<ul>
+<li><b>code</b> : A block of code, this is the default value</li>
+<li><b>expression</b> : An expression</li>
+<li><b>call</b> : A call to another routine</li></ul>]]></Description>
+<Type>%String</Type>
+<InitialExpression>"code"</InitialExpression>
+<Parameter name="VALUELIST" value=",call,code,expression,"/>
+</Property>
+
+<Property name="Language">
+<Type>%String</Type>
+<InitialExpression>"cache"</InitialExpression>
+<Parameter name="VALUELIST" value=",cache,basic,java,tsql,javascript,mvbasic,"/>
+</Property>
+
+<Storage name="Custom">
+<Type>%Library.CompleteCustomStorage</Type>
+</Storage>
+</Class>
+
+
+<Class name="%Stream.NullBinary">
+<Description>
+This is a null binary stream, so although you can write to it the length will always be
+zero bytes.</Description>
+<ClientDataType>BINARYSTREAM</ClientDataType>
+<OdbcType>LONGVARBINARY</OdbcType>
+<ProcedureBlock>0</ProcedureBlock>
+<Super>%AbstractStream</Super>
+<System>3</System>
+<TimeChanged>66186,77914</TimeChanged>
+<TimeCreated>59241,41418</TimeCreated>
+
+<Method name="Read">
+<FormalSpec><![CDATA[&len:%Integer=32000,&sc:%Status]]></FormalSpec>
+<ReturnType>%Binary</ReturnType>
+<Implementation><![CDATA[
+	Set len=-1,sc=$$$OK
+	Quit ""
+]]></Implementation>
+</Method>
+
+<Method name="Write">
+<CodeMode>expression</CodeMode>
+<FormalSpec>data:%Binary=""</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[$$$OK
+]]></Implementation>
+</Method>
+
+<Method name="WriteLine">
+<CodeMode>expression</CodeMode>
+<FormalSpec>data:%Binary=""</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[$$$OK
+]]></Implementation>
+</Method>
+
+<Method name="ReadLine">
+<FormalSpec><![CDATA[&len:%Integer=32000,&sc:%Status,&eol:%Boolean]]></FormalSpec>
+<ReturnType>%Binary</ReturnType>
+<Implementation><![CDATA[
+	Set len=-1,sc=$$$OK,eol=0
+	Quit ""
+]]></Implementation>
+</Method>
+
+<Method name="MoveToEnd">
+<CodeMode>expression</CodeMode>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[$$$OK
+]]></Implementation>
+</Method>
+
+<Method name="SizeGet">
+<CodeMode>expression</CodeMode>
+<ReturnType>%Integer</ReturnType>
+<Implementation><![CDATA[0
+]]></Implementation>
+</Method>
+
+<Method name="IsNull">
+<CodeMode>expression</CodeMode>
+<ReturnType>%Boolean</ReturnType>
+<Implementation><![CDATA[1
+]]></Implementation>
+</Method>
+
+<Method name="SaveStream">
+<CodeMode>expression</CodeMode>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[$$$OK
+]]></Implementation>
+</Method>
+</Class>
+
+
+<Class name="%Stream.NullCharacter">
+<Description>
+This is a null character stream, so although you can write to it the length will always be
+zero bytes.</Description>
+<ClientDataType>CHARACTERSTREAM</ClientDataType>
+<OdbcType>LONGVARCHAR</OdbcType>
+<ProcedureBlock>0</ProcedureBlock>
+<Super>%AbstractStream</Super>
+<System>3</System>
+<TimeChanged>66186,77914</TimeChanged>
+<TimeCreated>59241,41418</TimeCreated>
+
+<Method name="Read">
+<FormalSpec><![CDATA[&len:%Integer=32000,&sc:%Status]]></FormalSpec>
+<ReturnType>%String</ReturnType>
+<Implementation><![CDATA[
+	Set len=-1,sc=$$$OK
+	Quit ""
+]]></Implementation>
+</Method>
+
+<Method name="WriteLine">
+<CodeMode>expression</CodeMode>
+<FormalSpec>data:%String=""</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[$$$OK
+]]></Implementation>
+</Method>
+
+<Method name="ReadLine">
+<FormalSpec><![CDATA[&len:%Integer=32000,&sc:%Status,&eol:%Boolean]]></FormalSpec>
+<ReturnType>%String</ReturnType>
+<Implementation><![CDATA[
+	Set len=-1,sc=$$$OK,eol=0
+	Quit ""
+]]></Implementation>
+</Method>
+
+<Method name="Write">
+<CodeMode>expression</CodeMode>
+<FormalSpec>data:%String=""</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[$$$OK
+]]></Implementation>
+</Method>
+
+<Method name="MoveToEnd">
+<CodeMode>expression</CodeMode>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[$$$OK
+]]></Implementation>
+</Method>
+
+<Method name="SizeGet">
+<CodeMode>expression</CodeMode>
+<ReturnType>%Integer</ReturnType>
+<Implementation><![CDATA[0
+]]></Implementation>
+</Method>
+
+<Method name="LineTerminatorGet">
+<CodeMode>expression</CodeMode>
+<ReturnType>%String</ReturnType>
+<Implementation><![CDATA[$char(13,10)
+]]></Implementation>
+</Method>
+
+<Method name="LineTerminatorSet">
+<FormalSpec>terminator:%String</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="IsNull">
+<CodeMode>expression</CodeMode>
+<ReturnType>%Boolean</ReturnType>
+<Implementation><![CDATA[1
+]]></Implementation>
+</Method>
+
+<Method name="SaveStream">
+<CodeMode>expression</CodeMode>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[$$$OK
+]]></Implementation>
+</Method>
+</Class>
+
+
+<Class name="%Stream.Object">
+<Description><![CDATA[
+The <CLASS>%Stream.Object</CLASS> class provides the basic mechanism by 
+which stream objects are stored to and retrieved from a database. 
+
+<p>A stream represents an arbitrary array of characters (or bytes) and 
+a current position. The basic stream interface provides the ability to 
+read data from a stream, write data to the stream, and rewind the 
+current position to the beginning of the stream.
+
+<p>Within <i>Cach&eacute;</i> streams are used to create large (greater than 32K)
+object attributes.]]></Description>
+<Abstract>1</Abstract>
+<ClassType>stream</ClassType>
+<Super>%Library.RegisteredObject</Super>
+<System>2</System>
+<TimeChanged>66186,77914</TimeChanged>
+<TimeCreated>59241,41418</TimeCreated>
+<MemberSuper>%Library.CacheStream</MemberSuper>
+
+<Parameter name="DEFAULTCONCURRENCY">
+<Default>$zu(115,10)</Default>
+</Parameter>
+
+<Property name="%Concurrency">
+<Type>%CacheString</Type>
+<InitialExpression>$zu(115,10)</InitialExpression>
+<Private>1</Private>
+<Transient>1</Transient>
+</Property>
+
+<Property name="AtEnd">
+<Description><![CDATA[
+The <var>AtEnd</var> property is set to true (1) when, during a read, 
+a stream has reached the end of its data source.]]></Description>
+<Type>%Boolean</Type>
+<InitialExpression>1</InitialExpression>
+</Property>
+
+<Property name="Id">
+<Description><![CDATA[
+<var>Id</var> is the unique identifier for a stream within the <var>%Location</var>.]]></Description>
+<Type>%String</Type>
+</Property>
+
+<Property name="LastModified">
+<Description><![CDATA[
+<var>LastModified</var> is a read-only property containing the <class>%TimeStamp</class> of
+the last modification to this stream. If the stream is null then it will report "".]]></Description>
+<Type>%TimeStamp</Type>
+<Calculated>1</Calculated>
+</Property>
+
+<Property name="%Location">
+<Description><![CDATA[
+<var>%Location</var> is place where stream data is stored. For global streams this will
+be a global reference. For file streams it may be a directory. This is not the location
+of this specific stream, but the root location of what may be multiple streams.]]></Description>
+<Type>%String</Type>
+<Parameter name="MAXLEN" value="1024"/>
+</Property>
+
+<Method name="%LocationSet">
+<FormalSpec>val:%String</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Do ..Clear()
+	Set i%%Location=val,i%Id=""
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Property name="%Locked">
+<Description>
+%Locked is an integer that indicates whether or not the object is currently locked.</Description>
+<Type>%Integer</Type>
+<Internal>1</Internal>
+<InitialExpression>0</InitialExpression>
+<Private>1</Private>
+<Transient>1</Transient>
+</Property>
+
+<Property name="%LockRef">
+<Description><![CDATA[
+%LockRef is the global reference used for locking this stream object. This value is generated by calling
+%GetLockRef(<var>Location</var>,<var>Id</var>) where <var>Location</var> is the value of the
+%Location property and <var>Id</var> is the value of the Id property.
+If this value is null then no locks are taken out. All retained locks are
+shared locks. Exclusive locks are acquired and released in %Save and in %Delete.
+%LockRef must be set in order for any locking to occur. This property is not
+set typically until the stream is locked.]]></Description>
+<Type>%CacheString</Type>
+<Internal>1</Internal>
+<Private>1</Private>
+<Transient>1</Transient>
+</Property>
+
+<Property name="Size">
+<Description><![CDATA[
+<var>Size</var> is a read-only property containing the current size of the stream (in bytes 
+for a binary stream and characters for a character stream).
+
+<p>If a specific stream implementation cannot determine the size of the stream then 
+<var>Size</var> will be equal to -1.<br>
+VMS does not support moving to a position in a file or providing the current position in a file.
+On VMS if a BOM is included at the start of the file it may be included in the size calculated.]]></Description>
+<Type>%Integer</Type>
+<Calculated>1</Calculated>
+</Property>
+
+<Method name="IsCharacter">
+<Description>
+Return true if this is a character stream and false if it is a binary stream.</Description>
+<ClassMethod>1</ClassMethod>
+<CodeMode>generator</CodeMode>
+<ReturnType>%String</ReturnType>
+<Implementation><![CDATA[
+	Set %codemode=$$$cMETHCODEMODEEXPRESSION
+	$$$comClassKeyGetLvar(odbctype,%class,$$$cCLASSodbctype)
+	Set %code=(odbctype="LONGVARCHAR")
+	If odbctype'="LONGVARCHAR",odbctype'="LONGVARBINARY" Quit $$$OK
+	#; Set the correct returntype/argument type for Read/Write methods based on ODBCtype
+	$$$comMemberKeySet(%class,$$$cCLASSmethod,"Read",$$$cMETHreturntype,$select(%code:"%Library.String",1:"%Library.Binary"))
+	$$$comMemberKeySet(%class,$$$cCLASSmethod,"ReadLine",$$$cMETHreturntype,$select(%code:"%Library.String",1:"%Library.Binary"))
+	Set sc=$$$OK
+	For method="Write","WriteLine" {
+		$$$comMemberKeyGetLvar(spec,%class,$$$cCLASSmethod,method,$$$cMETHformalspec)
+		Set tmp=$find(spec,","),tmp2=$find(spec,"=")
+		If tmp=0 { Set tmp=tmp2 }
+		If tmp2<tmp { Set tmp=tmp2 }
+		If tmp=0 Set tmp=32769
+		Set val=$extract(spec,1,tmp-2)
+		Set $piece(val,":",2)=$select(%code:"%Library.String",1:"%Library.Binary")
+		Set $extract(spec,1,tmp-2)=val
+		$$$comMemberKeySet(%class,$$$cCLASSmethod,method,$$$cMETHformalspec,spec)
+		Set sc=$$serializeFormal^%occName($get($$$comMemberKeyRaw(%class,$$$cCLASSmethod,method,$$$cPROPorigin),%class),method,%class_"."_method,spec,.ppformalspec) Quit:$$$ISERR(sc)
+		$$$comMemberKeySet(%class,$$$cCLASSmethod,method,$$$cMETHformalspecparsed,ppformalspec)
+		$$$comMemberKeySet(%class,$$$cCLASSmethod,method,$$$cMETHuseractualtype,$$$normalize($$MethodUserActualtype^%occName(ppformalspec,%class)))
+	}
+	Quit sc
+]]></Implementation>
+</Method>
+
+<Method name="%Id">
+<Description><![CDATA[
+Returns the persistent object Id, if there is one, of this object. 
+<p>Returns a null string if there is no object Id.]]></Description>
+<ReturnType>%String</ReturnType>
+<Implementation><![CDATA[	Quit i%Id
+]]></Implementation>
+</Method>
+
+<Method name="%Delete">
+<Description><![CDATA[
+Deletes the stored version of the object with OID <var>oid</var> from the database. 
+It does not remove any in-memory versions of the object that may be present.
+
+Refer to <LINK href=/AboutConcurrency.html>About Concurrency</LINK> for more details 
+on the optional <var>concurrency</var> argument.
+
+<p>Returns a <CLASS>%Status</CLASS> value indicating success or failure.
+
+<p>Internally, <METHOD>%Delete</METHOD> initiates a transaction and then invokes the storage 
+interface method <METHOD>%DeleteData</METHOD>. If <METHOD>%DeleteData</METHOD> succeeds, the 
+transaction is committed, otherwise it is rolled back. ]]></Description>
+<Final>1</Final>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>oid:%ObjectIdentity="",concurrency:%Integer</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set $ztrap="%DeleteERR"
+	Quit:oid="" $$$ERROR($$$NullOid,$classname()) Set id=$$$oidPrimary(oid) Quit:id="" $$$ERROR($$$NullId,$classname())
+	If '$data(concurrency) Set concurrency=$select(..#DEFAULTCONCURRENCY="$zu(115,10)":$zu(115,10),1:$xecute("Quit "_..#DEFAULTCONCURRENCY))
+	#; get class name
+	Set class=$$$oidClassName(oid)
+	If class="" {
+		Set class=$classname(),oid=$$$oidInsertClassName(oid,class)
+	} Else {
+		Set class=$$$NormalizeClassname(class)
+		If $classname()'=class Quit $classmethod(class,"%Delete",oid,concurrency)
+	}
+	#; If TP is turned on start a transaction...
+	Set traninit=0 If $zu(115,9) Set traninit=1 TStart
+	Set sc=..%OnDelete(oid) If $$$ISERR(sc) Goto %DeleteEnd
+	Set sc=..%DeleteData(oid,concurrency)
+	If $$$ISOK(sc) $$$ActiveOidModified(oid,oref)
+%DeleteEnd	If $get(traninit) { If $$$ISOK(sc) { TCommit } Else { TRollback } }
+	Quit sc
+%DeleteERR	Set $ZTrap="",sc=$$$ERROR($$$CacheError,$zerror) Goto %DeleteEnd
+]]></Implementation>
+</Method>
+
+<Method name="%DeleteId">
+<Description><![CDATA[
+Deletes the stored version of the object with ID <var>id</var> from the database. 
+
+<p><METHOD>%DeleteId</METHOD> is identical in operation to the <METHOD>%Delete</METHOD> method except 
+that it uses and Id value instead of an OID value to find an object.
+
+Refer to <LINK href=/AboutConcurrency.html>About Concurrency</LINK> for more details 
+on the optional <var>concurrency</var> argument.]]></Description>
+<Final>1</Final>
+<ClassMethod>1</ClassMethod>
+<CodeMode>expression</CodeMode>
+<FormalSpec>id:%String,concurrency:%Integer</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[..%Delete($$$oidForm(id),.concurrency)
+]]></Implementation>
+</Method>
+
+<Method name="%Open">
+<Description><![CDATA[
+Loads an object from the database into memory and returns an OREF referring to the object. 
+<var>oid</var> is the OID value of the object to load. If <var>oid</var> is a partially-formed OID, 
+that is it does not include a class name, then <METHOD>%Open</METHOD> does the following: 
+it assumes the class name is 
+the same as the object class on which <METHOD>%Open</METHOD> was called.
+<p>If a version of the specified object is already in memory, then <METHOD>%Open</METHOD> increments 
+the object's reference count and returns the OREF value referring to this version.
+<METHOD>%Open</METHOD> also an optional concurrency argument which specifies the concurrency setting 
+for this object (and sets the value of the <var>%Concurrency</var> attribute). If the 
+<var>concurrency</var> argument is omitted then the system default value (1: <i>Atomic</i>) is used.
+
+Refer to <LINK href=/AboutConcurrency.html>About Concurrency</LINK> for more details 
+on the optional <var>concurrency</var> argument.
+
+<p><METHOD>%Open</METHOD> returns an OREF value that refers to the in-memory object instance or 
+a null reference ($$$NULLOREF) if it cannot find or otherwise load the object.]]></Description>
+<Final>1</Final>
+<ClassMethod>1</ClassMethod>
+<FormalSpec><![CDATA[soid:%ObjectIdentity,concurrency:%Integer,&sc:%Status=$$$OK]]></FormalSpec>
+<ReturnType>%ObjectHandle</ReturnType>
+<Implementation><![CDATA[
+	If '$data(soid) Quit $$$NULLOREF
+	#; If we pass in an oref just return it as it is obviously already open
+	If $isobject(soid) Quit soid
+	Set class=$$$oidClassName(soid)
+	#; if class name is not present in soid, we must use this; class for the class name
+	If class="" { Set class=$classname(),soid=$$$oidInsertClassName(soid,class) } Else { Set class=$$$NormalizeClassname(class) If $classname()'=class { Quit $classmethod(class,"%Open",soid,.concurrency,.sc) } }
+	Set oref=$$$CreateObject(class) If oref=$$$NULLOREF Set sc = $$$ERROR($$$AbstractClassNotInstantiable,class) Quit oref
+	Set sc=oref.%LoadInit(.concurrency,soid) If $$$ISERR(sc) Quit $$$NULLOREF
+	#; load the object from disk
+	Set sc=oref.%LoadData($$$oidPrimary(soid)) If $$$ISERR(sc) Quit $$$NULLOREF
+	Do $system.CLS.SetModified(oref,0)
+	#; find out if there is a %OnOpen method. If there is a %OnOpen, call it
+	Set sc=oref.%OnOpen() If $$$ISERR(sc) Quit $$$NULLOREF
+	Quit oref
+]]></Implementation>
+</Method>
+
+<Method name="%LoadInit">
+<Final>1</Final>
+<Internal>1</Internal>
+<CodeMode>generator</CodeMode>
+<FormalSpec>concurrency:%Integer,soid:%ObjectIdentity</FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	$$$GENERATE("	Set i%%Concurrency=$get(concurrency,"_%parameter("DEFAULTCONCURRENCY")_")")
+		#; initialize reference variables
+	s ivar="",list=""
+	s i=0 f  s ivar=$$$comMemberNext(%class,$$$cCLASSinstancevar,ivar) q:ivar=""  d
+	. i $$$comMemberKeyGet(%class,$$$cCLASSproperty,ivar,$$$cPROPmultidimensional) q
+	. $$$comMemberKeyGetLvar(runtimetype,%class,$$$cCLASSproperty,ivar,$$$cPROPruntimetype)
+	. i $$$classIsDataType(runtimetype) q
+	. s list=list_",r%"_ivar_"=$$$NULLOREF",i=i+1
+	. i i#5=0 $$$GENERATE("	Set "_$e(list,2,*)) s list=""
+	i list'="" $$$GENERATE("	Set "_$e(list,2,*))
+	$$$GENERATE("	Set loctmp=$$$oidSysAd1(soid)")
+	$$$GENERATE("	If $ascii(loctmp)=0 { Set loctmp=$extract(loctmp,2,*),i%%Location=$list(loctmp),loctmp=$list(loctmp,2,9999) } Else { Set i%%Location=loctmp,loctmp="""" }")
+	#; This code initializes all transient properties if the load was
+	#; successful. Multidimensional properties are not initialized
+	#; for embedded objects, create new ones
+	s prop="" f  s prop=$$$comMemberNext(%class,$$$cCLASSproperty,prop) q:prop=""  d:prop'="%Concurrency"&&(prop'="%%OID")
+	. i '$$$comMemberKeyGet(%class,$$$cCLASSproperty,prop,$$$cPROPtransient) q
+	. i $$$comMemberKeyGet(%class,$$$cCLASSproperty,prop,$$$cPROPmultidimensional) q
+	. i $$$comMemberDefined(%class,$$$cCLASSinstancevar,prop) $$$GENERATE("	Set i%"_prop_"="_$$$comMemberKeyGet(%class,$$$cCLASSinstancevar,prop,$$$cIVARinitialexpression))
+	$$$GENERATE("	For i=1:1:$listlength(loctmp) Set tmp=$list(loctmp,i) Set $property($this,$list(tmp))=$list(tmp,2)")
+	$$$GENERATE("	Set i%""%%OID""=soid")
+	$$$GENERATE("	Quit $$$OK")
+	QUIT $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%OpenId">
+<Description><![CDATA[
+Loads an object from the database into memory and returns an OREF referring to the object. 
+<var>id</var> is the Id (not a full OID) value of the object to load.
+
+<p><METHOD>%OpenId</METHOD> is identical in operation to the <METHOD>%Open</METHOD> method except 
+that it uses and Id value instead of an OID value to find an object instance.
+
+Refer to <LINK href=/AboutConcurrency.html>About Concurrency</LINK> for more details 
+on the optional <var>concurrency</var> argument.
+
+<p><METHOD>%OpenId</METHOD> returns an OREF value that refers to the in-memory object instance or 
+a null reference ($$$NULLOREF) if it cannot find or otherwise load the object.]]></Description>
+<Final>1</Final>
+<ClassMethod>1</ClassMethod>
+<CodeMode>expression</CodeMode>
+<FormalSpec><![CDATA[id:%String,concurrency:%Integer,&sc:%Status=$$$OK]]></FormalSpec>
+<ReturnType>%ObjectHandle</ReturnType>
+<Implementation><![CDATA[$select($isobject(id):id,1:..%Open($$$oidForm(id),.concurrency,.sc))
+]]></Implementation>
+</Method>
+
+<Method name="%DeleteExtent">
+<Description><![CDATA[
+Delete all instances of this class from its extent. On exit <var>instancecount</var> 
+contains the original number of instances while <var>deletecount</var> contains 
+the number of instances actually deleted.
+
+<p>Internally, <METHOD>%DeleteExtent</METHOD> iterates over the set of instances in the 
+collection and invokes the <METHOD>%Delete</METHOD> method.
+
+Refer to <LINK href=/AboutConcurrency.html>About Concurrency</LINK> for more details 
+on the optional <var>concurrency</var> argument.
+
+<p>Returns a <CLASS>%Status</CLASS> value indicating success or failure.]]></Description>
+<ClassMethod>1</ClassMethod>
+<CodeMode>generator</CodeMode>
+<FormalSpec><![CDATA[concurrency:%Integer,&deletecount,&instancecount]]></FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set %code=0
+	QUIT:'($$$getClassType(%class)=$$$cCLASSCLASSTYPESTREAM) $$$OK
+	#; If the ExtentExecute method doesn't exist then don't generate anything
+	QUIT:'$$$comSubMemberDefined(%class,$$$cCLASSquery,"Extent",$$$cQUERYmethod,"Execute") $$$OK
+	#; Generate the method...
+	$$$GENERATE("	Set concurrency=$g(concurrency,"_%parameter("DEFAULTCONCURRENCY")_")")
+	$$$GENERATE("	Set deletecount=0,instancecount=0")
+	$$$GENERATE("	Set sc=..ExtentExecute(.qh) Quit:$$$ISERR(sc) sc")
+	$$$GENERATE("	For  Set sc=..ExtentFetch(.qh,.row,.atend) Quit:$select(row="""":1,$$$ISERR(sc):1,1:0)  Set id=$listget(row) If id'="""" Set sc=..%Delete($listbuild(id),concurrency) Set instancecount=instancecount+1 Set:$$$ISOK(sc) deletecount=deletecount+1 Quit:atend")
+	$$$GENERATE("	Do ..ExtentClose(qh)")
+	$$$GENERATE("	Quit $$$OK")
+	QUIT $$$OK
+]]></Implementation>
+</Method>
+
+<UDLText name="T">
+<Content><![CDATA[
+/*
+ %DowngradeConcurrency()
+ lowers the concurrency level of an object
+*/
+]]></Content>
+</UDLText>
+
+<Method name="%DowngradeConcurrency">
+<Description><![CDATA[
+Changes the concurrency level of an instance in memory to a lower level 
+by changing the lock type specified in the <METHOD>%Open</METHOD> method for the object's 
+instance. Fails if it cannot lower the concurrency level.
+
+Refer to <LINK href=/AboutConcurrency.html>About Concurrency</LINK> for more details 
+on the <var>concurrency</var> argument.
+
+<p>Returns a <CLASS>%Status</CLASS> value indicating success or failure.]]></Description>
+<Final>1</Final>
+<Internal>1</Internal>
+<FormalSpec>concurrency</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set current=i%%Concurrency
+	#; If the requested setting is greater than the current setting, then do nothing
+	If concurrency'<current Quit $$$OK
+	#; Locks are not retained for any setting less than 3 and if the old and new
+	#; setting are the same, nothing is to done except update the concurrency setting
+	If current<3 Set modstate=$system.CLS.GetModifiedBits(),i%%Concurrency=concurrency Do $system.CLS.SetModifiedBits(modstate) Quit $$$OK
+	#; Get the new lock if needed
+	If concurrency>2 Set sc=..%AcquireLock($select(concurrency=3:"s",1:"e")) Quit:$$$ISERR(sc) sc
+	#; the following line releases the old lock which we know must be there
+	#; because we process and quit above for current<3
+	Do ..%ReleaseLock($select(current=3:"s",1:"e"))
+	#; Update the concurrency setting:
+	Set modstate=$system.CLS.GetModifiedBits(),i%%Concurrency=concurrency Do $system.CLS.SetModifiedBits(modstate)
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%GetSwizzleObject">
+<Description><![CDATA[
+<METHOD>%GetSwizzleObject</METHOD> is used to obtain a state of the object that can 
+later be used to restore the object. In the case of a persistent object, it returns the OID.
+
+<p>Returns a <CLASS>%Status</CLASS> value indicating success or failure.]]></Description>
+<Final>1</Final>
+<FormalSpec><![CDATA[force:%Integer=0,&oid:%ObjectIdentity]]></FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set oid="" If force=0 Set oid=(..%Oid()) Quit $$$OK
+	If force=2 Set sc=..%Save(1) Set:$$$ISOK(sc) oid=(..%Oid()) Quit sc
+	Set oid=(..%Oid()) Quit:oid'="" $$$OK
+	Set sc=..%Save(0) Set:$$$ISOK(sc) oid=..%Oid()
+	Quit sc
+]]></Implementation>
+</Method>
+
+<Method name="%LockStream">
+<Description>
+%LockStream()
+	Obtain a shared lock on the current stream object. %Locked is set to 1 if the stream was successfully locked. If the stream
+	cannot be locked then %Locked is set to 0. No lock is attempted unless %GetLockReference returns a non-null value. If a lock
+		is attempted but cannot be acquired (lock timeout expires) then this method will throw an exception. The caller is expected
+		to catch the exception and process it appropriately.
+
+Throws %Exception.AbstractException, most often a StatusException.</Description>
+<ProcedureBlock>1</ProcedureBlock>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[
+	if ('..%Locked) {
+		try {
+			set tLockRef = ..%GetLockReference(..%Location,..Id)
+			if tLockRef '= "" {
+				lock +@(tLockRef)#"S":$$$LockTimeout if $test { set ..%Locked = 1, ..%LockRef = tLockRef } else { throw ##class(%Exception.StatusException).CreateFromStatus($$$ERROR($$$LockFailedToAcquireRead)) }
+			}
+		}
+		catch tException {
+			do ..%UnlockStream()
+			throw tException
+		}
+	}
+	quit
+]]></Implementation>
+</Method>
+
+<Method name="%UnlockStream">
+<Description>
+%UnlockStream()
+	Release the shared lock on the current stream object. If the immediate argument is 1 then
+	the lock is released using the "I" flag.</Description>
+<FormalSpec>immediate:%Boolean=0</FormalSpec>
+<ProcedureBlock>1</ProcedureBlock>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[
+	if (..%Locked) && ( ..%LockRef '= "" ) {
+		if 'immediate { lock -@(..%LockRef)#"S" }
+		else { lock -@(..%LockRef)#"SI" }
+		set ..%Locked = 0, ..%LockRef = ""
+	}
+]]></Implementation>
+</Method>
+
+<Method name="%GetLockReference">
+<Description>
+Returns the global reference used to lock the current stream object
+Throws %Exception.AbstractException</Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>pLocation:%String(MAXLEN="")="",pId:%String(MAXLEN="")=""</FormalSpec>
+<Private>1</Private>
+<ReturnType>%String</ReturnType>
+<ReturnTypeParams>MAXLEN=""</ReturnTypeParams>
+<Implementation><![CDATA[	quit ""
+]]></Implementation>
+</Method>
+
+<Method name="%Oid">
+<Description>
+Returns the OID of this object.</Description>
+<ReturnType>%ObjectIdentity</ReturnType>
+<Implementation><![CDATA[
+	Set id=..%Id()
+	Quit $$$oidComposeAd1(id,$classname(),i%%Location)
+]]></Implementation>
+</Method>
+
+<Method name="GetStreamId">
+<Description>
+Returns an full id value (including class name) with which the Stream implementation has stored 
+the stream.</Description>
+<CodeMode>call</CodeMode>
+<ReturnType>%String</ReturnType>
+<Implementation><![CDATA[..%Oid()
+]]></Implementation>
+</Method>
+
+<Method name="%Reload">
+<Description><![CDATA[
+%Reload is an instance method that re-reads an object from disk into the 
+current instance. Calling %Reload is similar to calling <METHOD>%Close</METHOD> and then 
+<METHOD>%Open</METHOD>, but it uses the same OREF.
+
+<p>After %Reload is called, there are no swizzled references for the object, 
+and <METHOD>%IsModified</METHOD> returns 0.
+
+<p>%Reload performs the following steps. First, all swizzled objects for the 
+instance are unswizzled. Then the object is reloaded from disk, using the 
+<METHOD>%Id</METHOD> of the current object. Finally, the modified bit for each property is 
+cleared.]]></Description>
+<CodeMode>generator</CodeMode>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	#; NOTE: A lot of this code is copied from %Open, if you change %Open you should change this also
+	set %code=0
+	$$$GENERATE("	If ..%Id()="""" Quit $$$ERROR($$$NullOid,$classname())")
+	$$$GENERATE("	Do ..%OnClose()")
+	$$$GENERATE("	Set cur=i%%Concurrency,id=..%Id(),i%%Concurrency=0")
+	#; initialize reference variables
+	s ivar="",list=""
+	s i=0 f  s ivar=$$$comMemberNext(%class,$$$cCLASSinstancevar,ivar) q:ivar=""  d
+	. i $$$comMemberKeyGet(%class,$$$cCLASSproperty,ivar,$$$cPROPmultidimensional) $$$GENERATE("	Kill i%"_$$$QN(ivar)) q
+	. $$$comMemberKeyGetLvar(runtimetype,%class,$$$cCLASSproperty,ivar,$$$cPROPruntimetype)
+	. i $$$classIsDataType(runtimetype) q
+	. s list=list_",r%"_$$$QN(ivar)_"=$$$NULLOREF",i=i+1
+	. i i#5=0 $$$GENERATE("	Set "_$e(list,2,*)) s list=""
+	i list'="" $$$GENERATE("	Set "_$e(list,2,*))
+	$$$GENERATE("	Set i%%Concurrency=cur")
+	$$$GENERATE("	Set sc=..%LoadData(id) If $$$ISERR(sc) Quit $$$NULLOREF")
+	#; This code initializes all transient properties if the load was
+	#; successful. Multidimensional properties are not initialized
+	#; for embedded objects, create new ones
+	s prop="" f  s prop=$$$comMemberNext(%class,$$$cCLASSproperty,prop) q:prop=""  d:prop'="%Concurrency"&&(prop'="%Location")&&(prop'="TranslateTable")
+	. i '$$$comMemberKeyGet(%class,$$$cCLASSproperty,prop,$$$cPROPtransient) q
+	. i $$$comMemberKeyGet(%class,$$$cCLASSproperty,prop,$$$cPROPmultidimensional) q
+	. i $$$comMemberDefined(%class,$$$cCLASSinstancevar,prop) $$$GENERATE("	Set i%"_$$$QN(prop)_"="_$$$comMemberKeyGet(%class,$$$cCLASSinstancevar,prop,$$$cIVARinitialexpression))
+	. i $$$comMemberKeyGet(%class,$$$cCLASSproperty,prop,$$$cPROPcalculated) q
+	. i '$$$comMemberKeyGet(%class,$$$cCLASSproperty,prop,$$$cPROPcollection) $$$comMemberKeyGetLvar(runtimetype,%class,$$$cCLASSproperty,prop,$$$cPROPruntimetype) i '$$$classIsSerial(runtimetype) q
+	. $$$GENERATE("	If .."_$$$QN(prop_"NewObject")_"()=$$$NULLOREF Quit $$$ERROR($$$FailedToNewClass,"_$zu(144,1,%class_":"_prop)_")")
+	$$$GENERATE($Char(9)_"if $system.CLS.IsMthd($this,""%OnReload"") Set sc=..%OnReload() If $$$ISERR(sc) quit sc")
+	#; set object as not modified
+	$$$GENERATE("	Do $system.CLS.SetModified(0)")
+	$$$GENERATE(" Quit $$$OK")
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%RollBack">
+<Description><![CDATA[
+This method is called by <METHOD>%Save</METHOD> when a transaction is rolled back. 
+It will invoke a user-supplied <METHOD>%OnRollBack</METHOD> method if it exists.
+
+<p>Returns a <CLASS>%Status</CLASS> value indicating success or failure.]]></Description>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	If $data($$$txMODIFIED($this)) Do $system.CLS.SetModifiedBits($$$txMODIFIED($this))
+	Quit ..%OnRollBack()
+]]></Implementation>
+</Method>
+
+<Method name="%Save">
+<Description><![CDATA[
+Stores an in-memory version of an object to disk. If the object was stored 
+previously (and thus, already has an OID), <METHOD>%Save</METHOD> updates the on-disk version. 
+Otherwise, <METHOD>%Save</METHOD> saves the object and generates a new OID for it.
+
+<p>The <var>related</var> argument specifies how <METHOD>%Save</METHOD> handles references to other objects. 
+It can take the following values:
+<table cols=2>
+<tr>
+<td width="33%" valign="top">0: <i>Shallow Save</i></td>
+<td valign="top">
+If this object has been modified then save it. Only save related objects if they have never been saved (do not have an OID value) and must be 
+saved in order to allocate the OID needed by this object.
+</td>
+</tr>
+
+<tr>
+<td width="33%" valign="top">1: <i>Deep Save</i></td>
+<td valign="top">
+Save this object and all "related" objects that have been edited. In this case, 
+"related" means any in-memory objects it refers to, and any in-memory objects 
+they in turn refer to, and so on. However, only objects that have been changed 
+(<METHOD>%IsModified</METHOD> returns true) will actually be saved to the database, including 
+the object upon which <METHOD>%Save</METHOD> was initially called.
+</table>
+</td>
+</tr>
+
+<p><METHOD>%Save</METHOD> automatically detects and handles circular references between objects. 
+For example, <METHOD>%Save</METHOD> will detect if object A refers to object B and object B likewise refers to object A.
+In this case it will avoid falling into an infinite, recursive loop.
+
+<p>Note that either reference attribute, A to B or B to A, can be specified as being 
+a required attribute but not both of them. If both reference attributes are required 
+then <METHOD>%Save</METHOD> will fail.
+
+<p>By default <METHOD>%Save</METHOD> automatically manages transactions. You can enable and disable 
+automatic transaction support using the <code>$$SetTransactionMode^%apiOBJ()</code> routine.
+
+<p>When <METHOD>%Save</METHOD> saves an object to the database, it initiates one transaction 
+(by calling TSTART) for the entire set of saves, including the original object 
+and any related objects. If the save operation is successful, <METHOD>%Save</METHOD> will issue a 
+TCOMMIT command to commit the transaction and write the data to the database.
+If <METHOD>%Save</METHOD> encounters a problem when saving the original object or any of its 
+related objects, it rolls back the entire transaction and performs the following actions:
+<ul>
+<li>It issues a TROLLBACK command to rollback any changes to the database that may 
+have occurred. (In the case of the <CLASS>%CacheStorage</CLASS> class, changes to the on-disk 
+counter value, used to determine the next available object id number, are not rolled back.)
+<li>It restores the in-memory state of all the objects involved in the transaction to 
+their pre-transaction state. This includes restoring any modified flags, and 
+restoring to null ("") any OID values that have been assigned during the course of 
+the transaction. Additional property values changed during the course of the 
+transaction are not restored, however.
+<li>It calls the <METHOD>%RollBack</METHOD> method on each object involved with the transaction. 
+The order in which the <METHOD>%RollBack</METHOD> methods are called is undefined. <METHOD>%RollBack</METHOD> will 
+call a user-written <METHOD>%OnRollback</METHOD> method if it is present.
+</ul>
+
+<p>Returns a <CLASS>%Status</CLASS> value indicating success or failure.]]></Description>
+<Final>1</Final>
+<FormalSpec>related:%Integer=1</FormalSpec>
+<GenerateAfter>%OnBeforeSave,%OnAfterSave</GenerateAfter>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set $ZTrap="%SaveERR"
+	#; Initialize the transaction state
+	#; This method is a transaction itself and isn't called recursively. Therefore, the
+	#; transaction state variable - %objTX - is new'ed here.
+	New %objTX Set sc=$$$OK,traninit=0 If '$data(%objTX2) New %objTX2 Set %objTX2=1
+	#; If already in %Save, just build a shallow graph and serialize the object
+	If $get(%objTX2(+$this)) Set sc=..%BuildObjectGraph(1) Quit:$$$ISERR(sc) sc Set intRef=+$this,objValue=$get(%objTX(1,intRef,1)),sc=..%SerializeObject(.objValue,1) Set:$$$ISOK(sc) %objTX(1,intRef,1)=objValue Quit sc
+	#; %TStart - Start a transaction if one doesn't exist and $zu(115,9) is on
+	#; %TInclude - include this oref in the current transaction...
+	If $$$txNOTINTRAN { Set traninit=1 Kill $$$txSTATUS,$$$txLISTroot,$$$txOIDASSIGNEDroot,$$$txMODIFIEDroot If '$zu(115,9) { Set $$$txSTATUS=1 } Else { Set $$$txSTATUS=2,$$$txLIST($this)="" TStart } }
+	Set sc=..%BuildObjectGraph(related+2) If $$$ISERR(sc) ZTrap "SG"
+	#; At this point, %objTX(2) contains a list of all objects that need to be saved
+	If '$data(%objTX(2)) s sc=$$$OK GoTo %SaveCOMMIT
+	Set %objTX2(+$this)=1
+	#; First, examine the objects designated to be saved to see if any have zero predecessors
+	Set %objTX(3)=0,intRef="" For  Set intRef=$order(%objTX(2,intRef)) Quit:intRef=""  If '$data(%objTX(1,intRef,2)) Set %objTX(3,$increment(%objTX(3)))=%objTX(1,intRef) Kill %objTX(2,intRef)
+	#; Process the AOV. Calls to %SerializeObject here are complete serializations. If one fails, the TX needs to fail
+	For  Quit:%objTX(3)<1  Set ptr=%objTX(3),objRef=%objTX(3,ptr),%objTX(3)=%objTX(3)-1 Kill %objTX(3,ptr) Set intRef=+objRef,objValue=$get(%objTX(1,intRef,1)),sc=objRef.%SerializeObject(.objValue) Do  Set %objTX(1,intRef,1)=objValue Kill %objTX(1,intRef,3) Do $system.CLS.SetModified(objRef,0)
+	. If $$$ISERR(sc) Kill:$$$txON $$$txLIST(objRef),$$$txMODIFIED(objRef) ZTrap "SG"
+		#; Process the mod bits for potential tx rollback
+	. If $$$txON,objRef.%IsModified() Set $$$txMODIFIED(objRef)=$system.CLS.GetModifiedBits(objRef)
+	#; visit the successors
+	. Set intSucc="" For  Set intSucc=$order(%objTX(1,intRef,3,intSucc)) Quit:intSucc=""  Kill %objTX(1,intRef,3,intSucc),%objTX(1,intSucc,2,intRef) If '$data(%objTX(1,intSucc,2)) Set %objTX(3,$increment(%objTX(3)))=%objTX(1,intSucc) Kill %objTX(2,intSucc)
+	#; If any objects are remaining in the graph then do a 'partial serialization' of the persistent objects that are
+	#; designated as 'predecessors'.
+	For  Set pserial=0 Do  Quit:'pserial
+	. Set intRef="" For  Set intRef=$order(%objTX(2,intRef)) Quit:intRef=""  Set intPred="" For  Set intPred=$order(%objTX(1,intRef,2,intPred)) Quit:intPred=""  If %objTX(1,intPred,6)=1 Set objValue=$get(%objTX(1,intPred,1)),sc=(%objTX(1,intPred)).%SerializeObject(.objValue,1) If $$$ISOK(sc) Set pserial=1,%objTX(1,intPred,1)=objValue Do
+	#; Visit the successors of this 'forced' ID assignment. If all predecessors are visited then add to the stack
+	. . Set intSucc="" For  Set intSucc=$order(%objTX(1,intPred,3,intSucc)) Quit:intSucc=""  Kill %objTX(1,intPred,3,intSucc),%objTX(1,intSucc,2,intPred) If '$data(%objTX(1,intSucc,2)) Set %objTX(3,$i(%objTX(3)))=%objTX(1,intSucc) Kill %objTX(2,intSucc)
+	#; Again, process the AOV. Calls to %SerializeObject here are complete serializations. If one fails, the TX needs to fail
+	. . For  Quit:%objTX(3)<1  Set ptr=%objTX(3),objSerialize=%objTX(3,ptr),%objTX(3)=%objTX(3)-1 Kill %objTX(3,ptr) Set intSerialize=+objSerialize,objValue=$get(%objTX(1,intSerialize,1)),sc=objSerialize.%SerializeObject(.objValue) Do  Set %objTX(1,intSerialize,1)=objValue Kill %objTX(1,intSerialize,3) Do $system.CLS.SetModified(objSerialize,0)
+	. . . If $$$ISERR(sc) Kill:$$$txON $$$txLIST(objSerialize),$$$txMODIFIED(objSerialize) ZTrap "SG"
+		#; Process the mod bits for potential tx rollback
+	. . . If $$$txON,objSerialize.%IsModified() Set $$$txMODIFIED(objSerialize)=$system.CLS.GetModifiedBits(objSerialize)
+	#; visit the successors
+	. . . Set intSucc="" For  Set intSucc=$order(%objTX(1,intSerialize,3,intSucc)) Quit:intSucc=""  Kill %objTX(1,intSerialize,3,intSucc),%objTX(1,intSucc,2,intSerialize) If '$data(%objTX(1,intSucc,2)) Set %objTX(3,$i(%objTX(3)))=%objTX(1,intSucc) Kill %objTX(2,intSucc)
+	If $data(%objTX(2))>2 Set sc=$$$ERROR($$$SaveCyclicDependancy,$classname()) ZTrap "SG"
+	#; Commit the transaction and cleanup
+	Set cmd="" For  Set cmd=$order(%objTX(9,cmd)) Quit:cmd=""  Xecute cmd
+%SaveCOMMIT	If traninit { If $$$txOFF { Kill $$$txSTATUS } Else { TCommit  Kill $$$txSTATUS,$$$txLISTroot,$$$txOIDASSIGNEDroot,$$$txMODIFIEDroot Set sc=$$$OK } }
+	Set %objTX2(+$this)=0 Quit sc
+%SaveERR	Set $ZTrap="" If $extract($zerror,1,5)'="<ZSG>" Set sc=$$$ERROR($$$CacheError,$ZE)
+	Set:traninit sc=$$$ADDSC(sc,$$%TRollBack^%occTransaction())
+	Set %objTX2(+$this)=0
+	Quit sc
+]]></Implementation>
+</Method>
+
+<Method name="%UpgradeConcurrency">
+<Description><![CDATA[
+Elevates the concurrency level of an instance in memory to a higher level 
+by changing the lock type specified in the <METHOD>%Open</METHOD> method for the object's 
+instance. Fails if it cannot elevate the concurrency level.
+
+Refer to <LINK href=/AboutConcurrency.html>About Concurrency</LINK> for more details 
+on the <var>concurrency</var> argument.
+
+<p>Returns a <CLASS>%Status</CLASS> value indicating success or failure.]]></Description>
+<Final>1</Final>
+<Internal>1</Internal>
+<FormalSpec>concurrency</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	#; Locks are not retained for any setting
+	#; less than 3 and if the old and new
+	#; setting are the same, nothing is to done!
+	Set current=i%%Concurrency
+	Quit:concurrency'>current $$$OK
+	If concurrency<3 Set modstate=$system.CLS.GetModifiedBits(),i%%Concurrency=concurrency Do $system.CLS.SetModifiedBits(modstate) Quit $$$OK
+	#; Get the new lock
+	Set sc=..%AcquireLock($select(concurrency=3:"s",1:"e")) Quit:$$$ISERR(sc) sc
+	#; the following line releases the old lock
+	#; which must be a shared lock as that is the
+	#; only possible condition.
+	If current=3 Do ..%ReleaseLock("s")
+	#; Update the concurrency setting:
+	Set modstate=$system.CLS.GetModifiedBits(),i%%Concurrency=concurrency Do $system.CLS.SetModifiedBits(modstate)
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%AcquireLock">
+<Description><![CDATA[
+Acquires a lock for the current instance.
+
+<p>The <var>locktype</var> argument specifies the type of lock to acquire.
+It can take the following values:
+<table cols=2>
+<tr>
+<td width="33%" valign="top">"e": <i>Exclusive</i></td>
+<td valign="top">
+An exclusive lock will prevent any other process from acquiring any type of lock
+on this object.
+</td>
+</tr>
+
+<tr>
+<td width="33%" valign="top">"s": <i>Shared</i></td>
+<td valign="top">
+A shared lock will allow other processes to acquire shared locks but will
+prevent other processes from acquiring an exclusive lock.
+</table>
+</td>
+</tr>
+
+Fails if the locktype parameter is not one of the values described above.
+
+<p>Returns a <CLASS>%Status</CLASS> value indicating success or failure.]]></Description>
+<FormalSpec>locktype</FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[	QUIT $$$ERROR($$$MethodNotImplemented,"%Stream.Object::%AcquireLock")
+]]></Implementation>
+</Method>
+
+<Method name="%CheckUnique">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>idxlist:%List=""</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[	QUIT $$$ERROR($$$MethodNotImplemented,"%Stream.Object::%CheckUnique")
+]]></Implementation>
+</Method>
+
+<Method name="%LoadData">
+<FormalSpec>soid:%String</FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[	QUIT $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%SaveData">
+<FormalSpec><![CDATA[&id:%String]]></FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[	QUIT $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%DeleteData">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>soid:%String,concurrency:%Integer</FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[	QUIT $$$ERROR($$$MethodNotImplemented,"%Stream.Object::%DeleteData")
+]]></Implementation>
+</Method>
+
+<Method name="%OnConstructClone">
+<CodeMode>expression</CodeMode>
+<FormalSpec><![CDATA[object:%RegisteredObject,deep:%Boolean=0,&cloned:%String]]></FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[$$$ERROR($$$MethodNotImplemented,"%Stream.Object::%OnConstructClone")
+]]></Implementation>
+</Method>
+
+<Method name="%Exists">
+<Description><![CDATA[
+Checks to see if the object identified by the OID <var>oid</var> exists in the extent.
+
+<p>Returns <CLASS>%Boolean</CLASS> TRUE is it exists, FALSE if it does not.]]></Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>soid:%ObjectIdentity</FormalSpec>
+<ReturnType>%Boolean</ReturnType>
+<Implementation><![CDATA[
+	If soid = $$$NULLOID Quit 0
+	If $isobject(soid)=1 Quit 1
+	Set class = $$$oidClassName(soid)
+	If class '= "" {
+		If $classname()'=$$$NormalizeClassname(class) Quit $classmethod(class,"%Exists",soid)
+	}
+	Set stream=..%Open(soid)
+	Quit $select($isobject(stream)=1:'stream.%IsNull(),1:0)
+]]></Implementation>
+</Method>
+
+<Method name="%ExistsId">
+<Description><![CDATA[
+Checks to see if the object identified by the ID <var>id</var> exists in the extent.
+
+<p>Returns <CLASS>%Boolean</CLASS> TRUE is it exists, FALSE if it does not.]]></Description>
+<ClassMethod>1</ClassMethod>
+<CodeMode>expression</CodeMode>
+<FormalSpec>id:%String</FormalSpec>
+<ReturnType>%Boolean</ReturnType>
+<Implementation><![CDATA[..%Exists($$$oidForm(id))
+]]></Implementation>
+</Method>
+
+<Method name="%KillExtent">
+<ClassMethod>1</ClassMethod>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[	QUIT $$$ERROR($$$MethodNotImplemented,"%Stream.Object::%KillExtent")
+]]></Implementation>
+</Method>
+
+<Method name="%ReleaseLock">
+<Description><![CDATA[
+Releases a lock for the current instance.
+
+<p>The <var>locktype</var> argument specifies the type of lock to release.
+It can take the following values:
+<table cols=2>
+<tr>
+<td width="33%" valign="top">"e": <i>Exclusive</i></td>
+<td valign="top">
+An exclusive lock will prevent any other process from acquiring any type of lock
+on this object.
+</td>
+</tr>
+
+<tr>
+<td width="33%" valign="top">"s": <i>Shared</i></td>
+<td valign="top">
+A shared lock will allow other processes to acquire shared locks but will
+prevent other processes from acquiring an exclusive lock.
+</table>
+</td>
+</tr>
+
+Fails if the locktype parameter is not one of the values described above.
+
+<p>Returns a <CLASS>%Status</CLASS> value indicating success or failure.]]></Description>
+<FormalSpec>locktype</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[	QUIT $$$ERROR($$$MethodNotImplemented,"%Stream.Object::%ReleaseLock")
+]]></Implementation>
+</Method>
+
+<Method name="%OnDelete">
+<Description><![CDATA[
+This callback method is invoked by the <METHOD>%Delete</METHOD> method to 
+provide notification that the object specified by <VAR>oid</VAR> is being deleted.
+
+<P>If this method returns an error then the object will not be deleted.]]></Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>oid:%ObjectIdentity</FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%OnBeforeSave">
+<Description><![CDATA[
+This callback method is invoked by the <METHOD>%Save</METHOD> method to 
+provide notification that the object is being saved. It is called before 
+any data is written to disk.
+
+<P><VAR>insert</VAR> will be set to 1 if this object is being saved for the first time.
+
+<P>If this method returns an error then the call to <METHOD>%Save</METHOD> will fail.]]></Description>
+<Abstract>1</Abstract>
+<FormalSpec>insert:%Boolean</FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[]]></Implementation>
+</Method>
+
+<Method name="%OnAfterSave">
+<Description><![CDATA[
+This callback method is invoked by the <METHOD>%Save</METHOD> method to 
+provide notification that the object is being saved. It is called after 
+the object's data has been successfully written to disk.
+
+<P><VAR>insert</VAR> will be set to 1 if this object is being saved for the first time.
+
+<P>If this method returns an error then the call to <METHOD>%Save</METHOD> will fail.]]></Description>
+<Abstract>1</Abstract>
+<FormalSpec>insert:%Boolean</FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[]]></Implementation>
+</Method>
+
+<Method name="%OnOpen">
+<Description><![CDATA[
+This callback method is invoked by the <METHOD>%Open</METHOD> method to 
+provide notification that the object specified by <VAR>oid</VAR> is being opened.
+
+<P>If this method returns an error then the object will not be opened.]]></Description>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%OnReload">
+<Description><![CDATA[
+This callback method is invoked by the <METHOD>%Reload</METHOD> method to 
+provide notification that the object specified by <VAR>oid</VAR> was reloaded.
+<method>%Reload</method> is invoked by %Open when the object identified by the OID 
+is already in memory. 
+<br>
+<P>If this method returns an error then the object will not be opened.]]></Description>
+<Abstract>1</Abstract>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%OnClose">
+<Description><![CDATA[
+This callback method is invoked by the <METHOD>%Close</METHOD> method to 
+provide notification that the current object is being closed.
+
+<P>The return value of this method is ignored.]]></Description>
+<Private>1</Private>
+<ProcedureBlock>1</ProcedureBlock>
+<ReturnType>%Status</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[
+	if ..%Locked { do ..%UnlockStream(1) }
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%OnRollBack">
+<Description><![CDATA[
+This callback method is invoked by the <METHOD>%Save</METHOD> method to 
+provide notification that a save transaction is being rolled back.
+
+<P>If this method returns an error then the rollback operation will be aborted.]]></Description>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="Read">
+<Description><![CDATA[
+Reads up to <var>len</var> characters from the current position 
+in the stream. The current position is advanced by the number of 
+characters read. Upon exit, <var>len</var> is set to the actual 
+number of characters read. If a read occurs when the stream position 
+is at the end of the stream, <var>len</var> will be set to -1 and 
+<METHOD>Read</METHOD> will return a null string (""). If no <var>len</len>
+is passed in, ie. 'Read()' then it is up to the Read implementation as to
+how much data to return. Some stream classes use this to optimize the amount of
+data returned to align this with the underlying storage of the stream.
+
+<p>You must call <METHOD>Rewind</METHOD> if you want to read a stream from the beginning 
+again. Calling <METHOD>Read</METHOD> after <METHOD>Write</METHOD> implicitly ends the <METHOD>Write</METHOD> 
+operation and rewinds to the start of the stream.
+
+<p>Returns a string up to <var>len</var> characters long. The byref argument <var>sc</var> will
+return a %Status if any error occurred during the read.]]></Description>
+<FormalSpec><![CDATA[&len:%Integer=32656,&sc:%Status]]></FormalSpec>
+<ReturnType>%CacheString</ReturnType>
+<Implementation><![CDATA[
+	Set len=0,i%AtEnd=1,sc=$$$OK
+	Quit ""
+]]></Implementation>
+</Method>
+
+<Method name="ReadLine">
+<Description><![CDATA[
+Read a line from the stream. This will look for the line terminator in the stream and
+once it finds the terminator it will return the string minus the terminator character/s. If it reaches the
+end of the stream before it finds a terminator it will return the data it has so far, and if you specify a
+maximum size in <var>len</var> it will only read up to this number of characters. On exit <var>len</var>
+will contain the actual number of characters read. The byref argument <var>sc</var> will
+return a %Status if any error occured during the read and the byref argument <var>eol</var>
+is true if it found the line terminator and false otherwise. So for example you can read in a stream
+a line at a time and output the results to the current device with:
+<EXAMPLE>While 'stream.AtEnd { Write stream.ReadLine(,.sc,.eol) If $$$ISERR(sc) { Write "ERROR" Quit } If eol { Write ! } }</EXAMPLE>]]></Description>
+<FormalSpec><![CDATA[&len:%Integer=32000,&sc:%Status,&eol:%Boolean]]></FormalSpec>
+<ReturnType>%CacheString</ReturnType>
+<Implementation><![CDATA[
+	Set len=-1,sc=$$$OK,eol=0
+	Quit ""
+]]></Implementation>
+</Method>
+
+<Method name="ReadLineIntoStream">
+<FormalSpec><![CDATA[&sc:%Status]]></FormalSpec>
+<ReturnType>%Stream.Object</ReturnType>
+<Implementation><![CDATA[
+	Set sc=$$$OK
+	Quit ""
+]]></Implementation>
+</Method>
+
+<Method name="Write">
+<Description><![CDATA[
+Appends the string <var>data</var> to the stream and advances the 
+current stream position by the number of characters in <var>data</var>.
+
+<p>Note that a write operation immediately following a read or rewind 
+will clear out the existing data in the stream.
+
+<p>Returns a <CLASS>%Status</CLASS> value indicating success or failure.]]></Description>
+<FormalSpec>data:%CacheString</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[	QUIT $$$ERROR($$$NotImplemented)
+]]></Implementation>
+</Method>
+
+<Method name="WriteLine">
+<Description><![CDATA[
+Appends the string <var>data</var> along with a line terminator to the stream and advances the 
+current stream position by the number of characters in <var>data</var> plus the line terminator.
+
+<p>Returns a <CLASS>%Status</CLASS> value indicating success or failure.]]></Description>
+<CodeMode>expression</CodeMode>
+<FormalSpec>data:%CacheString=""</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[$$$ERROR($$$NotImplemented)
+]]></Implementation>
+</Method>
+
+<Method name="CopyFrom">
+<Description><![CDATA[
+Copies the contents of <i>source</i> into this Stream.
+<p>For example, you can copy <var>oldstream</var> into a new stream:
+<EXAMPLE>
+Set newstream=##class(%GlobalCharacterStream).%New()
+Do newstream.CopyFrom(oldstream)
+</EXAMPLE>
+
+<p>Returns a <CLASS>%Status</CLASS> value indicating success or failure.]]></Description>
+<FormalSpec>source:%Stream.Object</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Quit:source=$$$NULLOREF $$$ERROR($$$OrefInvalid,"")
+	
+	Do source.Rewind()
+	Set sc1=$$$OK,sc2=$$$OK
+	If source.%Extends("%IO.I.Stream") {
+		For  Quit:(source.AtEnd)||($$$ISERR(sc1)||($$$ISERR(sc2)))  Set sc1=..Write(source.Read(32656,,.sc2))
+	} Else {
+		For  Quit:(source.AtEnd)||($$$ISERR(sc1)||($$$ISERR(sc2)))  Set sc1=..Write(source.Read(,.sc2))
+	}
+	If $$$ISERR(sc1) Quit sc1
+	If $$$ISERR(sc2) Quit sc2
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="Clear">
+<Description><![CDATA[
+Clear the contents of this Stream from permanent storage. This will remove the permanent stream storage and
+any temporary stream and initialise the stream to its initial state that it starts in, including removing all
+the stream attributes.
+<p>Returns a <CLASS>%Status</CLASS> value indicating success or failure.]]></Description>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[	QUIT $$$ERROR($$$NotImplemented)
+]]></Implementation>
+</Method>
+
+<Method name="MoveToEnd">
+<Description><![CDATA[
+Move to the end of the stream so the next <METHDO>Write</METHOD> will be appended to the end.
+This allows you to read from a stream, then MoveToEnd() and append new data, where just calling
+<METHOD>Write</METHOD> after a read will clear the stream before writing new data.
+<p>Returns a <CLASS>%Status</CLASS> value indicating success or failure.]]></Description>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[	QUIT $$$ERROR($$$NotImplemented)
+]]></Implementation>
+</Method>
+
+<Method name="OutputToDevice">
+<Description><![CDATA[
+Write out <var>len</var> characters of the stream to the current device starting from the current position. This
+method is optimised for performance by the various sub classes. If <var>len</var> is omitted or set to -1 then
+it will write out the entire stream starting at the beginning.]]></Description>
+<FormalSpec><![CDATA[&len:%Integer=-1]]></FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set $ZTrap="OutputError"
+	If len=0 Quit $$$OK
+	If len=-1 {
+		Do ..Rewind()
+		For  Quit:..AtEnd  Write ..Read()
+		Do ..Rewind()
+	} Else {
+		Set total=0
+		For {
+			Quit:..AtEnd
+			If len-total>32656 {
+				Set chunk=32656
+			} Else {
+				Set chunk=len-total
+			}
+			Write ..Read(.chunk)
+			Set total=total+chunk
+			Quit:total=len
+		}
+	}
+	Quit $$$OK
+OutputError	Quit $$$ERROR($$$CacheError,$ZE)
+]]></Implementation>
+</Method>
+
+<Method name="InputFromDevice">
+<Description><![CDATA[
+Input <var>len</var> characters from the current device into the stream. This is equivalent to doing a series of
+reads and calling <METHOD>Write</METHOD> for each of them but it may be optimised by the subclasses. On return
+<var>len</var> will be the number of characters still to read in (if no timeout has occured this should be 0).]]></Description>
+<FormalSpec><![CDATA[&len:%Integer=0,timeout:%Integer=20]]></FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set $Ztrap="InputError"
+	If len=0 Do ..Write("") Quit $$$OK
+	For  Read data#$S(len>32656:32656,1:len):timeout Quit:'$test  Do ..Write(data) Set len=len-$length(data) Quit:len=0
+	If len=0 Quit $$$OK
+	Quit $$$ERROR($$$FileDoesNotExist)
+InputError	Quit $$$ERROR($$$CacheError,$ZE)
+]]></Implementation>
+</Method>
+
+<Method name="LastModifiedGet">
+<CodeMode>expression</CodeMode>
+<ReturnType>%TimeStamp</ReturnType>
+<Implementation><![CDATA[""
+]]></Implementation>
+</Method>
+
+<Method name="OutputToDeviceAt">
+<Description><![CDATA[
+Output the stream to the current device starting at <var>position</var> of length
+<var>length</var>. The length if passed is the number of characters to output, if
+not passed it will output from <var>position</var> to the end of the stream.]]></Description>
+<FormalSpec><![CDATA[position:%Integer,&length:%Integer]]></FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	If '(..MoveTo(position)) Set length=0 Quit $$$ERROR($$$StreamMoveToError,position)
+	If $get(length)="" Set length=4294967296
+	Quit ..OutputToDevice(.length)
+]]></Implementation>
+</Method>
+
+<Method name="FindAt">
+<Description><![CDATA[
+Find the first occurrence of <var>target</var> in the stream starting the
+search at <var>position</var>. It returns the position at this match starting
+at the beginning of the stream. If it does not find the target string then
+return -1. If <var>position</var>=-1 then start searching from the current
+location and just return the offset from the last search, useful for searching
+through the entire file. If you are doing this you should pass in <var>tmpstr</var>
+by reference in every call which is used as a temporary location to store information
+being read so the next call will start where the last one left off. If you pass
+<var>caseinsensitive</var>=1 then the search will be case insensitive rather than the
+default case sensitive search.]]></Description>
+<FormalSpec><![CDATA[position:%Integer,target:%CacheString,&tmpstr:%CacheString="",caseinsensitive:%Boolean=0]]></FormalSpec>
+<ReturnType>%Integer</ReturnType>
+<Implementation><![CDATA[
+	If caseinsensitive Set target=$zconvert(target,"l")
+	Set find=0,targetlen=$length(target)
+	If position=-1 {
+		Set position=1
+		If $get(tmpstr)'="" {
+			Set find=$find(tmpstr,target)
+			If find {
+				Set tmpstr=$extract(tmpstr,find,*)
+				Quit position+find-targetlen-1
+			} Else {
+				Set position=position+$length(tmpstr)-targetlen+1
+			}
+		}
+	} Else {
+		If '..MoveTo(position) Quit -1
+		Set tmpstr=""
+	}
+	
+	While '..AtEnd {
+		Set tmp=..Read(20000)
+		If caseinsensitive Set tmp=$zconvert(tmp,"l")
+		Set tmpstr=$extract(tmpstr,*-targetlen+2,*)_tmp
+		Set find=$find(tmpstr,target)
+		If find Set tmpstr=$extract(tmpstr,find,*) Quit
+		Set position=position+$length(tmpstr)-targetlen+1
+	}
+	If find Quit position+find-targetlen-1
+	Quit -1
+]]></Implementation>
+</Method>
+
+<Method name="MoveTo">
+<Description><![CDATA[
+Move to this <var>position</var> in the stream. If this suceeds then return
+true, else return false. Note this implementation is not efficient because it
+searches from the start of the stream, it can be improved upon in specific subclasses.
+Note that moving to position 1 will be at the start of the stream, position 2 will be
+at the second character of the stream, etc.]]></Description>
+<FormalSpec>position:%Integer</FormalSpec>
+<ReturnType>%Boolean</ReturnType>
+<Implementation><![CDATA[
+	Set position=position-1
+	Do ..Rewind()
+	While position>0 {
+		Set tmp=..Read($select(position>32656:32656,1:position)),position=position-$length(tmp)
+		If tmp="" Quit
+	}
+	Quit position=0
+]]></Implementation>
+</Method>
+
+<Method name="Rewind">
+<Description>
+Go back to the start of the stream.</Description>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[	QUIT $$$ERROR($$$NotImplemented)
+]]></Implementation>
+</Method>
+
+<Method name="Flush">
+<Description>
+Flush any output in the stream not already saved.</Description>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[	QUIT $$$ERROR($$$NotImplemented)
+]]></Implementation>
+</Method>
+
+<Method name="IsNull">
+<Description><![CDATA[
+Returns true if this is a "NULL" stream; that is, a stream which has never 
+been written to and saved and has no stream attributes. This is used by the Cach&eacute; ODBC server.]]></Description>
+<CodeMode>call</CodeMode>
+<ReturnType>%Boolean</ReturnType>
+<Implementation><![CDATA[..%IsNull()
+]]></Implementation>
+</Method>
+
+<Method name="%IsNull">
+<Description><![CDATA[
+Returns true if this is a "NULL" stream; that is, a stream which has never 
+been written to and saved and has no stream attributes. This is used by the Cach&eacute; ODBC server.]]></Description>
+<CodeMode>expression</CodeMode>
+<ReturnType>%Boolean</ReturnType>
+<Implementation><![CDATA[1
+]]></Implementation>
+</Method>
+
+<Method name="%ObjectIsNull">
+<Description>
+Return true if this stream oid is a null stream and false if the stream is not null</Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>soid:%ObjectIdentity</FormalSpec>
+<ReturnType>%Boolean</ReturnType>
+<Implementation><![CDATA[
+	If soid=$$$NULLOID Quit 1
+	If $isobject(soid)=1 Quit soid.%IsNull()
+	Set class=$$$oidClassName(soid)
+	If class'="" {
+		If $classname()'=$$$NormalizeClassname(class) Quit $classmethod(class,"%ObjectIsNull",soid)
+	}
+	Set oref=..%Open(soid) If oref=$$$NULLOREF Quit 1
+	Quit oref.%IsNull()
+]]></Implementation>
+</Method>
+
+<Method name="CopyFromAndSave">
+<Description><![CDATA[
+Copy the stream from <var>source</var> into the current stream ignoring anything already in the current stream
+and save the result to the permanent location. This is used to optimise the copying of say a
+<CLASS>%GlobalCharacterStream</CLASS> to another <CLASS>%GlobalCharacterStream</CLASS> to avoid copying into
+temporary storage first and then moving this to the permanent storage when <METHOD>SaveStream</METHOD> is called.<p>
+Note that any locking or transaction handling must be done by the caller.]]></Description>
+<FormalSpec>source:%Stream.Object</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set sc=..Rewind() Quit:$$$ISERR(sc) sc
+	Set sc=..CopyFrom(source) Quit:$$$ISERR(sc) sc
+	Quit ..%Save()
+]]></Implementation>
+</Method>
+
+<Method name="SerializeToSyncSet">
+<Description>
+SerializeToSyncSet copies the stream value from the current object to the sync set global. When the sync set is imported into another system
+the stream value will be copied from the global back to a stream of the container property's current type.</Description>
+<CodeMode>generator</CodeMode>
+<FormalSpec>ss:%SYNC.SyncSet,iPtr:%Integer,property:%String</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	If $$$comClassKeyGet(%class,$$$cCLASSclientdatatype) = $$$cCLASSCLIENTDATATYPEBINARYSTREAM { $$$GENERATE("	Set syncstream = ##class(%Stream.GlobalBinary).%New()") }
+	Else { $$$GENERATE("	Set syncstream = ##class(%Stream.GlobalCharacter).%New()") }
+	$$$GENERATE("	Set %objsync = ss.GlobalName()")
+	$$$GENERATE("	Set @%objsync@(iPtr,property) = $classname()")
+	$$$GENERATE("	Set syncstream.%Location = $Name(@%objsync@(iPtr,property,1))")
+	$$$GENERATE("	Set sc = syncstream.CopyFromAndSave($this)")
+	$$$GENERATE("	If $$$ISOK(sc) { Set @%objsync@(iPtr,property)=syncstream.%Oid() } Quit sc")
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="SyncStreamIn">
+<Description>
+SyncStreamIn copies the stream value from the sync set global into the current object.</Description>
+<FormalSpec>ss:%SYNC.SyncSet,iPtr:%Integer,property:%String</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set %objsync = ss.GlobalName()
+	Set oidStream = $$$oidInsertAd1($Get(@%objsync@(iPtr,property)),$Name(@%objsync@(iPtr,property,1)))
+	Set syncstream = ##class(%Stream.Object).%Open(oidStream,,.sc)
+	If $isobject(syncstream) { Quit ..CopyFromAndSave(syncstream) } Else { Quit sc }
+]]></Implementation>
+</Method>
+
+<Method name="SizeGet">
+<ReturnType>%Integer</ReturnType>
+<Implementation><![CDATA[	Quit -1
+]]></Implementation>
+</Method>
+
+<Method name="ReadSQL">
+<Description>
+SQL specific method for reading stream data</Description>
+<FormalSpec>start:%Integer=1,end:%Integer=-1</FormalSpec>
+<ReturnType>%String</ReturnType>
+<Implementation><![CDATA[
+	If ..%IsNull() Quit ""
+	If end=-1 Set end=start+$$$MaxLocalLength
+	If (end<start)||(..Size=0) Quit $char(0)
+	Do ..Rewind()
+	Set start=start-1
+	While start>0 {
+		Set tmp=..Read(start),start=start-$length(tmp),end=end-$length(tmp)
+		If tmp="" Quit
+	}
+	If start'=0 Quit $char(0)
+	Set tmp=..Read(end)
+	Quit $select(tmp="":$char(0),1:tmp)
+]]></Implementation>
+</Method>
+
+<Method name="StreamOIDIsNull">
+<Description>
+Return true if this stream oid is a null stream and false if the stream is not null</Description>
+<ClassMethod>1</ClassMethod>
+<CodeMode>call</CodeMode>
+<FormalSpec>soid:%ObjectIdentity</FormalSpec>
+<ReturnType>%Boolean</ReturnType>
+<Implementation><![CDATA[..%ObjectIsNull(.soid)
+]]></Implementation>
+</Method>
+
+<Method name="%ObjectSize">
+<Description>
+Returns the size of the stream pointed to by soid in the most efficient way possible.</Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>soid:%ObjectIdentity</FormalSpec>
+<ReturnType>%Integer</ReturnType>
+<Implementation><![CDATA[
+	If $isobject(soid)=1 Quit soid.Size
+	If soid = $$$NULLOID Quit 0
+	set class = $$$oidClassName(soid)
+	if class '= "" {
+		set class=$$$NormalizeClassname(class) If $classname()'=class Quit $classmethod(class,"%ObjectSizeInternal",soid)
+	}
+	Quit ..%ObjectSizeInternal(soid)
+]]></Implementation>
+</Method>
+
+<Method name="%ObjectSizeInternal">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>soid:%ObjectIdentity</FormalSpec>
+<Private>1</Private>
+<ReturnType>%Integer</ReturnType>
+<Implementation><![CDATA[
+	Set size=0
+	Try {
+		Set stream=..%Open(soid)
+		If $isobject(stream) Set size=stream.Size
+	} Catch {
+	}
+	Quit size
+]]></Implementation>
+</Method>
+
+<Method name="%LOBPrefetch">
+<Description><![CDATA[
+Given a <var>soid</var> if the length is <= <var>prefetchsize</var> then return the data
+in <var>data</var>. 
+The return value is 0 meaning the stream is over this size, 
+                    1 for character stream
+                    2 for binary stream.
+                    3 for non-NULL empty Stream (Size=0)]]></Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec><![CDATA[soid:%ObjectIdentity,prefetchsize:%Integer,&data:%String]]></FormalSpec>
+<ReturnType>%Integer</ReturnType>
+<Implementation><![CDATA[
+	Set data=""
+	If $isobject(soid)=1 {
+		Quit:soid.Size>prefetchsize 0
+		Set data=soid.Read(prefetchsize)
+		Quit $select(soid.Size=0:3,soid.IsCharacter():1,1:2)
+	}
+	Quit:soid=$$$NULLOID 1
+	set class = $$$oidClassName(soid)
+	if class '= "" {
+		set class=$$$NormalizeClassname(class) 
+		If $classname()'=class { Quit $classmethod(class,"%LOBPrefetchInternal",soid,prefetchsize,.data) }
+	}
+	Quit ..%LOBPrefetchInternal(soid,prefetchsize,.data)
+]]></Implementation>
+</Method>
+
+<Method name="%LOBPrefetchInternal">
+<ClassMethod>1</ClassMethod>
+<FormalSpec><![CDATA[soid:%ObjectIdentity,prefetchsize:%Integer,&data:%String]]></FormalSpec>
+<Private>1</Private>
+<ReturnType>%Integer</ReturnType>
+<Implementation><![CDATA[
+	Set stream=..%Open(soid)
+	If $isobject(stream) {
+		Quit:stream.Size>prefetchsize 0
+		Set data=stream.Read(prefetchsize)
+		Quit $select(stream.Size=0:3,stream.IsCharacter():1,1:2)
+	}
+	Quit 0
+]]></Implementation>
+</Method>
+</Class>
+
+
+<Class name="%Stream.TmpBinary">
+<ClientDataType>BINARYSTREAM</ClientDataType>
+<OdbcType>LONGVARBINARY</OdbcType>
+<Super>TmpCharacter</Super>
+<System>2</System>
+<TimeChanged>66186,77914</TimeChanged>
+<TimeCreated>59882,49561.68481</TimeCreated>
+
+<Method name="CopyFromAndUpdate">
+<Description><![CDATA[
+Copies the contents of <i>source</i> from the beginning up to the
+the <i>insert offset</i>, adds the <i>new data</i>, moves to the
+<i>delete size</i> + <i>insert offset</i> position and copies the remainder
+of the <i>source</i> stream into this Stream.
+
+<p>Returns a <CLASS>%Status</CLASS> value indicating success or failure.
+
+This method is used internally to implement the TSQL UPDATETEXT SQL statement]]></Description>
+<Internal>1</Internal>
+<ClassMethod>1</ClassMethod>
+<FormalSpec><![CDATA[pSource:%Stream.Object="",pInsertOffset:%Integer,pDeleteSize:%Integer,pText:%Binary,pTextObject:%Binary,&pStatus:%Library.Status]]></FormalSpec>
+<ReturnType>%Stream.TmpBinary</ReturnType>
+<Implementation><![CDATA[
+	try {
+		set tReturn = ..%New()
+		if $isobject(pSource) {
+			if pInsertOffset = "" { set pInsertOffset = pSource.Size }
+			do pSource.Rewind()
+			set sc1=$$$OK,sc2=$$$OK
+				#; if pInsertOffset is true, then copy from the beginning to tInsertOffset
+			if pInsertOffset {
+				set tChunks = pInsertOffset \ 32000, tLastChunk = pInsertOffset # 32000
+				for tChunk=1:1:tChunks quit:(pSource.AtEnd)||($$$ISERR(sc1)||($$$ISERR(sc2)))  set len=32000,sc1=tReturn.Write(pSource.Read(len,.sc2))
+				if '(pSource.AtEnd)&&(tLastChunk)&&($$$ISOK(sc1))&&($$$ISOK(sc2)) { set len=tLastChunk,sc1=tReturn.Write(pSource.Read(len,.sc2)) }
+				if $$$ISERR(sc1) { throw ##class(%Exception.StatusException).CreateFromStatus(sc1) }
+				elseif $$$ISERR(sc2) { throw ##class(%Exception.StatusException).CreateFromStatus(sc2) }
+			}
+		}
+		if pText '= "" {
+			if '$isobject(pText) { set sc1=tReturn.Write(pText) }
+			else {
+					#; copy the update stream
+				do pText.Rewind()
+				set sc1=$$$OK,sc2=$$$OK
+				for  quit:(pText.AtEnd)||($$$ISERR(sc1)||($$$ISERR(sc2)))  set len=32000,sc1=tReturn.Write(pText.Read(len,.sc2))
+				if $$$ISERR(sc1) { throw ##class(%Exception.StatusException).CreateFromStatus(sc1) }
+				elseif $$$ISERR(sc2) { throw ##class(%Exception.StatusException).CreateFromStatus(sc2) }
+			}
+		}
+		elseif $isobject(pTextObject) {
+			do pTextObject.Rewind()
+			set sc1=$$$OK,sc2=$$$OK
+			for  quit:(pTextObject.AtEnd)||($$$ISERR(sc1)||($$$ISERR(sc2)))  set len=32000,sc1=tReturn.Write(pTextObject.Read(len,.sc2))
+			if $$$ISERR(sc1) { throw ##class(%Exception.StatusException).CreateFromStatus(sc1) }
+			elseif $$$ISERR(sc2) { throw ##class(%Exception.StatusException).CreateFromStatus(sc2) }
+		}
+		if $isobject(pSource) {
+			if pDeleteSize { do pSource.MoveTo(pInsertOffset + pDeleteSize + 1) }
+			set sc1=$$$OK,sc2=$$$OK
+			for  quit:(pSource.AtEnd)||($$$ISERR(sc1)||($$$ISERR(sc2)))  set len=32000,sc1=tReturn.Write(pSource.Read(len,.sc2))
+			if $$$ISERR(sc1) { throw ##class(%Exception.StatusException).CreateFromStatus(sc1) }
+			elseif $$$ISERR(sc2) { throw ##class(%Exception.StatusException).CreateFromStatus(sc2) }
+		}
+		set pStatus = $$$OK
+	}
+	catch tException {
+		#dim tException as %Exception.AbstractException
+		set pStatus = tException.AsStatus()
+		set tReturn = ""
+	}
+	quit tReturn
+]]></Implementation>
+</Method>
+</Class>
+
+
+<Class name="%Stream.TmpCharacter">
+<Description>
+Temporary character stream. Any calls to save this just return without doing any work.</Description>
+<ClientDataType>CHARACTERSTREAM</ClientDataType>
+<IncludeCode>%occStream</IncludeCode>
+<OdbcType>LONGVARCHAR</OdbcType>
+<Super>%Stream.Object</Super>
+<System>2</System>
+<TimeChanged>66186,77914</TimeChanged>
+<TimeCreated>59882,49571.452961</TimeCreated>
+
+<Property name="Mode">
+<Type>%Integer</Type>
+<InitialExpression>0</InitialExpression>
+<Private>1</Private>
+</Property>
+
+<Parameter name="BUFFERLEN">
+<Description>
+Number of characters that we are storing in each global node
+If this includes a ',' then format size on non-long string then size on long string enabled system</Description>
+<Default>32656,32656</Default>
+</Parameter>
+
+<Property name="TempGbl">
+<Description>
+Where we write the temp data to</Description>
+<Type>%String</Type>
+<Private>1</Private>
+<Transient>1</Transient>
+</Property>
+
+<Property name="MaxNodeNo">
+<Description>
+Maximum subscript in data we are reading</Description>
+<Type>%Integer</Type>
+<InitialExpression>0</InitialExpression>
+<Private>1</Private>
+<Transient>1</Transient>
+</Property>
+
+<Property name="NodeNo">
+<Description>
+The current node we are reading from</Description>
+<Type>%String</Type>
+<InitialExpression>0</InitialExpression>
+<Private>1</Private>
+<Transient>1</Transient>
+<Parameter name="MAXLEN" value="5000"/>
+</Property>
+
+<Property name="Buffer">
+<Type>%Binary</Type>
+<Private>1</Private>
+<Transient>1</Transient>
+<Parameter name="MAXLEN"/>
+</Property>
+
+<Property name="rollback">
+<Type>%String</Type>
+<MultiDimensional>1</MultiDimensional>
+<Private>1</Private>
+</Property>
+
+<Property name="Position">
+<Type>%Integer</Type>
+<InitialExpression>1</InitialExpression>
+<Private>1</Private>
+<Transient>1</Transient>
+</Property>
+
+<Property name="IOSize">
+<Type>%Integer</Type>
+<InitialExpression>0</InitialExpression>
+<Private>1</Private>
+</Property>
+
+<Property name="LineTerminator">
+<Description>
+Type of line terminator we use for this stream, defaults to Cr/Lf. Maximum length is 10 characters.</Description>
+<Type>%String</Type>
+<InitialExpression>$char(13,10)</InitialExpression>
+<Transient>1</Transient>
+<Parameter name="MAXLEN" value="10"/>
+</Property>
+
+<Property name="RemoveOnClose">
+<Description>
+If true then remove the permanent global as well as any temp global when this object is closed
+If you call %Save on a stream where RemoveOnClose is true it will set this to false as if you
+explicitly save the stream you no longer want it to be removed when the object is closed. In order
+to make sure %Save always runs the logic to reset the flag setting this to true 
+causes %IsModified/%ObjectModified to return true.</Description>
+<Type>%Boolean</Type>
+<InitialExpression>0</InitialExpression>
+<Transient>1</Transient>
+</Property>
+
+<Method name="%NormalizeObject">
+<CodeMode>expression</CodeMode>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[$$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%ValidateObject">
+<CodeMode>expression</CodeMode>
+<FormalSpec>force:%Integer=0</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[$$$OK
+]]></Implementation>
+</Method>
+
+<Property name="mLastModified">
+<Type>%String</Type>
+<Private>1</Private>
+<Transient>1</Transient>
+</Property>
+
+<Method name="IsNull">
+<Description><![CDATA[
+Returns true if this is a "NULL" stream; that is, a stream which has never 
+been written to and saved. This is used by the Cach&eacute; ODBC server.]]></Description>
+<CodeMode>call</CodeMode>
+<ReturnType>%Boolean</ReturnType>
+<Implementation><![CDATA[..%IsNull()
+]]></Implementation>
+</Method>
+
+<Method name="%IsNull">
+<Description><![CDATA[
+Returns true if this is a "NULL" stream; that is, a stream which has never 
+been written to and saved. This is used by the Cach&eacute; ODBC server.]]></Description>
+<CodeMode>expression</CodeMode>
+<ReturnType>%Boolean</ReturnType>
+<Implementation><![CDATA[..Mode=$$$modeREADNODATA
+]]></Implementation>
+</Method>
+
+<Method name="LastModifiedGet">
+<Final>1</Final>
+<CodeMode>expression</CodeMode>
+<ReturnType>%TimeStamp</ReturnType>
+<Implementation><![CDATA[$zdt($select(i%mLastModified="":$ZTimeStamp,1:i%mLastModified),3)
+]]></Implementation>
+</Method>
+
+<Method name="%OnNew">
+<FormalSpec>initval:%String=""</FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set i%%Location=$select(initval="":$$$streamGlobal,1:initval)
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%OnClose">
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	If i%RemoveOnClose,i%Id'="",$data(@i%%Location@(i%Id)) Kill ^(i%Id)
+	If i%TempGbl'="" {
+		If $data(@i%TempGbl) Kill @i%TempGbl
+		If '$$$streamTmpGlobalDefault,i%%Concurrency {
+			Set lockref = ..%GetLockReference(i%%Location,i%Id)
+			If lockref'="" lock -@(lockref)#"I"
+		}
+		Set i%TempGbl=""
+	}
+	If ..%Locked { Do ..%UnlockStream(1) }
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%LoadData">
+<FormalSpec>id:%String</FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set i%%Location=$$$streamGlobal
+	$$$streamInitTmpGlobal
+]]></Implementation>
+</Method>
+
+<Method name="%OnRollBack">
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	If $data(i%rollback) {
+		Set i%Buffer=i%rollback("Buffer"),i%Mode=i%rollback("Mode"),i%MaxNodeNo=i%rollback("MaxNodeNo")
+		Set batch=$zu(68,25,1),journal=$zu(139,2)
+		If i%TempGbl="" {
+			$$$streamInitTmpGlobal
+		} Else {
+			Kill @i%TempGbl
+		}
+		For i=1:1:i%MaxNodeNo Set @i%TempGbl@(i)=@i%%Location@(i%Id,i)
+		Kill i%rollback
+		Do $zu(68,25,batch),$zu(139,journal)
+	}
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%SaveData">
+<FormalSpec><![CDATA[&sid:%String]]></FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%DeleteData">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>streamvalue:%String,concurrency:%Integer</FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%GetLockReference">
+<Description>
+Returns the global reference used to lock the current stream object
+Throws %Exception.AbstractException</Description>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>pLocation:%String(MAXLEN="")="",pId:%String(MAXLEN="")=""</FormalSpec>
+<Private>1</Private>
+<ReturnType>%String</ReturnType>
+<ReturnTypeParams>MAXLEN=""</ReturnTypeParams>
+<Implementation><![CDATA[
+	if (pId '= "") && (pLocation '= "") { quit $na(@pLocation@(pId)) }
+	quit ""
+]]></Implementation>
+</Method>
+
+<Method name="%OnConstructClone">
+<FormalSpec><![CDATA[object:%RegisteredObject,deep:%Boolean=0,&cloned:%String]]></FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set mode=i%Mode
+	If mode=$$$modeREADNODATA Quit $$$OK
+	try {
+		Set i%TempGbl="",i%Id="",i%%Locked=0,concurrency=i%%Concurrency,i%%Concurrency=0
+		if mode = $$$modeREADNOTCHANGED||(mode=$$$modeWRITEJUSTSAVED) {
+			set glv=$na(@(object.%Location)@(object.Id))
+			If mode=$$$modeWRITEJUSTSAVED Set i%MaxNodeNo=+$get(@glv)
+		} else {
+			set glv = object.TempGbl
+		}
+		If glv'="",i%MaxNodeNo>0 {
+			Do ..SetupTmpGbl()
+			Set batch=$zu(68,25,1),journal=$zu(139,2)
+			For i=1:1:i%MaxNodeNo Set @i%TempGbl@(i)=@glv@(i)
+			Do $zu(68,25,batch),$zu(139,journal)
+		}
+		If mode=$$$modeREADNOTCHANGED||(mode=$$$modeWRITEJUSTSAVED) Set i%Mode=$$$modeREADCHANGED
+		set tStatus = $$$OK
+	} catch tExceptionOuter {
+		set tStatus = tExceptionOuter.AsStatus()
+	}
+	Set i%%Concurrency=concurrency
+	Quit tStatus
+]]></Implementation>
+</Method>
+
+<Method name="Read">
+<FormalSpec><![CDATA[&len:%Integer,&sc:%Status]]></FormalSpec>
+<ReturnType>%CacheString</ReturnType>
+<Implementation><![CDATA[
+	Set sc=$$$OK,haslen=$data(len)#10,out=""
+	Set mode=i%Mode
+	If mode=$$$modeREADNODATA Set i%AtEnd=1,len=-1 Quit ""
+	#; Mode $$$modeWRITE: in middle of Write with no rewind; automatically rewind
+	If mode=$$$modeWRITE||(mode=$$$modeWRITEJUSTSAVED) Set sc=..Rewind() If $$$ISERR(sc) Quit ""
+	If i%AtEnd Set len=-1 Quit ""
+	
+	If 'haslen||(len>$$$MaxLocalLength) Set len=$$$MaxLocalLength
+	try {
+		#; try to read from i%Buffer
+		Set done=0
+		For {
+			#; do we need to read another chunk from global
+			If i%Position>$length(i%Buffer),..ReadIntoBuffer()=0 Quit
+			Set needed=len-$length(out)
+			If i%Position=1,needed'<$length(i%Buffer) {
+				Set out=out_i%Buffer
+			} Else {
+				Set out=out_$extract(i%Buffer,i%Position,i%Position+needed-1)
+			}
+			Set i%Position=i%Position+needed
+			If ('haslen&&(out'=""))||($length(out)'<len) Quit
+		}
+		#; Fill the buffer here so we can set AtEnd flag without another round trip
+		If 'i%AtEnd,i%Position>$length(i%Buffer) Do ..CheckAtEnd()
+	
+		#;if we are at the end with no data return -1
+		Set len=$select((i%AtEnd=1)&($length(out)=0):-1,1:$length(out))
+	} catch tException {
+		set sc = tException.AsStatus()
+		RETURN $g(out)	// out may be <UNDEFINED> if the error was <STORE>
+	}
+	Quit out
+]]></Implementation>
+</Method>
+
+<Method name="ReadLine">
+<FormalSpec><![CDATA[&len:%Integer=32000,&sc:%Status,&eol:%Boolean]]></FormalSpec>
+<ReturnType>%CacheString</ReturnType>
+<Implementation><![CDATA[
+	Set sc=$$$OK,eol=0
+	Set mode=i%Mode
+	If mode=$$$modeREADNODATA Set i%AtEnd=1,len=-1 Quit ""
+		
+	#; Mode $$$modeWRITE: in middle of Write with no rewind; automatically rewind
+	If mode=$$$modeWRITE||(mode=$$$modeWRITEJUSTSAVED) Set sc=..Rewind() If $$$ISERR(sc) Quit ""
+	If i%AtEnd Set len=-1 Quit ""
+	#; try to read from i%Buffer
+	Set done=0,out="",terminator=..LineTerminator
+	#; Leave space to add the terminator at the end of the buffer
+	Set:len>($$$MaxLocalLength-$length(terminator)) len=$$$MaxLocalLength-$length(terminator)
+	try {
+		For {
+			#; do we need to read another chunk from global
+			If i%Position>$length(i%Buffer),..ReadIntoBuffer()=0 Quit
+			If out="" {
+				Set found=$find(i%Buffer,terminator,i%Position)
+				If found,found-i%Position'>(len+$length(terminator)) {
+					Set out=$extract(i%Buffer,i%Position,found-$length(terminator)-1)
+					Set i%Position=found
+					Set eol=1
+					Quit
+				} Else {
+					Set out=$extract(i%Buffer,i%Position,i%Position+len-1)
+					Set i%Position=i%Position+len
+					If $length(out)'<len Quit
+				}
+			} Else {
+				#; Need to allow for the line terminator to be at the end of the current read section
+				Set needed=len-$length(out),out=out_$extract(i%Buffer,i%Position,i%Position+needed-1+$length(terminator))
+				Set found=$find(out,terminator)
+				If found {
+					#; Set the current position just after the terminator, set the output to the text just before the terminator
+					#; (len-needed) give me the previous length of 'out' before we appended more data to it.
+					Set i%Position=i%Position+found-1-(len-needed)
+					Set out=$extract(out,1,found-$length(terminator)-1)
+					Set eol=1
+					Quit
+				} Else {
+					Set i%Position=i%Position+needed
+					If $length(out)'<len Quit
+				}
+			}
+		}
+		#; See if we are at the end to avoid a round trip
+		If 'i%AtEnd,i%Position>$length(i%Buffer) Do ..CheckAtEnd()
+	} catch tException {
+		Set sc=tException.AsStatus()
+		Return ""
+	}
+	#;if we are at the end with no data return -1
+	If i%AtEnd=1,out="" {
+		Set len=-1
+		Return ""
+	} ElseIf $length(out)>len {
+		Return $extract(out,1,len)
+	} Else {
+		Set len=$length(out)
+		Return out
+	}
+]]></Implementation>
+</Method>
+
+<Method name="ReadLineIntoStream">
+<Description><![CDATA[
+This reads from the stream until it find the <property>LineTerminator</property> and returns
+this as a stream. If the stream does not contain the line terminator this can potentially be the
+entire stream.]]></Description>
+<FormalSpec><![CDATA[&sc:%Status]]></FormalSpec>
+<ReturnType>%Stream.Object</ReturnType>
+<Implementation><![CDATA[
+	Set sc=$$$OK,stream=..%New()
+	Set mode=i%Mode
+	If mode=$$$modeREADNODATA Set i%AtEnd=1 Quit stream
+	
+	#; Mode $$$modeWRITE: in middle of Write with no rewind; automatically rewind
+	If mode=$$$modeWRITE||(mode=$$$modeWRITEJUSTSAVED) Set sc=..Rewind() If $$$ISERR(sc) Quit ""
+	If i%AtEnd Set len=-1 Quit ""
+
+	#; try to read from i%Buffer
+	Set done=0,out="",terminator=..LineTerminator
+	try {
+		For  Do  Quit:done
+		#; do we need to read another chunk from global
+		. If i%Position>$L(i%Buffer),..ReadIntoBuffer()=0 Set done=1 Quit
+		#; Need to allow for the line terminator to be at the end of the current read section
+		. Set needed=$$$MaxStringLength-$L(out),out=out_$E(i%Buffer,i%Position,i%Position+needed-1+$L(terminator))
+		. Set found=$F(out,terminator)
+		. If found Do  Quit
+		#; Set the current position just after the terminator, set the output to the text just before the terminator
+		#; (len-needed) give me the previous length of 'out' before we appended more data to it.
+		. . Set i%Position=i%Position+found-1-($$$MaxStringLength-needed)
+		. . Set out=$E(out,1,found-$L(terminator)-1)
+		. . Set done=1
+		. Set i%Position=i%Position+needed
+		. Do stream.Write($extract(out,1,$length(out)-$length(terminator)+1)) Set out=$extract(out,$length(out)-$length(terminator)+2,*)
+		#; See if we are at the end to avoid a round trip
+		If 'i%AtEnd,i%Position>$length(i%Buffer) Do ..CheckAtEnd()
+		Do:out'="" stream.Write(out)
+	} catch tException {
+		set sc = tException.AsStatus()
+	}
+	Quit stream
+]]></Implementation>
+</Method>
+
+<Method name="Write">
+<FormalSpec>data:%CacheString=""</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	#; Mode = $$$modeREADNODATA,$$$modeREADNOTCHANGED: set up for write, rewind
+	Set mode=i%Mode
+	If mode'=$$$modeWRITE {
+		If mode=$$$modeWRITEJUSTSAVED {
+			Set sc=..MoveToEnd() If $$$ISERR(sc) Quit sc
+		} Else {
+			If mode'=$$$modeREADNODATA,i%TempGbl'="" {
+				Set batch=$zu(68,25,1),journal=$zu(139,2)
+				Kill @i%TempGbl
+				Do $zu(68,25,batch),$zu(139,journal)
+			}
+			Set i%Mode=$$$modeWRITE,i%IOSize=0,i%MaxNodeNo=0,i%NodeNo=0,i%Buffer="",i%Position=1
+		}
+	}
+	
+	#; a write is never at the end
+	Set datalen=$length(data),i%AtEnd=0,i%IOSize=i%IOSize+datalen,i%mLastModified=$ZTimeStamp
+	
+	#; if it fits, append data to Buffer
+	Set bufferlen=..#BUFFERLEN
+	If bufferlen["," Set bufferlen=+$piece(bufferlen,",",$select($$$MaxLocalLength>32767:2,1:1))
+	Set bufneed=bufferlen-$Length(i%Buffer)
+	If bufneed>datalen {
+		Set i%Buffer=i%Buffer_data
+	} Else {
+		#; otherwise store Buffer to global
+		If i%TempGbl="" Do ..SetupTmpGbl()
+		Set batch=$zu(68,25,1),journal=$zu(139,2)
+		If bufneed=bufferlen {
+			If bufneed=datalen {
+				Set @i%TempGbl@($increment(i%MaxNodeNo))=..%LogicalToStorage(data)
+			} Else {
+				Set @i%TempGbl@($increment(i%MaxNodeNo))=..%LogicalToStorage($extract(data,1,bufneed))
+			}
+		} Else {
+			Set @i%TempGbl@($increment(i%MaxNodeNo))=..%LogicalToStorage(i%Buffer_$extract(data,1,bufneed))
+		}
+		While datalen-bufneed'<bufferlen {
+			Set ^($increment(i%MaxNodeNo))=..%LogicalToStorage($extract(data,bufneed+1,bufneed+bufferlen)),bufneed=bufneed+bufferlen
+		}
+		Do $zu(68,25,batch),$zu(139,journal)
+		Set i%Buffer=$extract(data,bufneed+1,*)
+	}
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="SetupTmpGbl">
+<Description>
+Setup the TempGbl location of where we will write the temp stream to</Description>
+<Private>1</Private>
+<Implementation><![CDATA[
+	$$$streamInitTmpGlobal
+	Set i%%Location="^||%Stream.tmp"
+]]></Implementation>
+</Method>
+
+<Method name="WriteLine">
+<Description><![CDATA[
+Appends the string <var>data</var> along with a line terminator to the stream and advances the 
+current stream position by the number of characters in <var>data</var> plus the line terminator.
+
+<p>Returns a <CLASS>%Status</CLASS> value indicating success or failure.]]></Description>
+<FormalSpec>data:%CacheString=""</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	If $length(data)+$length(..LineTerminator)>$$$MaxLocalLength {
+		Set sc=..Write(data)
+		If $$$ISOK(sc) Set sc=..Write(..LineTerminator)
+	} Else {
+		Set sc=..Write(data_..LineTerminator)
+	}
+	Quit sc
+]]></Implementation>
+</Method>
+
+<Method name="MoveToEnd">
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	#; If no data or in write mode already nothing to do
+	Set mode=i%Mode
+	If (mode=$$$modeREADNODATA)||(mode=$$$modeWRITE) Quit $$$OK
+	
+	#; Copy the permanent data into temporary structure ready for appending
+	If mode=$$$modeREADNOTCHANGED||(mode=$$$modeWRITEJUSTSAVED) {
+		Set batch=$zu(68,25,1),journal=$zu(139,2)
+		If i%TempGbl="" $$$streamInitTmpGlobal
+		Set tempgbl=i%TempGbl,location=i%%Location,id=i%Id
+		If mode=$$$modeWRITEJUSTSAVED Set i%MaxNodeNo=+$get(@location@(id))
+		For i=1:1:i%MaxNodeNo-1 Set @tempgbl@(i)=@location@(id,i)
+		If i%MaxNodeNo>0 {
+			Set data=..%StorageToLogical(@location@(id,i%MaxNodeNo))
+			Set bufferlen=..#BUFFERLEN
+			If bufferlen["," Set bufferlen=+$piece(bufferlen,",",$select($$$MaxLocalLength>32767:2,1:1))
+			If $length(data)<bufferlen {
+				Set i%Buffer=data,i%MaxNodeNo=i%MaxNodeNo-1
+			} Else {
+				Set @tempgbl@(i%MaxNodeNo)=..%LogicalToStorage(data)
+				Set i%Buffer=""
+			}
+		} Else {
+			Set i%Buffer=""
+		}
+		Do $zu(68,25,batch),$zu(139,journal)
+	} ElseIf mode'=$$$modeREADBUFFER {
+		Set i%Buffer=""
+	}
+	#; a write is never at the end
+	Set i%Mode=$$$modeWRITE,i%AtEnd=0
+	
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="Rewind">
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set mode=i%Mode
+	If mode=$$$modeWRITEJUSTSAVED {
+		Set i%MaxNodeNo=+$get(@i%%Location@(i%Id))
+		Set i%NodeNo=0,i%Buffer="",i%Mode=$$$modeREADNOTCHANGED
+	} ElseIf mode=$$$modeWRITE {
+		#; If we have not written anything yet we can keep the data in the buffer
+		If i%TempGbl'="" {
+			If i%Buffer'="" Set sc=..Flush() If $$$ISERR(sc) Quit sc
+			Set i%NodeNo=0,i%Buffer="",i%Mode=$$$modeREADCHANGED
+		} Else {
+			Set i%Mode=$$$modeREADBUFFER
+		}
+	} ElseIf mode'=$$$modeREADBUFFER {
+		Set i%NodeNo=0,i%Buffer=""
+	}
+	Set i%Position=1,i%AtEnd=$select(i%Mode=$$$modeREADNODATA:1,1:0)
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="Flush">
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	If i%Mode'=$$$modeWRITE Quit $$$OK
+	If i%Buffer="" Quit $$$OK
+	#; Turn on batch mode so writing stream does not kill the cache
+	If i%TempGbl="" Do ..SetupTmpGbl()
+	Set batch=$zu(68,25,1),journal=$zu(139,2)
+	Set bufferlen=..#BUFFERLEN
+	If bufferlen["," Set bufferlen=+$piece(bufferlen,",",$select($$$MaxLocalLength>32768:2,1:1))
+	While i%Buffer'="" {
+		#; Move to next node, write data
+		Set @i%TempGbl@($increment(i%MaxNodeNo))=..%LogicalToStorage($extract(i%Buffer,1,bufferlen))
+		Set i%Buffer=$extract(i%Buffer,bufferlen+1,*)
+	}
+	Do $zu(68,25,batch),$zu(139,journal)
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<UDLText name="T">
+<Content><![CDATA[
+// Size attribute
+
+]]></Content>
+</UDLText>
+
+<Method name="SizeGet">
+<Description>
+Return the current size of the data stream. </Description>
+<CodeMode>expression</CodeMode>
+<ReturnType>%Integer</ReturnType>
+<Implementation><![CDATA[i%IOSize
+]]></Implementation>
+</Method>
+
+<Method name="CheckAtEnd">
+<Description>
+Check if we are at the end of the global, but do not read the next buffer</Description>
+<Private>1</Private>
+<Implementation><![CDATA[
+	#; Are we at the end
+	If i%NodeNo'<i%MaxNodeNo {
+		Set i%AtEnd=1,i%NodeNo=0
+		Do:..%Locked ..%UnlockStream(1)
+	}
+]]></Implementation>
+</Method>
+
+<Method name="ReadIntoBuffer">
+<Description><![CDATA[
+Reads the next node into Buffer.
+<p>Returns 0 if there is no more data.]]></Description>
+<Private>1</Private>
+<ReturnType>%Boolean</ReturnType>
+<Implementation><![CDATA[
+	#; Are we at the end
+	If i%NodeNo'<i%MaxNodeNo {
+		Set i%AtEnd=1,i%NodeNo=0
+		Do:..%Locked ..%UnlockStream(1)
+		Quit 0
+	}
+	Set i%Position=1
+	#; Turn on batch mode so reading stream does not kill the cache
+	Set batch=$zu(68,25,1)
+	If i%Mode=$$$modeREADNOTCHANGED {
+		If ('..%Locked) && (i%%Concurrency) { Do ..%LockStream() }
+		Set i%Buffer=..%StorageToLogical(@i%%Location@(i%Id,$increment(i%NodeNo)))
+	} Else {
+		Set i%Buffer=..%StorageToLogical(@i%TempGbl@($increment(i%NodeNo)))
+	}
+	Do:batch=0 $zu(68,25,0)
+	Quit 1
+]]></Implementation>
+</Method>
+
+<Method name="CopyFrom">
+<FormalSpec>source:%Stream.Object</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Quit:source=$$$NULLOREF $$$ERROR($$$OrefInvalid,"")
+	Set sc=$$$OK
+	#; Optimise for copy from one global to another
+	If $classname(source)=$classname() {
+		Set mode=source.Mode
+		Set sourceGlvn=$S(mode=$$$modeREADCHANGED||(mode=$$$modeWRITE):source.TempGbl,mode=$$$modeREADNODATA||(mode=$$$modeREADBUFFER):"",1:$na(@(source.%Location)@(source.Id)))
+		If mode=$$$modeWRITEJUSTSAVED {
+			Set sourcemaxnodeno=+$get(@sourceGlvn)
+		} Else {
+			Set sourcemaxnodeno=source.MaxNodeNo
+		}	
+
+		#; Update the last modified timestamp
+		Set i%mLastModified=$ZTimeStamp
+		If i%Mode=$$$modeWRITEJUSTSAVED {
+			Set sc=..MoveToEnd() If $$$ISERR(sc) Quit sc
+		}
+		If i%Mode'=$$$modeWRITE {
+			#; Copy the data and setup the properties
+			Set i%MaxNodeNo=sourcemaxnodeno
+			Set tempgbl=i%TempGbl
+			#; clear temp to prepare for write to same location as last write
+			If tempgbl="" {
+				If sourcemaxnodeno>0 Do ..SetupTmpGbl() Set tempgbl=i%TempGbl
+				Set batch=$zu(68,25,1),journal=$zu(139,2)
+			} Else {
+				Set batch=$zu(68,25,1),journal=$zu(139,2)
+				If $data(@tempgbl) Kill @tempgbl
+			}
+			Try {
+				For i=1:1:sourcemaxnodeno Set @tempgbl@(i)=@sourceGlvn@(i)
+			} Catch exception {
+				Do $zu(68,25,batch),$zu(139,journal)
+				Throw exception
+			}
+			Do $zu(68,25,batch),$zu(139,journal)
+			Set i%Mode=$$$modeWRITE,i%IOSize=source.Size
+			Set i%Buffer=$select(mode=$$$modeREADNOTCHANGED||(mode=$$$modeREADCHANGED):"",1:source.Buffer)
+		} Else {
+			#; Else we can blast through the global which is faster than the generic
+			#; copy mechanism, and add the new information to the end of the current data.
+			Set buffer=i%Buffer,maxnodeno=i%MaxNodeNo
+			Set tempgbl=i%TempGbl
+			Set bufferlen=..#BUFFERLEN
+			If bufferlen["," Set bufferlen=+$piece(bufferlen,",",$select($$$MaxLocalLength>32767:2,1:1))
+			Set batch=$zu(68,25,1),journal=$zu(139,2)
+			Try {
+				For i=1:1:sourcemaxnodeno,0 {
+					If i=0 {
+						Set data=$select(mode=$$$modeREADNOTCHANGED||(mode=$$$modeREADCHANGED):"",1:source.Buffer)
+					} Else {
+						Set data=..%StorageToLogical(@sourceGlvn@(i))
+					}
+					Set datalen=$length(data)
+					If $length(buffer)+datalen<bufferlen {
+						Set buffer=buffer_data
+					} Else {
+						#; otherwise store Buffer to global
+						If tempgbl="" Do ..SetupTmpGbl() Set tempgbl=i%TempGbl
+						#; If buffer big enough on its own to write a chunk output these
+						Set currpos=1
+						While $length(buffer)-currpos+1>=bufferlen {
+							Set @tempgbl@($increment(maxnodeno))=..%LogicalToStorage($extract(buffer,currpos,currpos+bufferlen-1)),currpos=currpos+bufferlen
+						}
+						If currpos'=1 Set buffer=$extract(buffer,currpos,*)
+						If buffer="" {
+							Set currpos=bufferlen
+							If datalen=bufferlen {
+								Set @tempgbl@($increment(maxnodeno))=..%LogicalToStorage(data)
+							} Else {
+								Set @tempgbl@($increment(maxnodeno))=..%LogicalToStorage($extract(data,1,bufferlen))
+							}
+						} Else {
+							Set currpos=bufferlen-$length(buffer)
+							Set @tempgbl@($increment(maxnodeno))=..%LogicalToStorage(buffer_$extract(data,1,currpos))
+						}
+						While datalen-currpos>=bufferlen {
+							Set @tempgbl@($increment(maxnodeno))=..%LogicalToStorage($extract(data,currpos+1,currpos+bufferlen)),currpos=currpos+bufferlen
+						}
+						Set buffer=$extract(data,currpos+1,*)
+					}
+				}
+			} Catch exception {
+				Do $zu(68,25,batch),$zu(139,journal)
+				Throw exception
+			}
+			Do $zu(68,25,batch),$zu(139,journal)
+			Set i%IOSize=i%IOSize+source.Size,i%Buffer=buffer,i%MaxNodeNo=maxnodeno
+		}
+	} Else {
+		#; Else use the generic copy mechanism
+		Set sc=##class(%Stream.Object)$this.CopyFrom(source)
+	}
+
+	If $$$ISERR(sc) Quit sc
+
+	#; Now copy the LineTerminator attribute
+	If source.%Extends("%Stream.GlobalCharacter") || source.%Extends("%Library.AbstractStream") || source.%Extends("%IO.IParts.LineIO") || (source.%Extends("%CSP.Stream")) {
+		Set ..LineTerminator=source.LineTerminator
+	}
+
+	Quit sc
+]]></Implementation>
+</Method>
+
+<Method name="OutputToDevice">
+<FormalSpec><![CDATA[&len:%Integer=-1]]></FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set $Ztrap="OutputError"
+	If (i%Mode=$$$modeREADNODATA) Set i%AtEnd=1,len=-1 Quit $$$OK
+	If len=0 Quit $$$OK
+	Set sc=$$$OK
+	try {
+		If len=-1||((i%Position=1)&&(i%NodeNo=0)&&(len>=i%IOSize)) {
+			#; Note that Rewind turns off WRITE mode so we do not need to test for this
+			Do ..Rewind()
+			If i%MaxNodeNo {
+				#; Turn on batch mode so reading stream does not kill the cache
+				Set batch=$zu(68,25,1)
+				Set glvn=$S(i%Mode=$$$modeREADCHANGED:i%TempGbl,i%Mode=$$$modeREADNOTCHANGED:$na(@i%%Location@(i%Id)))
+				Write ..%StorageToLogical(@glvn@(1))
+				For i=2:1:i%MaxNodeNo Write ..%StorageToLogical(^(i))
+				Do:batch=0 $zu(68,25,0)
+			}
+			If i%Mode=$$$modeREADBUFFER Write i%Buffer
+			If len'=-1 Set i%AtEnd=1
+			Set len=i%IOSize
+	
+		#; Else write out just part of the global
+		} Else {
+			#; Mode $$$modeWRITE: in middle of Write with no rewind; automatically rewind
+			If i%Mode=$$$modeWRITE||(i%Mode=$$$modeWRITEJUSTSAVED) Do ..Rewind()
+			Set written=0
+			#; If they only want less than in the current buffer so give it to them
+			If len<($L(i%Buffer)-i%Position+2) {
+				Write $E(i%Buffer,i%Position,i%Position+len-1)
+				Set i%Position=i%Position+len
+				Set written=len
+			} ElseIf i%Mode=$$$modeREADBUFFER {
+				Write $extract(i%Buffer,i%Position,*)
+				Set i%Position=$length(i%Buffer)+1,i%AtEnd=1
+			#; Else they want more than in the buffer
+			} Else {
+				#; Output the buffer to start with
+				Write $E(i%Buffer,i%Position,*)
+				Set written=written+$L(i%Buffer)-i%Position+1
+
+				Set glvn=$S(i%Mode=$$$modeREADCHANGED:i%TempGbl,i%Mode=$$$modeREADNOTCHANGED:$na(@i%%Location@(i%Id)))
+				Set node=i%NodeNo
+				#; Turn on batch mode so reading stream does not kill the cache
+				Set batch=$zu(68,25,1)
+				For  Set node=$O(@glvn@(node),1,data) Quit:node=""  Set data=..%StorageToLogical(data) Quit:written+$L(data)>len  Write data Set written=written+$L(data)
+				Do:batch=0 $zu(68,25,0)
+				Set i%NodeNo=$S(node="":0,1:node)
+
+				#; End of stream
+				If node="" {
+					Set i%AtEnd=1,i%Buffer="",i%Position=1
+				} Else {
+					#; Now write out the final data
+					Write $extract(data,1,len-written)
+					Set i%Buffer=data
+					Set i%Position=len-written+1
+					Set written=len
+				}
+			}
+			#; Check if we are at the end
+			If 'i%AtEnd,i%Position>$length(i%Buffer) Do ..CheckAtEnd()
+
+			#;if we are at the end with no data return -1
+			Set len=$S((i%AtEnd=1)&(written=0):-1,1:written)
+		}
+	} catch tException {
+		set sc = tException.AsStatus()
+	}
+	Quit sc
+OutputError	Set $ztrap=""
+	Quit $$$ERROR($$$CacheError,$ZE)
+]]></Implementation>
+</Method>
+
+<Method name="Clear">
+<FormalSpec>permanent:%Boolean=1</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	If i%Mode=$$$modeREADNODATA Quit $$$OK
+	Set i%mLastModified=$ZTimeStamp
+	Set batch=$zu(68,25,1),journal=$zu(139,2)
+	If i%TempGbl'="" {
+		If $data(@i%TempGbl) Kill @i%TempGbl
+		If '$$$streamTmpGlobalDefault,i%%Concurrency {
+			Set tLockRef = ..%GetLockReference(i%%Location,i%Id)
+			lock -@(tLockRef)#"I"
+		}
+		Set i%TempGbl=""
+	}
+	Do $zu(139,journal)
+	If permanent {
+		If i%Id'="" {
+			If $data(@i%%Location@(i%Id)) Kill ^(i%Id)
+			Set i%Id=""
+		}
+		Set i%Mode=$$$modeREADNODATA,i%MaxNodeNo=0
+		Set i%"%%OID"=..%Oid()
+	} Else {
+		Set i%Mode=$$$modeREADNOTCHANGED,maxnode=0
+		If i%Id'="",$data(@i%%Location@(i%Id),maxnode)#10=0 Set maxnode=+$order(^(i%Id,""),-1)
+		Set i%MaxNodeNo=maxnode
+	}
+	Set i%Buffer="",i%Position=1,i%NodeNo=0,i%IOSize=0,i%AtEnd=1
+	Do $zu(68,25,batch)
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%Exists">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>soid:%ObjectIdentity</FormalSpec>
+<ReturnType>%Boolean</ReturnType>
+<Implementation><![CDATA[
+	Set location=$$$oidSysAd1(soid)
+	If $ascii(location)=0 Set location=$list($extract(location,2,*))
+	If location="" Set location=$$$streamGlobal
+	Set loctmp=$$$oidPrimary(soid)
+	If location=""||(loctmp="") Quit 0
+	Quit ''$data(@location@(loctmp))
+]]></Implementation>
+</Method>
+
+<Method name="%ObjectModified">
+<ReturnType>%Integer</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[	Quit $select(i%RemoveOnClose:1,1:$case(i%Mode,$$$modeREADNOTCHANGED:0,$$$modeREADNODATA:0,$$$modeWRITEJUSTSAVED:0,:1))
+]]></Implementation>
+</Method>
+
+<Method name="%IsModified">
+<ReturnType>%Integer</ReturnType>
+<Implementation><![CDATA[	Quit $select(i%RemoveOnClose:1,1:$case(i%Mode,$$$modeREADNOTCHANGED:0,$$$modeREADNODATA:0,$$$modeWRITEJUSTSAVED:0,:1))
+]]></Implementation>
+</Method>
+
+<Method name="%LogicalToStorage">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>val:%String</FormalSpec>
+<Private>1</Private>
+<ReturnType>%String</ReturnType>
+<Implementation><![CDATA[	Quit val
+]]></Implementation>
+</Method>
+
+<Method name="%StorageToLogical">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>val:%String</FormalSpec>
+<Private>1</Private>
+<ReturnType>%String</ReturnType>
+<Implementation><![CDATA[	Quit val
+]]></Implementation>
+</Method>
+
+<Method name="BuildValueArray">
+<Description>
+Callback for searchable stream</Description>
+<FormalSpec><![CDATA[&subvalue:%String]]></FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%ObjectIsNull">
+<ClassMethod>1</ClassMethod>
+<FormalSpec>soid:%ObjectIdentity</FormalSpec>
+<ReturnType>%Boolean</ReturnType>
+<Implementation><![CDATA[
+	If soid=$$$NULLOID Quit 1
+	If $isobject(soid)=1 Quit soid.%IsNull()
+	Set class=$$$oidClassName(soid)
+	If class'="" {
+		Set class=$$$NormalizeClassname(class) If $classname()'=class Quit $classmethod(class,"%ObjectIsNull",soid)
+	}
+	Quit '..%Exists(soid)
+]]></Implementation>
+</Method>
+</Class>
+</Export>

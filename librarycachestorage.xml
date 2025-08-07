@@ -1,0 +1,754 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Export generator="Cache" version="25" zv="Cache for Windows (x86-64) 2018.1.7 (Build 721U)" ts="2025-08-07 11:52:04">
+<Class name="%Library.CacheSQLStorage">
+<Description><![CDATA[
+The <b>%CacheSQLStorage</b> class contains a set of storage interface methods
+that use embedded SQL statements, as well as an advanced set of data
+mapping definition, to provide a way to layer objects on top of pre-existing
+<i>Cach&eacute;</i> data structures.
+
+<p>The storage interface methods, which are implemented as
+method generators, work in conjunction
+with the persistent interface methods of the <b>%Persistent</b> class to
+provide persistent behavior for objects.
+
+<p>The methods of <b>%CacheSQLStorage</b> are not meant to be called directly.
+Use the methods of the <b>%Persistent</b> class which, in turn, call the
+appropriate <b>%CacheStorage</b> method.]]></Description>
+<Abstract>1</Abstract>
+<IncludeGenerator>%systemInclude</IncludeGenerator>
+<ProcedureBlock>0</ProcedureBlock>
+<Super>%Storage</Super>
+<System>2</System>
+<TimeChanged>66186,77913</TimeChanged>
+<TimeCreated>59241,41414</TimeCreated>
+
+<Parameter name="OBJECTSPULLTRIGGERS">
+<Default>1</Default>
+</Parameter>
+
+<Parameter name="STORAGECOMPILERCLASS">
+<Default>%Compiler.Storage.CacheSQL</Default>
+</Parameter>
+
+<Method name="%LockExtent">
+<Description>
+Acquire (s)hared or (e)xclusive locks based on locktype parameter</Description>
+<ClassMethod>1</ClassMethod>
+<CodeMode>generator</CodeMode>
+<FormalSpec>shared:%Boolean=0</FormalSpec>
+<ProcedureBlock>1</ProcedureBlock>
+<ReturnType>%Status</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[
+	set %codemode = $$$cMETHCODEMODEEXPRESSION
+	if $$$comMemberKeyGet(%class,$$$cCLASSparameter,"CONNECTION",$$$cPARAMdefault)'="" s %code="$$$OK" q $$$OK
+	set %code = "$Select(..%SQLAcquireTableLock(shared):$$$OK,1:$$$ERROR($Select('shared:$$$ERRORCODE($$$LockFailedToAcquireExclusive),1:$$$ERRORCODE($$$LockFailedToAcquireRead)),$classname()))"
+	QUIT $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%UnlockExtent">
+<Description>
+Release (s)hared or (e)xclusive locks based on locktype parameter</Description>
+<ClassMethod>1</ClassMethod>
+<CodeMode>generator</CodeMode>
+<FormalSpec>shared:%Boolean=0,immediate:%Boolean=0</FormalSpec>
+<ProcedureBlock>1</ProcedureBlock>
+<ReturnType>%Status</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[
+	i $$$comMemberKeyGet(%class,$$$cCLASSparameter,"CONNECTION",$$$cPARAMdefault)'="" s %codemode=$$$cMETHCODEMODEEXPRESSION,%code="$$$OK" q $$$OK
+	s %codemode=$$$cMETHCODEMODEEXPRESSION, %code = "$Select(..%SQLReleaseTableLock(shared,immediate):$$$OK,1:$$$ERROR($$$SQLCode,SQLCODE,%msg))"
+	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%LockId">
+<Description>
+Acquire (s)hared or (e)xclusive locks based on locktype parameter</Description>
+<ClassMethod>1</ClassMethod>
+<CodeMode>generator</CodeMode>
+<FormalSpec>id:%String,shared:%Boolean=0,timeout:%Integer</FormalSpec>
+<ProcedureBlock>1</ProcedureBlock>
+<ReturnType>%Status</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[
+	if $$$comMemberKeyGet(%class,$$$cCLASSparameter,"CONNECTION",$$$cPARAMdefault)'="" s %codemode=$$$cMETHCODEMODEEXPRESSION,%code="$$$OK" q $$$OK
+	$$$GENERATE("	If id="""" Quit $$$ERROR($$$NullId)")
+	$$$GENERATE("	If $get(timeout)'="""" Set oldtimeout=$zutil(115,4,timeout)")
+	$$$GENERATE("	Try { Set rc=..%SQLAcquireLock(id,shared) Do:$get(timeout)'="""" $zutil(115,4,oldtimeout) } Catch { Do:$get(timeout)'="""" $zutil(115,4,oldtimeout) Throw }")
+	$$$GENERATE("	If 'rc Quit $$$ERROR($Select('shared:$$$ERRORCODE($$$LockFailedToAcquireExclusive),1:$$$ERRORCODE($$$LockFailedToAcquireRead)),id_"":""_$classname())")
+	$$$GENERATE("	Quit $$$OK")
+	QUIT $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%UnlockId">
+<Description>
+Release locks held on an object (identified by the id parameter).
+If shared is true then the lock released is a shared lock. If immediate is
+true then release the lock immediately (lock not held until completion of the
+current transaction)</Description>
+<ClassMethod>1</ClassMethod>
+<CodeMode>generator</CodeMode>
+<FormalSpec>id:%String,shared:%Boolean=0,immediate:%Boolean=0</FormalSpec>
+<ProcedureBlock>1</ProcedureBlock>
+<ReturnType>%Status</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[
+ i $$$comMemberKeyGet(%class,$$$cCLASSparameter,"CONNECTION",$$$cPARAMdefault)'="" s %codemode=$$$cMETHCODEMODEEXPRESSION,%code="$$$OK" q $$$OK
+ $$$GENERATE("	Do ..%SQLReleaseLock(id,shared,immediate)")
+ $$$GENERATE("	Quit $$$OK")
+ Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%BuildIndices">
+<Description>
+%BuildIndices
+	Build all the indices contained in idxlist. If idxlist is empty then all
+	indices will be built. If autoPurge is true then %PurgeIndices(idxlist) will
+	be called before starting to build.</Description>
+<Internal>1</Internal>
+<ClassMethod>1</ClassMethod>
+<CodeMode>generator</CodeMode>
+<FormalSpec>pIndexList:%CacheString="",pAutoPurge:%Integer=1,pLockFlag:%Integer=0,pJournalFlag:%Integer=1,pStartID:%CacheString="",pEndID:%CacheString="",pIgnoreIndexList:%CacheString=""</FormalSpec>
+<ProcedureBlock>1</ProcedureBlock>
+<ReturnType>%Status</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[
+	If $$$comMemberKeyGet(%class,$$$cCLASSparameter,"CONNECTION",$$$cPARAMdefault) = "" {
+		$$$GENERATE($Char(9)_"try {")
+		$$$GENERATE($Char(9,9)_"if ($ll(pIndexList)=1)&&($lg(pIndexList)="""") { return $$$OK }")
+		$$$GENERATE($Char(9,9)_"set locked=0,sc=$$$OK,ptr=0")
+		$$$GENERATE($Char(9,9)_"While $listnext(pIndexList,ptr,tIndex) {")
+		$$$GENERATE($Char(9,9,9)_"continue:tIndex=""""")
+		$$$GENERATE($Char(9,9,9)_"If "_$Select($get($$$EXTrootclass($$$pEXT,%class)):"'$$$comMemberDefined($classname(),$$$cCLASSindex,tIndex)",1:"$$$comMemberKeyGet($classname(),$$$cCLASSindex,tIndex,$$$cINDEXorigin)'=$classname()")_" {")
+		$$$GENERATE($Char(9,9,9,9)_"Set sc=$$$ADDSC(sc,$$$ERROR($$$IndexNameInvalid,$classname()_""::""_tIndex))")
+		$$$GENERATE($Char(9,9,9)_"}")
+		$$$GENERATE($Char(9,9)_"}")
+		$$$GENERATE($Char(9,9)_"If $$$ISERR(sc) { $$$ThrowStatus(sc) }")
+		$$$GENERATE($Char(9,9)_"if 'pJournalFlag,$$CURRENT^%SYS.NOJRN() { do DISABLE^%SYS.NOJRN() set tWeStoppedJournaling=1 }")
+		$$$GENERATE($Char(9,9)_"if pLockFlag = 1||(pLockFlag=3) { set SQLCODE=0 do ..%SQLAcquireTableLock($select(pLockFlag=3:1,1:0),.SQLCODE) if SQLCODE { $$$ThrowStatus($$$ERROR($$$SQLCode,SQLCODE,$g(%msg))) } else { set locked=1 } }")
+		$$$GENERATE($Char(9,9)_"if $system.CLS.IsMthd(""%OnBeforeBuildIndices"") { set sc=..%OnBeforeBuildIndices(.pIndexList) if $$$ISERR(sc) { $$$ThrowStatus(sc) } }")
+		$$$GENERATE($Char(9,9)_"if ($ll(pIndexList)'=1)||($lg(pIndexList)'="""") {")
+		$$$GENERATE($Char(9,9,9)_"if pAutoPurge,pStartID="""",pEndID="""" { set sc = ..%PurgeIndices(pIndexList,,pIgnoreIndexList) if $$$ISERR(sc) { $$$ThrowStatus(sc) } }")
+		$$$GENERATE($Char(9,9,9)_"set sc=..%SQLBuildIndices(pIndexList,pLockFlag,pStartID,pEndID,pIgnoreIndexList) if $$$ISERR(sc) { $$$ThrowStatus(sc) }")
+		$$$GENERATE($Char(9,9,9)_"if $system.CLS.IsMthd(""%OnAfterBuildIndices"") { set sc=..%OnAfterBuildIndices(.pIndexList) if $$$ISERR(sc) { $$$ThrowStatus(sc) } }")
+		$$$GENERATE($Char(9,9)_"}")
+		$$$GENERATE($Char(9)_"}")
+		$$$GENERATE($Char(9)_"catch tException {")
+		$$$GENERATE($Char(9,9)_"set sc = tException.AsStatus()")
+		$$$GENERATE($Char(9)_"}")
+		$$$GENERATE($Char(9)_"if locked { do ..%SQLReleaseTableLock($select(pLockFlag=3:1,1:0)) }")
+		$$$GENERATE($Char(9)_"if 'pJournalFlag,$g(tWeStoppedJournaling) { do ENABLE^%SYS.NOJRN() }")
+		$$$GENERATE($Char(9)_"quit sc")
+	}
+	Else { Set %codemode = $$$cMETHCODEMODEEXPRESSION, %code="$$$OK" }
+	QUIT $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%DeleteData">
+<Description>
+%DeleteData()
+	Delete object from persistent storage
+	The caller is responsible for calling %IdSet()
+	Don't include class name with id in input parameter</Description>
+<Final>1</Final>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>id:%String,concurrency:%Integer</FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%LoadData">
+<Description>
+Load object from persistent storage into memory
+The caller is responsible for calling %IdSet()
+Don't include class name with id in input parameter</Description>
+<Final>1</Final>
+<FormalSpec>id:%String</FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%PurgeIndices">
+<ClassMethod>1</ClassMethod>
+<CodeMode>generator</CodeMode>
+<FormalSpec>idxlist:%List="",lockExtent:%Boolean=0,pIgnoreIndexList:%CacheString=""</FormalSpec>
+<ProcedureBlock>1</ProcedureBlock>
+<ReturnType>%Status</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[
+	If $$$comMemberKeyGet(%class,$$$cCLASSparameter,"CONNECTION",$$$cPARAMdefault) = "" {
+		$$$GENERATE($Char(9)_"if ($listlength(idxlist)=1)&&($listget(idxlist)="""") { return $$$OK }")
+		$$$GENERATE("	s $ZTrap=""CatchError"",locked=0,sc=$$$OK")
+		$$$GENERATE("	i lockExtent { d ..%SQLAcquireTableLock(0,.SQLCODE) i SQLCODE { q $$$ERROR($$$SQLCode,SQLCODE,$g(%msg)) } else { s locked=1 } }")
+		$$$GENERATE($Char(9)_"if $system.CLS.IsMthd(""%OnBeforePurgeIndices"") { set sc=..%OnBeforePurgeIndices(.idxlist) i ($$$ISERR(sc))||(($ll(idxlist)=1)&&($lg(idxlist)="""")) { i locked { d ..%SQLReleaseTableLock(0) } quit sc } }")
+		$$$GENERATE("	s sc=..%SQLPurgeIndices(idxlist,lockExtent,pIgnoreIndexList)")
+		$$$GENERATE($Char(9)_"if $system.CLS.IsMthd(""%OnAfterPurgeIndices"") { set sc=..%OnAfterPurgeIndices(.idxlist) }")
+		$$$GENERATE("	i locked { d ..%SQLReleaseTableLock(0) }")
+		$$$GENERATE("	q sc")
+		$$$GENERATE("CatchError	s $ZTrap="""" i $ZE'="""" { s sc = $$$ERROR($$$CacheError,$ZE) } i locked { d ..%SQLReleaseLock(0) } q sc")
+	}
+	Else { Set %codemode = $$$cMETHCODEMODEEXPRESSION, %code="$$$OK" }
+	QUIT $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%SaveData">
+<Description>
+%SaveData()
+Save the object to a persistent state (e.g. store it on disk)
+return: oid or "" if save fails</Description>
+<Final>1</Final>
+<FormalSpec>id:%String</FormalSpec>
+<Private>1</Private>
+<ReturnType>%Status</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[	Quit $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%Exists">
+<Description>
+%Exists()
+	Check to see if an OID exists in the extent of this class...</Description>
+<ClassMethod>1</ClassMethod>
+<CodeMode>generator</CodeMode>
+<FormalSpec>oid:%ObjectIdentity=""</FormalSpec>
+<ReturnType>%Boolean</ReturnType>
+<ServerOnly>0</ServerOnly>
+<Implementation><![CDATA[
+	New connection,qtable
+	$$$comMemberKeyGetLvar(connection,%class,$$$cCLASSparameter,"CONNECTION",$$$cPARAMdefault)
+	If $$$CLASSabstract($$$gMGINFO,%class)||(connection'="")||('$$$classIsPersistent(%class)) {
+		Set %code = "$isobject(..%OpenId($$$oidPrimary(oid),0))", %codemode = $$$cMETHCODEMODEEXPRESSION
+		Quit $$$OK
+	}
+	Set qtable=$$$CLASSsqlqualifiednameQ($$$gWRK,%class)
+	$$$GENERATE("	New SQLCODE,id,id2,%ROWCOUNT,%ROWID,%msg")
+	$$$GENERATE("	Set id=$$$oidPrimary(oid)")
+	$$$GENERATE("	&sql(SELECT %ID INTO :id2 FROM "_qtable_" WHERE %ID=:id)")
+	$$$GENERATE("	Quit $select(SQLCODE:0,id'=id2:0,1:1)")
+	QUIT $$$OK
+]]></Implementation>
+</Method>
+</Class>
+
+
+<Class name="%Library.CacheStorage">
+<Description><![CDATA[
+The <b>%CacheStorage</b> class contains the storage interface methods 
+for the Cach&eacute; default storage structure. The storage interface 
+methods, which are implemented as method generators, work in conjunction 
+with the persistent interface methods of the <b>%Persistent</b> class to 
+provide persistent behavior for objects. 
+
+<p>The methods of <b>%CacheStorage</b> are not meant to be called directly. 
+Use the methods of the <b>%Persistent</b> class which, in turn, call the 
+appropriate <b>%CacheStorage</b> method. ]]></Description>
+<Abstract>1</Abstract>
+<IncludeGenerator>%systemInclude</IncludeGenerator>
+<ProcedureBlock>0</ProcedureBlock>
+<Super>%Storage</Super>
+<System>2</System>
+<TimeChanged>66186,77913</TimeChanged>
+<TimeCreated>59241,41414</TimeCreated>
+
+<Parameter name="STORAGECOMPILERCLASS">
+<Default>%Compiler.Storage.Cache</Default>
+</Parameter>
+
+<Parameter name="STORAGEINTERFACE">
+<Description>
+STORAGEINTERFACE defines the type of serialization implemented by this class.
+The value has to match the classtype of the class that is inheriting the serialization
+interface.</Description>
+<Type>STRING</Type>
+<Constraint>,persistent,serial</Constraint>
+<Default>persistent</Default>
+<Flags>ENUM</Flags>
+</Parameter>
+
+<Method name="%BMEBuilt">
+<ClassMethod>1</ClassMethod>
+<CodeMode>generator</CodeMode>
+<FormalSpec><![CDATA[&bmeName:%String]]></FormalSpec>
+<ReturnType>%Boolean</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[
+	If $Data($$$tEXTcode("BMEBuilt")) { m %code=$$$tEXTcode("BMEBuilt") }
+	Else { $$$GENERATE("	Quit 1") }
+	QUIT $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%BuildIndices">
+<Description>
+This method will build the indexes requested for the range of ID's requested. If it is prudent to do this work in the background 
+using multiple processes then it will be done using $system.WorkQueue. 
+If doing the work in the background then the extent will be partitioned using one of four different algorithms.
+1) Integer ID, no bitmap extent index present - compute the difference between the first ID and the last, divide by partition size;
+2) Integer ID, bitmap extent index present - chunk up using bitmap chunk size and the bitmap extent;
+3) Single non-integer property - 
+4) Composite ID on non-integer property -</Description>
+<Internal>1</Internal>
+<ClassMethod>1</ClassMethod>
+<CodeMode>generator</CodeMode>
+<FormalSpec>pIndexList:%CacheString="",pAutoPurge:%Integer=1,pLockFlag:%Integer=0,pJournalFlag:%Integer=1,pStartID:%CacheString="",pEndID:%CacheString="",pIgnoreIndexList:%CacheString=""</FormalSpec>
+<ProcedureBlock>1</ProcedureBlock>
+<ReturnType>%Status</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[
+	If $Data($$$tEXTcode("BuildIndices")) { m %code=$$$tEXTcode("BuildIndices") }
+	Else { $$$GENERATE($Char(9)_"Quit 1") }
+	QUIT $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%BuildIndicesSegment">
+<Description>
+This function generates the code to iterate over a range of ID values, invoking the index filer for each ID.</Description>
+<Internal>1</Internal>
+<ClassMethod>1</ClassMethod>
+<CodeMode>generator</CodeMode>
+<FormalSpec><![CDATA[pStartID:%Integer,pEndID:%Integer,&pIndexHandle:%Binary=0,pLockFlag:%Integer=1,pFirstRange:%Boolean=0,pJob:%CacheString=""]]></FormalSpec>
+<ProcedureBlock>1</ProcedureBlock>
+<ReturnType>%Status</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[
+	If $Data($$$tEXTcode("BuildIndicesSegment")) { m %code=$$$tEXTcode("BuildIndicesSegment") }
+	Else { $$$GENERATE($Char(9)_"Quit 1") }
+	QUIT $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%FileIndicesBuffered">
+<Internal>1</Internal>
+<ClassMethod>1</ClassMethod>
+<CodeMode>generator</CodeMode>
+<FormalSpec><![CDATA[id:%String(MAXLEN=""),&pIndexHandle:%Binary=0,&pIndexBuffer:%CacheString=""]]></FormalSpec>
+<ProcedureBlock>1</ProcedureBlock>
+<ReturnType>%Status</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[
+	If $Data($$$tEXTcode("FileIndicesBuffered")) { m %code=$$$tEXTcode("FileIndicesBuffered") }
+	Else {
+		set %codemode = $$$cMETHCODEMODEEXPRESSION
+		set %code="..%FileIndices(.id,.pIndexHandle)"
+	}
+	QUIT $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%DeleteData">
+<Description>
+%DeleteData()
+	Delete object from persistent storage
+	The caller is responsible for calling %IdSet()
+	Don't include class name with id in input parameter</Description>
+<Final>1</Final>
+<ClassMethod>1</ClassMethod>
+<CodeMode>generator</CodeMode>
+<FormalSpec>id:%String,concurrency:%Integer</FormalSpec>
+<Private>1</Private>
+<ProcedureBlock>1</ProcedureBlock>
+<ReturnType>%Status</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[
+ s %code=0
+ m %code=$$$tEXTcode("DeleteData")
+ QUIT $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%Exists">
+<Description>
+%Exists()
+	Check to see if an OID exists in the extent of this class...</Description>
+<Final>1</Final>
+<ClassMethod>1</ClassMethod>
+<FormalSpec>oid:%ObjectIdentity=""</FormalSpec>
+<ProcedureBlock>1</ProcedureBlock>
+<ReturnType>%Boolean</ReturnType>
+<ServerOnly>0</ServerOnly>
+<Implementation><![CDATA[	Quit ..%ExistsId($$$oidPrimary(oid))
+]]></Implementation>
+</Method>
+
+<Method name="%ExistsId">
+<Description>
+%ExistsId()
+	Check to see if an ID exists in the extent of this class...</Description>
+<Final>1</Final>
+<ClassMethod>1</ClassMethod>
+<CodeMode>generator</CodeMode>
+<FormalSpec>id:%String</FormalSpec>
+<ProcedureBlock>1</ProcedureBlock>
+<ReturnType>%Boolean</ReturnType>
+<ServerOnly>0</ServerOnly>
+<Implementation><![CDATA[
+	If $Data($$$tEXTcode("ExistsId")) {
+		Kill %code
+		Merge %code = $$$tEXTcode("ExistsId")
+		If $Data(%code) = 1 { Set %codemode=$$$cMETHCODEMODEEXPRESSION }
+	}
+	ElseIf $$$CLASSabstract($$$gMGINFO,%class) {
+		Set %code = "$isobject(..%OpenId(id,0))", %codemode = $$$cMETHCODEMODEEXPRESSION
+	}
+	Else { Set %code = 0 }
+	QUIT $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%FileIndices">
+<Description><![CDATA[
+Files each index for the object identified by <var>id</var>. <var>pIndexHandle</var> is for internal use only.
+
+<p>Returns a <CLASS>%Status</CLASS> value indicating success or failure.
+This method is normally generated by the storage class for persistent classes using
+<class>%Library.CacheStorage</class> or <class>%Library.CacheSQLStorage</class>.]]></Description>
+<Internal>1</Internal>
+<ClassMethod>1</ClassMethod>
+<CodeMode>generator</CodeMode>
+<FormalSpec><![CDATA[id:%String(MAXLEN=""),&pIndexHandle:%Binary=0]]></FormalSpec>
+<ProcedureBlock>1</ProcedureBlock>
+<ReturnType>%Status</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[
+	If $Data($$$tEXTcode("FileIndices")) { m %code=$$$tEXTcode("FileIndices") }
+	Else { $$$GENERATE($Char(9)_"quit 1") }
+	QUIT $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%KillExtentData">
+<Description>
+	Kill the data, index, and idlocations for extent root classes. Return an error if the class
+	is not the extent root class.</Description>
+<Final>1</Final>
+<ClassMethod>1</ClassMethod>
+<CodeMode>generator</CodeMode>
+<ReturnType>%Status</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[
+ s %code=0
+ m %code=$$$tEXTcode("KillExtent")
+ QUIT $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%LoadData">
+<Description>
+	Load object from persistent storage into memory. The caller is responsible for calling %IdSet()
+	Don't include class name with id in input parameter</Description>
+<Final>1</Final>
+<CodeMode>generator</CodeMode>
+<FormalSpec>id:%String</FormalSpec>
+<Private>1</Private>
+<ProcedureBlock>1</ProcedureBlock>
+<ReturnType>%Status</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[
+ s %code=0
+ m %code=$$$tEXTcode("LoadData")
+ QUIT $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%LoadFromMemory">
+<Description>
+	Load object from persistent storage into memory. The caller is responsible for calling %IdSet()
+	Don't include class name with id in input parameter
+	state is the physical data where the structure of state mirrors the structure of the object on disk
+	obj is an array, subscripted by property name where each array element is equal to the property value named as the subscript.</Description>
+<Final>1</Final>
+<ClassMethod>1</ClassMethod>
+<FormalSpec><![CDATA[id:%String,&objstate:%String,&obj:%String]]></FormalSpec>
+<ProcedureBlock>1</ProcedureBlock>
+<ReturnType>%Status</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[
+	If $Get(id)="" Quit $$$ERROR($$$NullOid,$classname())
+	Set oref=$$$CreateObject($classname()) If oref=$$$NULLOREF Set sc = $$$ERROR($$$AbstractClassNotInstantiable,$classname()) Quit oref
+	Set sc=oref.%LoadInit(,$zu(115,10)) If $$$ISERR(sc) Quit $$$NULLOREF
+	Set sc=oref.%LoadDataFromMemory(id,.objstate,.obj) If $$$ISERR(sc) Quit $$$NULLOREF
+	#; set object as not modified
+	Do $system.CLS.SetModified(oref,0)
+	Quit oref
+]]></Implementation>
+</Method>
+
+<Method name="%LoadDataFromMemory">
+<Final>1</Final>
+<Internal>1</Internal>
+<CodeMode>generator</CodeMode>
+<FormalSpec><![CDATA[id:%String,&objstate:%String,&obj:%String]]></FormalSpec>
+<Private>1</Private>
+<ProcedureBlock>1</ProcedureBlock>
+<ReturnType>%Status</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[
+ s %code=0
+ m %code=$$$tEXTcode("LoadDataFromMemory")
+ QUIT $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%PhysicalAddress">
+<Description>
+	Load object from persistent storage into memory. The caller is responsible for calling %IdSet()
+	Don't include class name with id in input parameter</Description>
+<Final>1</Final>
+<ClassMethod>1</ClassMethod>
+<CodeMode>generator</CodeMode>
+<FormalSpec><![CDATA[id:%String,&paddr:%String]]></FormalSpec>
+<ReturnType>%Status</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[
+ s %code=0
+ m %code=$$$tEXTcode("PhysicalAddress")
+ QUIT $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%OnDetermineClass">
+<Description>
+%OnDetermineClass - find the most-specific-type-class for the given OID.</Description>
+<ClassMethod>1</ClassMethod>
+<CodeMode>generator</CodeMode>
+<FormalSpec><![CDATA[oid:%ObjectIdentity,&class:%String]]></FormalSpec>
+<ProcedureBlock>1</ProcedureBlock>
+<ReturnType>%Status</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[
+ s %code=0
+ m %code=$$$tEXTcode("OnDetermineClass")
+ QUIT $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%PurgeIndices">
+<ClassMethod>1</ClassMethod>
+<CodeMode>generator</CodeMode>
+<FormalSpec>idxlist:%List="",lockExtent:%Boolean=0,pIgnoreIndexList:%CacheString=""</FormalSpec>
+<ProcedureBlock>1</ProcedureBlock>
+<ReturnType>%Status</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[
+ s %code=0
+ m %code=$$$tEXTcode("PurgeIndices")
+ QUIT $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%LockExtent">
+<Description>
+Acquire (s)hared or (e)xclusive locks based on locktype parameter</Description>
+<ClassMethod>1</ClassMethod>
+<CodeMode>generator</CodeMode>
+<FormalSpec>shared:%Boolean=0</FormalSpec>
+<ProcedureBlock>1</ProcedureBlock>
+<ReturnType>%Status</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[
+ s %code=0
+ m %code=$$$tEXTcode("LockExtent")
+ QUIT $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%UnlockExtent">
+<Description>
+Release (s)hared or (e)xclusive locks based on locktype parameter</Description>
+<ClassMethod>1</ClassMethod>
+<CodeMode>generator</CodeMode>
+<FormalSpec>shared:%Boolean=0,immediate:%Boolean=0</FormalSpec>
+<ProcedureBlock>1</ProcedureBlock>
+<ReturnType>%Status</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[
+ s %code=0
+ m %code=$$$tEXTcode("UnlockExtent")
+ QUIT $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%LockId">
+<Description><![CDATA[
+%LockId()
+		Obtain an exclusive or shared lock on the object identified by <var>id</var>. The type
+		of lock obtained is determined by <var>shared</var>. This method overrides the implementation
+			from %Library.Persistent.]]></Description>
+<ClassMethod>1</ClassMethod>
+<CodeMode>generator</CodeMode>
+<FormalSpec>id:%String,shared:%Boolean=0,timeout:%Integer=$$$LockTimeout</FormalSpec>
+<ProcedureBlock>1</ProcedureBlock>
+<ReturnType>%Status</ReturnType>
+<ServerOnly>0</ServerOnly>
+<Implementation><![CDATA[
+ s %code=0
+ m %code=$$$tEXTcode("LockId")
+ QUIT $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%UnlockId">
+<Description><![CDATA[
+%UnlockId()
+		Release an exclusive or shared lock on the object identified by <var>id</var>. The type
+		of lock released is determined by <var>shared</var>.This method overrides the implementation
+			from %Library.Persistent.]]></Description>
+<ClassMethod>1</ClassMethod>
+<CodeMode>generator</CodeMode>
+<FormalSpec>id:%String,shared:%Boolean=0,immediate:%Boolean=0</FormalSpec>
+<ProcedureBlock>1</ProcedureBlock>
+<ReturnType>%Status</ReturnType>
+<ServerOnly>0</ServerOnly>
+<Implementation><![CDATA[
+ s %code=0
+ m %code=$$$tEXTcode("UnlockId")
+ QUIT $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%SaveData">
+<Description>
+%SaveData()
+Save the object to a persistent state (e.g. store it on disk)
+return: oid or "" if save fails</Description>
+<Final>1</Final>
+<CodeMode>generator</CodeMode>
+<FormalSpec>id:%String</FormalSpec>
+<Private>1</Private>
+<ProcedureBlock>1</ProcedureBlock>
+<ReturnType>%Status</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[
+	set %code=0
+	merge %code=$$$tEXTcode("SaveData")
+	QUIT $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%InsertBatch">
+<ClassMethod>1</ClassMethod>
+<CodeMode>generator</CodeMode>
+<FormalSpec>objects:%List,concurrency:%Integer=0,useTransactions:%Boolean=0</FormalSpec>
+<ProcedureBlock>1</ProcedureBlock>
+<ReturnType>%List</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[
+	set %code = 0, tStatus = $$$OK
+	if ($$$getClassType(%class)=$$$cCLASSCLASSTYPEPERSISTENT) && ('$$$comClassKeyGet(%class,$$$cCLASSnoextent)) {
+		try {
+			set mvEnabled = $$$comMemberKeyGet(%class,$$$cCLASSparameter,"MVENABLED",$$$cPARAMdefault)
+			set tGenerator = ##class(%Compiler.Storage.Generator.Cache).%New(0,%class,mvEnabled,,1)
+			if $Find($Extract(tGenerator.triggers,1,4),$Char(1)) { $$$tMetadataUses("PrecompileTriggerCode^%occTrigger(%class)") }
+			do tGenerator.generateInsertBatch(.%code)
+		}
+		catch tException {
+			set tStatus = tException.AsStatus()
+		}
+	}
+	quit tStatus
+]]></Implementation>
+</Method>
+
+<Method name="%SaveDirect">
+<Description>
+%SaveDirect() - saves an object to disk, checks uniqueness and referential
+integrity constraints, and maintains index structures. This method is
+implemented by the storage class.</Description>
+<Final>1</Final>
+<ClassMethod>1</ClassMethod>
+<CodeMode>generator</CodeMode>
+<FormalSpec><![CDATA[&id:%String="",idList:%List="",&data:%Binary,concurrency:%Integer=-1]]></FormalSpec>
+<ProcedureBlock>1</ProcedureBlock>
+<ReturnType>%Status</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[
+	set %code = 0, tStatus = $$$OK
+	if ($$$getClassType(%class)=$$$cCLASSCLASSTYPEPERSISTENT) && ('$$$comClassKeyGet(%class,$$$cCLASSnoextent)) {
+		try {
+			set mvEnabled = $$$comMemberKeyGet(%class,$$$cCLASSparameter,"MVENABLED",$$$cPARAMdefault)
+			set tGenerator = ##class(%Compiler.Storage.Generator.Cache).%New(0,%class,mvEnabled)
+			if $Find($Extract(tGenerator.triggers,1,4),$Char(1)) { $$$tMetadataUses("PrecompileTriggerCode^%occTrigger(%class)") }
+			do tGenerator.generateSaveDirect(.%code)
+		}
+		catch tException {
+			set tStatus = tException.AsStatus()
+		}
+	}
+	quit tStatus
+]]></Implementation>
+</Method>
+
+<Method name="%SaveIndices">
+<Description><![CDATA[
+Files the indices for all objects whose ID is in the range defined by <var>pStartId</var> and <var>pEndId</var>.
+If <var>pEndID</var> is null then it defaults to <var>pStartId</var>. If <var>pStartId</var> is null then the
+range is empty and no filing will occur.
+
+If <var>lockExtent</var> is true then an extent lock will be acquired before the indices
+are built. If the lock cannot be acquired then an error is returned. The lock is released
+after the index filing is completed.
+
+
+<p>Returns a <CLASS>%Status</CLASS> value indicating success or failure.]]></Description>
+<ClassMethod>1</ClassMethod>
+<CodeMode>generator</CodeMode>
+<FormalSpec>pStartId:%String(MAXLEN="")="",pEndId:%String(MAXLEN="")="",lockExtent:%Boolean=0</FormalSpec>
+<ProcedureBlock>1</ProcedureBlock>
+<ReturnType>%Status</ReturnType>
+<ServerOnly>0</ServerOnly>
+<Implementation><![CDATA[
+	set %code=0
+	merge %code=$$$tEXTcode("SaveIndices")
+	QUIT $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%SortBegin">
+<Description>
+%SortBegin()
+This method will start a system merge sort for all indices (idxlist is null) or for specified indices</Description>
+<ClassMethod>1</ClassMethod>
+<CodeMode>generator</CodeMode>
+<FormalSpec>idxlist:%List="",excludeunique:%Integer=0</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[
+ s %code=0
+ m %code=$$$tEXTcode("SortBegin")
+ QUIT $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="%SortEnd">
+<Description>
+%SortEnd()
+This method will end a system merge sort for all indices (idxlist is null) or for specified indices</Description>
+<ClassMethod>1</ClassMethod>
+<CodeMode>generator</CodeMode>
+<FormalSpec>idxlist:%List="",commit:%Integer=1,excludeunique:%Integer=0</FormalSpec>
+<ProcedureBlock>1</ProcedureBlock>
+<ReturnType>%Status</ReturnType>
+<ServerOnly>1</ServerOnly>
+<Implementation><![CDATA[
+ s %code=0
+ m %code=$$$tEXTcode("SortEnd")
+ QUIT $$$OK
+]]></Implementation>
+</Method>
+</Class>
+</Export>
