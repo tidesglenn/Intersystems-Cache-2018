@@ -1,0 +1,66 @@
+| **Original Reference** | **New Mapping Routine** |
+|---|---|
+| *(Header parsing & parameter map logic explained above)* | ```objectscript
+ReadReferenceSheet(filename,className)
+    NEW io,line,header,fields,count,i,paramMap,sc
+
+    ;— Open file and read header
+    SET io = ##class(%Stream.FileCharacter).%New()
+    SET sc = io.LinkToFile(filename,1)
+    IF $SYSTEM.Status.IsError(sc) {
+        WRITE !,"[Error] Opening ",filename,!
+        DO $SYSTEM.Status.DisplayError(sc)
+        QUIT
+    }
+    FOR  {
+        SET line = io.ReadLine() QUIT:line=""  ; EOF
+        IF $ZTRIM(line)'="" SET header=line QUIT
+    }
+    DO io.Close()
+
+    ;— Parse header into list
+    SET header = $TRANSLATE(header,"""")
+    MERGE fields = $LISTFROMSTRING(header,",")
+    SET count = $LISTLENGTH(fields)
+
+    ;— Build ordinal⇒parameter map
+    SET stmt = ##class(%SQL.Statement).%New()
+    SET sc = stmt.%Prepare(
+      "SELECT Name, Ordinal FROM %Dictionary.ParameterDefinitionQuery " _
+    _ "WHERE ClassName = ? ORDER BY Ordinal")
+    IF $SYSTEM.Status.IsError(sc) {
+        WRITE !,"[Error] Preparing ParameterDefinitionQuery",!
+        DO $SYSTEM.Status.DisplayError(sc)
+        QUIT
+    }
+    SET rs = stmt.%Execute(className)
+    IF $SYSTEM.Status.IsError(rs.%Status) {
+        WRITE !,"[Error] Executing ParameterDefinitionQuery",!
+        DO $SYSTEM.Status.DisplayError(rs.%Status)
+        QUIT
+    }
+    FOR  QUIT:'(rs.%Next())  DO
+    . SET paramMap(rs.Get("Ordinal")) = rs.Get("Name")
+    DO rs.Close()
+
+    ;— Re-open file to map data lines
+    SET io = ##class(%Stream.FileCharacter).%New()
+    DO io.LinkToFile(filename,1)
+    DO io.ReadLine()  ; skip header
+    WRITE !,"=== Parsed Records ===",!
+    FOR  {
+        SET line = io.ReadLine() QUIT:line=""
+        IF $ZTRIM(line)="" QUIT
+        SET line = $TRANSLATE(line,"""")
+        MERGE values = $LISTFROMSTRING(line,",")
+        FOR i=1:1:count {
+            SET pname = $GET(paramMap(i))
+            IF pname'="" {
+                SET pvalue = $LISTGET(values,i)
+                WRITE ?3,pname,?30,"→ ",pvalue,!
+            }
+        }
+    }
+    DO io.Close()
+    QUIT
+```

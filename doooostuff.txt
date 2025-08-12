@@ -1,0 +1,228 @@
+﻿parent	ID	AccessType	DataAccess	Delimiter	Expression	LoopInitValue	Name	NextCode	NullMarker	StartValue	StopExpression	StopValue
+Referrals.AuditIndex||DBMSStorage||DBMSMaster	Referrals.AuditIndex||DBMSStorage||DBMSMaster||1				{Hmo}		1					
+Referrals.AuditIndex||DBMSStorage||DBMSMaster	Referrals.AuditIndex||DBMSStorage||DBMSMaster||2	sub	^["MHRHMO"]HMOREFAX({L1})		{Dt}		2					
+Referrals.AuditIndex||DBMSStorage||DBMSMaster	Referrals.AuditIndex||DBMSStorage||DBMSMaster||3	sub	^["MHRHMO"]HMOREFAX({L1},{L2})		{Id}		3					
+Referrals.AuditIndex||DBMSStorage||DBMSMaster	Referrals.AuditIndex||DBMSStorage||DBMSMaster||4	sub	^["MHRHMO"]HMOREFAX({L1},{L2},{L3})		{Rin}		4					
+Referrals.FundDefault||DBMSStorage||DBMSMaster	Referrals.FundDefault||DBMSStorage||DBMSMaster||1				{Hmo}		1					
+Referrals.FundDefault||DBMSStorage||DBMSMaster	Referrals.FundDefault||DBMSStorage||DBMSMaster||2	sub	^[$P(HMOTBL({L1}),"^",1)]HMOXFUND({L1})		{RefType}		2			1		
+Referrals.FundDefaultBreakDown||DBMSStorage||DBMSMaster	Referrals.FundDefaultBreakDown||DBMSStorage||DBMSMaster||1				{Referrals.FundDefault.Hmo}		1					
+Referrals.FundDefaultBreakDown||DBMSStorage||DBMSMaster	Referrals.FundDefaultBreakDown||DBMSStorage||DBMSMaster||2	sub	^[$P(HMOTBL({L1}),"^",1)]HMOXFUND({L1})		{Referrals.FundDefault.RefType}		2			1		
+Referrals.FundDefaultBreakDown||DBMSStorage||DBMSMaster	Referrals.FundDefaultBreakDown||DBMSStorage||DBMSMaster||3	sub	^[$P(HMOTBL({L1}),"^",1)]HMOXFUND({L1},{L2})		{Param}		3					
+Referrals.Local.ReferralLine||DBMSStorage||DBMSMaster	Referrals.Local.ReferralLine||DBMSStorage||DBMSMaster||1				{Line}		1					
+Referrals.Referral||DBMSStorage||DBMSMaster	Referrals.Referral||DBMSStorage||DBMSMaster||1				{Hmo}		1					
+Referrals.Referral||DBMSStorage||DBMSMaster	Referrals.Referral||DBMSStorage||DBMSMaster||2	sub	^["MHRHMO"]HMOREF({L1})		{Id}		2					
+Referrals.Referral||DBMSStorage||DBMSMaster	Referrals.Referral||DBMSStorage||DBMSMaster||3	sub	^["MHRHMO"]HMOREF({L1},{L2})		{Rin}		3	S {L3}={L3}+100 I {L3}]]((^["MHRHMO"]HMOREF({L1},{L2},0)*100)) S {L3}=""				
+Referrals.Referral||DBMSStorage||ZActAdmDt	Referrals.Referral||DBMSStorage||ZActAdmDt||1				{Hmo}		1					
+Referrals.Referral||DBMSStorage||ZActAdmDt	Referrals.Referral||DBMSStorage||ZActAdmDt||2	sub	^["MHRHMO"]HMORIDX({L1})		"ACTADM"		2					
+Referrals.Referral||DBMSStorage||ZActAdmDt	Referrals.Referral||DBMSStorage||ZActAdmDt||3	sub	^["MHRHMO"]HMORIDX({L1},{L2})		{ActAdmDt}		3					
+Referrals.Referral||DBMSStorage||ZActAdmDt	Referrals.Referral||DBMSStorage||ZActAdmDt||4	Sub	^["MHRHMO"]HMORIDX({L1},{L2},{L3})		{RefNum}		4					
+Referrals.Referral||DBMSStorage||ZActDischDt	Referrals.Referral||DBMSStorage||ZActDischDt||1				{Hmo}		1					
+Referrals.Referral||DBMSStorage||ZActDischDt	Referrals.Referral||DBMSStorage||ZActDischDt||2	sub	^["MHRHMO"]HMORIDX({L1})		"ACTDSC"		2					
+Referrals.Referral||DBMSStorage||ZActDischDt	Referrals.Referral||DBMSStorage||ZActDischDt||3	sub	^["MHRHMO"]HMORIDX({L1},{L2})		{ActDischDt}		3					
+Referrals.Referral||DBMSStorage||ZActDischDt	Referrals.Referral||DBMSStorage||ZActDischDt||4	Sub	^["MHRHMO"]HMORIDX({L1},{L2},{L3})		{RefNum}		4					
+Referrals.Referral||DBMSStorage||ZCreatedBy	Referrals.Referral||DBMSStorage||ZCreatedBy||1				{Hmo}		1					
+Referrals.Referral||DBMSStorage||ZCreatedBy	Referrals.Referral||DBMSStorage||ZCreatedBy||2	sub	^["MHRHMO"]HMORIDX({L1})		"INI"		2					
+Referrals.Referral||DBMSStorage||ZCreatedBy	Referrals.Referral||DBMSStorage||ZCreatedBy||3	sub	^["MHRHMO"]HMORIDX({L1},{L2})		{CreatedBy}		3					
+Referrals.Referral||DBMSStorage||ZCreatedBy	Referrals.Referral||DBMSStorage||ZCreatedBy||4	sub	^["MHRHMO"]HMORIDX({L1},{L2},{L3})		{RefNum}		4					
+Referrals.Referral||DBMSStorage||ZDtOrd	Referrals.Referral||DBMSStorage||ZDtOrd||1				{Hmo}		1					
+Referrals.Referral||DBMSStorage||ZDtOrd	Referrals.Referral||DBMSStorage||ZDtOrd||2	sub	^["MHRHMO"]HMORIDX({L1})		"ORDAT"		2					
+Referrals.Referral||DBMSStorage||ZDtOrd	Referrals.Referral||DBMSStorage||ZDtOrd||3	sub	^["MHRHMO"]HMORIDX({L1},{L2})		{DtOrd}		3					
+Referrals.Referral||DBMSStorage||ZDtOrd	Referrals.Referral||DBMSStorage||ZDtOrd||4	Sub	^["MHRHMO"]HMORIDX({L1},{L2},{L3})		{RefNum}		4					
+Referrals.Referral||DBMSStorage||ZExpAdmDt	Referrals.Referral||DBMSStorage||ZExpAdmDt||1				{Hmo}		1					
+Referrals.Referral||DBMSStorage||ZExpAdmDt	Referrals.Referral||DBMSStorage||ZExpAdmDt||2	sub	^["MHRHMO"]HMORIDX({L1})		"EXPADM"		2					
+Referrals.Referral||DBMSStorage||ZExpAdmDt	Referrals.Referral||DBMSStorage||ZExpAdmDt||3	sub	^["MHRHMO"]HMORIDX({L1},{L2})		{ExpAdmDt}		3					
+Referrals.Referral||DBMSStorage||ZExpAdmDt	Referrals.Referral||DBMSStorage||ZExpAdmDt||4	Sub	^["MHRHMO"]HMORIDX({L1},{L2},{L3})		{RefNum}		4					
+Referrals.Referral||DBMSStorage||ZExpDischDt	Referrals.Referral||DBMSStorage||ZExpDischDt||1				{Hmo}		1					
+Referrals.Referral||DBMSStorage||ZExpDischDt	Referrals.Referral||DBMSStorage||ZExpDischDt||2	sub	^["MHRHMO"]HMORIDX({L1})		"EXPDSC"		2					
+Referrals.Referral||DBMSStorage||ZExpDischDt	Referrals.Referral||DBMSStorage||ZExpDischDt||3	sub	^["MHRHMO"]HMORIDX({L1},{L2})		{ExpDischDt}		3					
+Referrals.Referral||DBMSStorage||ZExpDischDt	Referrals.Referral||DBMSStorage||ZExpDischDt||4	sub	^["MHRHMO"]HMORIDX({L1},{L2},{L3})		{RefNum}		4					
+Referrals.Referral||DBMSStorage||ZExtnum	Referrals.Referral||DBMSStorage||ZExtnum||1				{Hmo}		1					
+Referrals.Referral||DBMSStorage||ZExtnum	Referrals.Referral||DBMSStorage||ZExtnum||2	sub	^["MHRHMO"]HMORIDX({L1})		"EXTNUM"		2					
+Referrals.Referral||DBMSStorage||ZExtnum	Referrals.Referral||DBMSStorage||ZExtnum||3	sub	^["MHRHMO"]HMORIDX({L1},{L2})		{Extnum}		3					
+Referrals.Referral||DBMSStorage||ZExtnum	Referrals.Referral||DBMSStorage||ZExtnum||4	sub	^["MHRHMO"]HMORIDX({L1},{L2},{L3})		{RefNum}		4					
+Referrals.Referral||DBMSStorage||ZRefNum	Referrals.Referral||DBMSStorage||ZRefNum||1				{Hmo}		1					
+Referrals.Referral||DBMSStorage||ZRefNum	Referrals.Referral||DBMSStorage||ZRefNum||2	sub	^["MHRHMO"]HMOREX({L1})		{RefNum}		2			1000		
+Referrals.Referral||DBMSStorage||ZRefProv	Referrals.Referral||DBMSStorage||ZRefProv||1				{Hmo}		1					
+Referrals.Referral||DBMSStorage||ZRefProv	Referrals.Referral||DBMSStorage||ZRefProv||2	sub	^["MHRHMO"]HMORIDX({L1})		"RBYDOC"		2					
+Referrals.Referral||DBMSStorage||ZRefProv	Referrals.Referral||DBMSStorage||ZRefProv||3	sub	^["MHRHMO"]HMORIDX({L1},{L2})		{RefProv}		3					
+Referrals.Referral||DBMSStorage||ZRefProv	Referrals.Referral||DBMSStorage||ZRefProv||4	sub	^["HMOHMO"]HMORIDX({L1},{L2},{L3})		{RefNum}		4					
+Referrals.Referral||DBMSStorage||ZRefType	Referrals.Referral||DBMSStorage||ZRefType||1				{Hmo}		1					
+Referrals.Referral||DBMSStorage||ZRefType	Referrals.Referral||DBMSStorage||ZRefType||2	sub	^["MHRHMO"]HMORIDX({L1})		"REFTYP"		2					
+Referrals.Referral||DBMSStorage||ZRefType	Referrals.Referral||DBMSStorage||ZRefType||3	sub	^["MHRHMO"]HMORIDX({L1},{L2})		{RefType}		3					
+Referrals.Referral||DBMSStorage||ZRefType	Referrals.Referral||DBMSStorage||ZRefType||4	sub	^["MHRHMO"]HMORIDX({L1},{L2},{L3})		{RefNum}		4					
+Referrals.Referral||DBMSStorage||ZReferToBa	Referrals.Referral||DBMSStorage||ZReferToBa||1				{Hmo}		1					
+Referrals.Referral||DBMSStorage||ZReferToBa	Referrals.Referral||DBMSStorage||ZReferToBa||2	sub	^["MHRHMO"]HMORIDX({L1})		"RTOBA"		2					
+Referrals.Referral||DBMSStorage||ZReferToBa	Referrals.Referral||DBMSStorage||ZReferToBa||3	sub	^["MHRHMO"]HMORIDX({L1},{L2})		{ReferToBa}		3					
+Referrals.Referral||DBMSStorage||ZReferToBa	Referrals.Referral||DBMSStorage||ZReferToBa||4	sub	^["MHRHMO"]HMORIDX({L1},{L2},{L3})		{RefNum}		4					
+Referrals.Referral||DBMSStorage||ZReferToDiv	Referrals.Referral||DBMSStorage||ZReferToDiv||1				{Hmo}		1					
+Referrals.Referral||DBMSStorage||ZReferToDiv	Referrals.Referral||DBMSStorage||ZReferToDiv||2	sub	^["MHRHMO"]HMORIDX({L1})		"RTODIV"		2					
+Referrals.Referral||DBMSStorage||ZReferToDiv	Referrals.Referral||DBMSStorage||ZReferToDiv||3	sub	^["MHRHMO"]HMORIDX({L1},{L2})		{ReferToDiv}		3					
+Referrals.Referral||DBMSStorage||ZReferToDiv	Referrals.Referral||DBMSStorage||ZReferToDiv||4	sub	^["MHRHMO"]HMORIDX({L1},{L2},{L3})		{RefNum}		4					
+Referrals.Referral||DBMSStorage||ZReferToLoc	Referrals.Referral||DBMSStorage||ZReferToLoc||1				{Hmo}		1					
+Referrals.Referral||DBMSStorage||ZReferToLoc	Referrals.Referral||DBMSStorage||ZReferToLoc||2	sub	^["MHRHMO"]HMORIDX({L1})		"RTOLOC"		2					
+Referrals.Referral||DBMSStorage||ZReferToLoc	Referrals.Referral||DBMSStorage||ZReferToLoc||3	sub	^["MHRHMO"]HMORIDX({L1},{L2})		{ReferToLoc}		3					
+Referrals.Referral||DBMSStorage||ZReferToLoc	Referrals.Referral||DBMSStorage||ZReferToLoc||4	sub	^["MHRHMO"]HMORIDX({L1},{L2},{L3})		{RefNum}		4					
+Referrals.Referral||DBMSStorage||ZReferToPhy	Referrals.Referral||DBMSStorage||ZReferToPhy||1				{Hmo}		1					
+Referrals.Referral||DBMSStorage||ZReferToPhy	Referrals.Referral||DBMSStorage||ZReferToPhy||2	sub	^["MHRHMO"]HMORIDX({L1})		"RTOPHY"		2					
+Referrals.Referral||DBMSStorage||ZReferToPhy	Referrals.Referral||DBMSStorage||ZReferToPhy||3	sub	^["MHRHMO"]HMORIDX({L1},{L2})		{ReferToPhy}		3					
+Referrals.Referral||DBMSStorage||ZReferToPhy	Referrals.Referral||DBMSStorage||ZReferToPhy||4	sub	^["MHRHMO"]HMORIDX({L1},{L2},{L3})		{RefNum}		4					
+Referrals.Referral||DBMSStorage||ZReferToProv	Referrals.Referral||DBMSStorage||ZReferToProv||1				{Hmo}		1					
+Referrals.Referral||DBMSStorage||ZReferToProv	Referrals.Referral||DBMSStorage||ZReferToProv||2	sub	^["MHRHMO"]HMORIDX({L1})		"RTODOC"		2					
+Referrals.Referral||DBMSStorage||ZReferToProv	Referrals.Referral||DBMSStorage||ZReferToProv||3	sub	^["MHRHMO"]HMORIDX({L1},{L2})		{ReferToProv}		3					
+Referrals.Referral||DBMSStorage||ZReferToProv	Referrals.Referral||DBMSStorage||ZReferToProv||4	sub	^["MHRHMO"]HMORIDX({L1},{L2},{L3})		{RefNum}		4					
+Referrals.Referral||DBMSStorage||ZReferToVnd	Referrals.Referral||DBMSStorage||ZReferToVnd||1				{Hmo}		1					
+Referrals.Referral||DBMSStorage||ZReferToVnd	Referrals.Referral||DBMSStorage||ZReferToVnd||2	sub	^["MHRHMO"]HMORIDX({L1})		"RTOVND"		2					
+Referrals.Referral||DBMSStorage||ZReferToVnd	Referrals.Referral||DBMSStorage||ZReferToVnd||3	sub	^["MHRHMO"]HMORIDX({L1},{L2})		{ReferToVnd}		3					
+Referrals.Referral||DBMSStorage||ZReferToVnd	Referrals.Referral||DBMSStorage||ZReferToVnd||4	sub	^["MHRHMO"]HMORIDX({L1},{L2},{L3})		{RefNum}		4					
+Referrals.Referral||DBMSStorage||ZStatus	Referrals.Referral||DBMSStorage||ZStatus||1				{Hmo}		1					
+Referrals.Referral||DBMSStorage||ZStatus	Referrals.Referral||DBMSStorage||ZStatus||2	sub	^["MHRHMO"]HMORIDX({L1})		"RFSTA"		2					
+Referrals.Referral||DBMSStorage||ZStatus	Referrals.Referral||DBMSStorage||ZStatus||3	sub	^["MHRHMO"]HMORIDX({L1},{L2})		{Status}		3					
+Referrals.Referral||DBMSStorage||ZStatus	Referrals.Referral||DBMSStorage||ZStatus||4	sub	^["MHRHMO"]HMORIDX({L1},{L2},{L3})		{RefNum}		4					
+Referrals.Referral||DBMSStorage||ZValidFromDt	Referrals.Referral||DBMSStorage||ZValidFromDt||1				{Hmo}		1					
+Referrals.Referral||DBMSStorage||ZValidFromDt	Referrals.Referral||DBMSStorage||ZValidFromDt||2	sub	^["MHRHMO"]HMORIDX({L1})		"FROMDAT"		2					
+Referrals.Referral||DBMSStorage||ZValidFromDt	Referrals.Referral||DBMSStorage||ZValidFromDt||3	sub	^["MHRHMO"]HMORIDX({L1},{L2})		{ValidFromDt}		3					
+Referrals.Referral||DBMSStorage||ZValidFromDt	Referrals.Referral||DBMSStorage||ZValidFromDt||4	sub	^["MHRHMO"]HMORIDX({L1},{L2},{L3})		{RefNum}		4					
+Referrals.Referral||DBMSStorage||ZValidToDt	Referrals.Referral||DBMSStorage||ZValidToDt||1				{Hmo}		1					
+Referrals.Referral||DBMSStorage||ZValidToDt	Referrals.Referral||DBMSStorage||ZValidToDt||2	sub	^["MHRHMO"]HMORIDX({L1})		"TODAT"		2					
+Referrals.Referral||DBMSStorage||ZValidToDt	Referrals.Referral||DBMSStorage||ZValidToDt||3	sub	^["MHRHMO"]HMORIDX({L1},{L2})		{ValidToDt}		3					
+Referrals.Referral||DBMSStorage||ZValidToDt	Referrals.Referral||DBMSStorage||ZValidToDt||4	Sub	^["MHRHMO"]HMORIDX({L1},{L2},{L3})		{RefNum}		4					
+Referrals.ReferralAdmittingDx||DBMSStorage||DBMSMaster	Referrals.ReferralAdmittingDx||DBMSStorage||DBMSMaster||1				{Referrals.Referral.Hmo}		1					
+Referrals.ReferralAdmittingDx||DBMSStorage||DBMSMaster	Referrals.ReferralAdmittingDx||DBMSStorage||DBMSMaster||2	sub	^["MHRHMO"]HMOREF({L1})		{Referrals.Referral.Id}		2					
+Referrals.ReferralAdmittingDx||DBMSStorage||DBMSMaster	Referrals.ReferralAdmittingDx||DBMSStorage||DBMSMaster||3	sub	^["MHRHMO"]HMOREF({L1},{L2})		{Referrals.Referral.Rin}		3	S {L3}={L3}+100 I {L3}]]((^["MHRHMO"]HMOREF({L1},{L2},0)*100)) S {L3}=""				
+Referrals.ReferralAdmittingDx||DBMSStorage||DBMSMaster	Referrals.ReferralAdmittingDx||DBMSStorage||DBMSMaster||4	Piece	^["MHRHMO"]HMOREF({L1},{L2},{L3}+32)	"^"	{Repet}		4					
+Referrals.ReferralAdmittingPx||DBMSStorage||DBMSMaster	Referrals.ReferralAdmittingPx||DBMSStorage||DBMSMaster||1				{Hmo}		1					
+Referrals.ReferralAdmittingPx||DBMSStorage||DBMSMaster	Referrals.ReferralAdmittingPx||DBMSStorage||DBMSMaster||2	sub	^["MHRREG"]HMOREF({L1})		{Id}		2					
+Referrals.ReferralAdmittingPx||DBMSStorage||DBMSMaster	Referrals.ReferralAdmittingPx||DBMSStorage||DBMSMaster||3	sub	^["MHRREG"]HMOREF({L1},{L2})		{Rin}		3	S {L3}={L3}+100 I {L3}]]((^["MHRREG"]HMOREF({L1},{L2},0)*100)) S {L3}=""				
+Referrals.ReferralAdmittingPx||DBMSStorage||DBMSMaster	Referrals.ReferralAdmittingPx||DBMSStorage||DBMSMaster||4	Piece	^["MHRHMO"]HMOREF({L1},{L2},{L3}+33)	"^"	{Repet}		4					
+Referrals.ReferralAppointment||DBMSStorage||DBMSMaster	Referrals.ReferralAppointment||DBMSStorage||DBMSMaster||1				{Referrals.Referral.Hmo}		1					
+Referrals.ReferralAppointment||DBMSStorage||DBMSMaster	Referrals.ReferralAppointment||DBMSStorage||DBMSMaster||2	sub	^["MHRHMO"]HMOREF({L1})		{Referrals.Referral.Id}		2					
+Referrals.ReferralAppointment||DBMSStorage||DBMSMaster	Referrals.ReferralAppointment||DBMSStorage||DBMSMaster||3	sub	^["MHRHMO"]HMOREF({L1},{L2})		{Referrals.Referral.Rin}		3	S {L3}={L3}+100 I {L3}]]((^["MHRHMO"]HMOREF({L1},{L2},0)*100)) S {L3}=""				
+Referrals.ReferralAppointment||DBMSStorage||DBMSMaster	Referrals.ReferralAppointment||DBMSStorage||DBMSMaster||4	sub	^["MHRHMO"]HMOREF({L1},{L2},{L3})		"SCHED"		4					
+Referrals.ReferralAppointment||DBMSStorage||DBMSMaster	Referrals.ReferralAppointment||DBMSStorage||DBMSMaster||5	sub	^[$P(HMOTBL({L1}),"^",1)]HMOREF({L1},{L2},{L3},{L4})		{ApptNum}		5			1		
+Referrals.ReferralApptSummary||DBMSStorage||DBMSMaster	Referrals.ReferralApptSummary||DBMSStorage||DBMSMaster||1				{Referrals.Referral.Hmo}		1					
+Referrals.ReferralApptSummary||DBMSStorage||DBMSMaster	Referrals.ReferralApptSummary||DBMSStorage||DBMSMaster||2	sub	^["MHRHMO"]HMOREF({L1})		{Referrals.Referral.Id}		2					
+Referrals.ReferralApptSummary||DBMSStorage||DBMSMaster	Referrals.ReferralApptSummary||DBMSStorage||DBMSMaster||3	sub	^["MHRHMO"]HMOREF({L1},{L2})		{Referrals.Referral.Rin}		3	S {L3}={L3}+100 I {L3}]]((^["MHRHMO"]HMOREF({L1},{L2},0)*100)) S {L3}=""				
+Referrals.ReferralApptSummary||DBMSStorage||DBMSMaster	Referrals.ReferralApptSummary||DBMSStorage||DBMSMaster||4	sub	^["MHRHMO"]HMOREF({L1},{L2},{L3})		"SCHED"		4					
+Referrals.ReferralApptSummary||DBMSStorage||DBMSMaster	Referrals.ReferralApptSummary||DBMSStorage||DBMSMaster||5	sub	^["MHRHMO"]HMOREF({L1},{L2},{L3},{L4})		0		5					
+Referrals.ReferralAudit||DBMSStorage||DBMSMaster	Referrals.ReferralAudit||DBMSStorage||DBMSMaster||1				{Referrals.Referral.Hmo}		1					
+Referrals.ReferralAudit||DBMSStorage||DBMSMaster	Referrals.ReferralAudit||DBMSStorage||DBMSMaster||2	sub	^["MHRHMO"]HMOREFAU({L1})		{Referrals.Referral.Id}		2					
+Referrals.ReferralAudit||DBMSStorage||DBMSMaster	Referrals.ReferralAudit||DBMSStorage||DBMSMaster||3	sub	^["MHRHMO"]HMOREFAU({L1},{L2})		{Referrals.Referral.Rin}		3	S {L3}={L3}+100 I {L3}]]((^["MHRHMO"]HMOREF({L1},{L2},0)*100)) S {L3}=""				
+Referrals.ReferralAudit||DBMSStorage||DBMSMaster	Referrals.ReferralAudit||DBMSStorage||DBMSMaster||4	sub	^["MHRHMO"]HMOREFAU({L1},{L2},{L3})		{Dt}		4					
+Referrals.ReferralAudit||DBMSStorage||DBMSMaster	Referrals.ReferralAudit||DBMSStorage||DBMSMaster||5	sub	^["MHRHMO"]HMOREFAU({L1},{L2},{L3},{L4})		{Tm}		5					
+Referrals.ReferralAudit||DBMSStorage||DBMSMaster	Referrals.ReferralAudit||DBMSStorage||DBMSMaster||6	sub	^["MHRHMO"]HMOREFAU({L1},{L2},{L3},{L4},{L5})		{Tabcol}		6					
+Referrals.ReferralAudit||DBMSStorage||DBMSMaster	Referrals.ReferralAudit||DBMSStorage||DBMSMaster||7	sub	^["MHRHMO"]HMOREFAU({L1},{L2},{L3},{L4},{L5},{L6})		0		7					
+Referrals.ReferralAuthorizedPx||DBMSStorage||DBMSMaster	Referrals.ReferralAuthorizedPx||DBMSStorage||DBMSMaster||1				{Referrals.Referral.Hmo}		1					
+Referrals.ReferralAuthorizedPx||DBMSStorage||DBMSMaster	Referrals.ReferralAuthorizedPx||DBMSStorage||DBMSMaster||2	sub	^["MHRHMO"]HMOREF({L1})		{Referrals.Referral.Id}		2					
+Referrals.ReferralAuthorizedPx||DBMSStorage||DBMSMaster	Referrals.ReferralAuthorizedPx||DBMSStorage||DBMSMaster||3	sub	^["MHRHMO"]HMOREF({L1},{L2})		{Referrals.Referral.Rin}		3	S {L3}={L3}+100 I {L3}]]((^["MHRHMO"]HMOREF({L1},{L2},0)*100)) S {L3}=""				
+Referrals.ReferralAuthorizedPx||DBMSStorage||DBMSMaster	Referrals.ReferralAuthorizedPx||DBMSStorage||DBMSMaster||4	sub	^["MHRHMO"]HMOREF({L1},{L2},{L3})		"AUTHPX"		4					
+Referrals.ReferralAuthorizedPx||DBMSStorage||DBMSMaster	Referrals.ReferralAuthorizedPx||DBMSStorage||DBMSMaster||5	sub	^["MHRHMO"]HMOREF({L1},{L2},{L3},{L4})		"PROC"		5					
+Referrals.ReferralAuthorizedPx||DBMSStorage||DBMSMaster	Referrals.ReferralAuthorizedPx||DBMSStorage||DBMSMaster||6	sub	^["MHRHMO"]HMOREF({L1},{L2},{L3},{L4},{L5})		{Repet}		6					
+Referrals.ReferralBenefit||DBMSStorage||DBMSMaster	Referrals.ReferralBenefit||DBMSStorage||DBMSMaster||1				{Referrals.Referral.Hmo}		1					
+Referrals.ReferralBenefit||DBMSStorage||DBMSMaster	Referrals.ReferralBenefit||DBMSStorage||DBMSMaster||2	sub	^["MHRHMO"]HMOREF({L1})		{Referrals.Referral.Id}		2					
+Referrals.ReferralBenefit||DBMSStorage||DBMSMaster	Referrals.ReferralBenefit||DBMSStorage||DBMSMaster||3	sub	^["MHRHMO"]HMOREF({L1},{L2})		{Referrals.Referral.Rin}		3	S {L3}={L3}+100 I {L3}]]((^["MHRHMO"]HMOREF({L1},{L2},0)*100)) S {L3}=""				
+Referrals.ReferralBenefit||DBMSStorage||DBMSMaster	Referrals.ReferralBenefit||DBMSStorage||DBMSMaster||4	sub	^["MHRHMO"]HMOREF({L1},{L2},{L3})		"HIST"		4					
+Referrals.ReferralBenefit||DBMSStorage||DBMSMaster	Referrals.ReferralBenefit||DBMSStorage||DBMSMaster||5	sub	^["MHRHMO"]HMOREF({L1},{L2},{L3},{L4})		{Cov}		5					
+Referrals.ReferralBenefit||DBMSStorage||DBMSMaster	Referrals.ReferralBenefit||DBMSStorage||DBMSMaster||6	Piece		"^"	{Accum}		6					
+Referrals.ReferralDischargeDx||DBMSStorage||DBMSMaster	Referrals.ReferralDischargeDx||DBMSStorage||DBMSMaster||1				{Referrals.Referral.Hmo}		1					
+Referrals.ReferralDischargeDx||DBMSStorage||DBMSMaster	Referrals.ReferralDischargeDx||DBMSStorage||DBMSMaster||2	sub	^[$P(HMOTBL({L1}),"^",1)]HMOREF({L1})		{Referrals.Referral.Id}		2			100		
+Referrals.ReferralDischargeDx||DBMSStorage||DBMSMaster	Referrals.ReferralDischargeDx||DBMSStorage||DBMSMaster||3	sub	^[$P(HMOTBL({L1}),"^",1)]HMOREF({L1},{L2})		{Referrals.Referral.Rin}		3	S {L3}={L3}+100 I {L3}]]((^[$P(HMOTBL({L1}),"^",1)]HMOREF({L1},{L2},0)*100)) S {L3}=""				
+Referrals.ReferralDischargeDx||DBMSStorage||DBMSMaster	Referrals.ReferralDischargeDx||DBMSStorage||DBMSMaster||4	Piece	^[$P(HMOTBL({L1}),"^",1)]HMOREF({L1},{L2},{L3}+20)	"^"	{Repet}		4					
+Referrals.ReferralDischargePx||DBMSStorage||DBMSMaster	Referrals.ReferralDischargePx||DBMSStorage||DBMSMaster||1				{Hmo}		1					
+Referrals.ReferralDischargePx||DBMSStorage||DBMSMaster	Referrals.ReferralDischargePx||DBMSStorage||DBMSMaster||2	sub	^["MHRHMO"]HMOREF({L1})		{Id}		2			100		
+Referrals.ReferralDischargePx||DBMSStorage||DBMSMaster	Referrals.ReferralDischargePx||DBMSStorage||DBMSMaster||3	sub	^["MHRHMO"]HMOREF({L1},{L2})		{Rin}		3	S {L3}={L3}+100 I {L3}]]((^["MHRHMO"]HMOREF({L1},{L2},0)*100)) S {L3}=""				
+Referrals.ReferralDischargePx||DBMSStorage||DBMSMaster	Referrals.ReferralDischargePx||DBMSStorage||DBMSMaster||4	Piece	^["MHRHMO"]HMOREF({L1},{L2},{L3}+13)	"^"	{Repet}		4					
+Referrals.ReferralDischargePxIcd9||DBMSStorage||DBMSMaster	Referrals.ReferralDischargePxIcd9||DBMSStorage||DBMSMaster||1				{Referrals.Referral.Hmo}		1					
+Referrals.ReferralDischargePxIcd9||DBMSStorage||DBMSMaster	Referrals.ReferralDischargePxIcd9||DBMSStorage||DBMSMaster||2	sub	^["MHRHMO"]HMOREF({L1})		{Referrals.Referral.Id}		2			100		
+Referrals.ReferralDischargePxIcd9||DBMSStorage||DBMSMaster	Referrals.ReferralDischargePxIcd9||DBMSStorage||DBMSMaster||3	sub	^["MHRHMO"]HMOREF({L1},{L2})		{Referrals.Referral.Rin}		3	S {L3}={L3}+100 I {L3}]]((^["MHRHMO"]HMOREF({L1},{L2},0)*100)) S {L3}=""				
+Referrals.ReferralDischargePxIcd9||DBMSStorage||DBMSMaster	Referrals.ReferralDischargePxIcd9||DBMSStorage||DBMSMaster||4	Piece	^["MHRHMO"]HMOREF({L1},{L2},{L3}+28)	"^"	{Repet}		4					
+Referrals.ReferralDuplicate||DBMSStorage||DBMSMaster	Referrals.ReferralDuplicate||DBMSStorage||DBMSMaster||1				{Referrals.Referral.Hmo}		1					
+Referrals.ReferralDuplicate||DBMSStorage||DBMSMaster	Referrals.ReferralDuplicate||DBMSStorage||DBMSMaster||2	sub	^["MHRHMO"]HMORFDUP({L1})		{Referrals.Referral.Id}		2					
+Referrals.ReferralDuplicate||DBMSStorage||DBMSMaster	Referrals.ReferralDuplicate||DBMSStorage||DBMSMaster||3	sub	^["MHRHMO"]HMORFDUP({L1},{L2})		{Referrals.Referral.Rin}		3	S {L3}={L3}+100 I {L3}]]((^["MHRHMO"]HMOREF({L1},{L2},0)*100)) S {L3}=""				
+Referrals.ReferralDuplicate||DBMSStorage||DBMSMaster	Referrals.ReferralDuplicate||DBMSStorage||DBMSMaster||4	sub	^["MHRHMO"]HMORFDUP({L1},{L2},{L3})		{DupRin}		4					
+Referrals.ReferralDx||DBMSStorage||DBMSMaster	Referrals.ReferralDx||DBMSStorage||DBMSMaster||1				{Referrals.Referral.Hmo}		1					
+Referrals.ReferralDx||DBMSStorage||DBMSMaster	Referrals.ReferralDx||DBMSStorage||DBMSMaster||2	sub	^["MHRHMO"]HMOREF({L1})		{Referrals.Referral.Id}		2					
+Referrals.ReferralDx||DBMSStorage||DBMSMaster	Referrals.ReferralDx||DBMSStorage||DBMSMaster||3	sub	^["MHRHMO"]HMOREF({L1},{L2})		{Referrals.Referral.Rin}		3	S {L3}={L3}+100 I {L3}]]((^[$P(HMOTBL({L1}),"^",1)]HMOREF({L1},{L2},0)*100)) S {L3}=""				
+Referrals.ReferralDx||DBMSStorage||DBMSMaster	Referrals.ReferralDx||DBMSStorage||DBMSMaster||4	Piece	^["MHRHMO"]HMOREF({L1},{L2},{L3}+43)	"^"	1		4					
+Referrals.ReferralDx||DBMSStorage||DBMSMaster	Referrals.ReferralDx||DBMSStorage||DBMSMaster||5	Piece	$P($G(^["MHRHMO"]HMOREF({L1},{L2},{L3}+43)),"^",{L4})	"|"	{Repet}		5					
+Referrals.ReferralEdiTxn||DBMSStorage||DBMSMaster	Referrals.ReferralEdiTxn||DBMSStorage||DBMSMaster||1				{Referrals.Referral.Hmo}		1					
+Referrals.ReferralEdiTxn||DBMSStorage||DBMSMaster	Referrals.ReferralEdiTxn||DBMSStorage||DBMSMaster||2	sub	^["MHRHMO"]HMOREF({L1})		{Referrals.Referral.Id}		2					
+Referrals.ReferralEdiTxn||DBMSStorage||DBMSMaster	Referrals.ReferralEdiTxn||DBMSStorage||DBMSMaster||3	sub	^["MHRHMO"]HMOREF({L1},{L2})		{Referrals.Referral.Rin}		3	S {L3}={L3}+100 I {L3}]]((^["MHRHMO"]HMOREF({L1},{L2},0)*100)) S {L3}=""				
+Referrals.ReferralEdiTxn||DBMSStorage||DBMSMaster	Referrals.ReferralEdiTxn||DBMSStorage||DBMSMaster||4	sub	^["MHRHMO"]HMOREF({L1},{L2},{L3})		"EDI"		4					
+Referrals.ReferralEdiTxn||DBMSStorage||DBMSMaster	Referrals.ReferralEdiTxn||DBMSStorage||DBMSMaster||5	sub	^["MHRHMO"]HMOREF({L1},{L2},{L3},{L4})		{Tx}		5			1		
+Referrals.ReferralEdiTxn||DBMSStorage||DBMSMaster	Referrals.ReferralEdiTxn||DBMSStorage||DBMSMaster||6	sub	^["MHRHMO"]HMOREF({L1},{L2},{L3},{L4},{L5})		0		6					
+Referrals.ReferralInpatientDt||DBMSStorage||DBMSMaster	Referrals.ReferralInpatientDt||DBMSStorage||DBMSMaster||1				{Referrals.Referral.Hmo}		1					
+Referrals.ReferralInpatientDt||DBMSStorage||DBMSMaster	Referrals.ReferralInpatientDt||DBMSStorage||DBMSMaster||2	sub	^["MHRHMO"]HMOREF({L1})		{Referrals.Referral.Id}		2					
+Referrals.ReferralInpatientDt||DBMSStorage||DBMSMaster	Referrals.ReferralInpatientDt||DBMSStorage||DBMSMaster||3	sub	^["MHRHMO"]HMOREF({L1},{L2})		{Referrals.Referral.Rin}		3	S {L3}={L3}+100 I {L3}]]((^["MHRHMO"]HMOREF({L1},{L2},0)*100)) S {L3}=""				
+Referrals.ReferralInpatientDt||DBMSStorage||DBMSMaster	Referrals.ReferralInpatientDt||DBMSStorage||DBMSMaster||4	sub	^["MHRHMO"]HMOREF({L1},{L2},{L3})		"INPDATES"		4					
+Referrals.ReferralInpatientDt||DBMSStorage||DBMSMaster	Referrals.ReferralInpatientDt||DBMSStorage||DBMSMaster||5	sub	^["MHRHMO"]HMOREF({L1},{L2},{L3},{L4})		{Txn}		5					
+Referrals.ReferralLine||DBMSStorage||DBMSMaster	Referrals.ReferralLine||DBMSStorage||DBMSMaster||1				{Referrals.Referral.Hmo}		1					
+Referrals.ReferralLine||DBMSStorage||DBMSMaster	Referrals.ReferralLine||DBMSStorage||DBMSMaster||2	Sub	^["MHRHMO"]HMOREF({L1})		{Referrals.Referral.Id}		2					
+Referrals.ReferralLine||DBMSStorage||DBMSMaster	Referrals.ReferralLine||DBMSStorage||DBMSMaster||3	Sub	^["MHRHMO"]HMOREF({L1},{L2})		{Referrals.Referral.Rin}		3	S {L3}={L3}+100 I {L3}]]((^["MHRHMO"]HMOREF({L1},{L2},0)*100)) S {L3}=""				
+Referrals.ReferralLine||DBMSStorage||DBMSMaster	Referrals.ReferralLine||DBMSStorage||DBMSMaster||4	Piece	^["MHRHMO"]HMOREF({L1},{L2},{L3}+6)	"^"	{Line}	0	4					99
+Referrals.ReferralLinkedCase||DBMSStorage||DBMSMaster	Referrals.ReferralLinkedCase||DBMSStorage||DBMSMaster||1				{Referrals.Referral.Hmo}		1					
+Referrals.ReferralLinkedCase||DBMSStorage||DBMSMaster	Referrals.ReferralLinkedCase||DBMSStorage||DBMSMaster||2	sub	^["MHRHMO"]HMOREF({L1})		{Referrals.Referral.Id}		2					
+Referrals.ReferralLinkedCase||DBMSStorage||DBMSMaster	Referrals.ReferralLinkedCase||DBMSStorage||DBMSMaster||3	sub	^["MHRHMO"]HMOREF({L1},{L2})		{Referrals.Referral.Rin}		3	S {L3}={L3}+100 I {L3}]]((^["MHRHMO"]HMOREF({L1},{L2},0)*100)) S {L3}=""				
+Referrals.ReferralLinkedCase||DBMSStorage||DBMSMaster	Referrals.ReferralLinkedCase||DBMSStorage||DBMSMaster||4	sub	^["MHRHMO"]HMOREF({L1},{L2},{L3})		"CASE"		4					
+Referrals.ReferralLinkedCase||DBMSStorage||DBMSMaster	Referrals.ReferralLinkedCase||DBMSStorage||DBMSMaster||5	sub	^["MHRHMO"]HMOREF({L1},{L2},{L3},{L4})		{CaseNum}		5					
+Referrals.ReferralLinkedClm||DBMSStorage||DBMSMaster	Referrals.ReferralLinkedClm||DBMSStorage||DBMSMaster||1				{Referrals.Referral.Hmo}		1					
+Referrals.ReferralLinkedClm||DBMSStorage||DBMSMaster	Referrals.ReferralLinkedClm||DBMSStorage||DBMSMaster||2	sub	^["MHRHMO"]HMOREF({L1})		{Referrals.Referral.Id}		2					
+Referrals.ReferralLinkedClm||DBMSStorage||DBMSMaster	Referrals.ReferralLinkedClm||DBMSStorage||DBMSMaster||3	sub	^["MHRHMO"]HMOREF({L1},{L2})		{Referrals.Referral.Rin}		3	S {L3}={L3}+100 I {L3}]]((^["MHRHMO"]HMOREF({L1},{L2},0)*100)) S {L3}=""				
+Referrals.ReferralLinkedClm||DBMSStorage||DBMSMaster	Referrals.ReferralLinkedClm||DBMSStorage||DBMSMaster||4	sub	^["MHRHMO"]HMOREF({L1},{L2},{L3})		"CLAIMS"		4					
+Referrals.ReferralLinkedClm||DBMSStorage||DBMSMaster	Referrals.ReferralLinkedClm||DBMSStorage||DBMSMaster||5	sub	^["MHRHMO"]HMOREF({L1},{L2},{L3},{L4})		{Claim}		5					
+Referrals.ReferralLinkedInv||DBMSStorage||DBMSMaster	Referrals.ReferralLinkedInv||DBMSStorage||DBMSMaster||1				{Referrals.Referral.Hmo}		1					
+Referrals.ReferralLinkedInv||DBMSStorage||DBMSMaster	Referrals.ReferralLinkedInv||DBMSStorage||DBMSMaster||2	sub	^["MHRHMO"]HMOREF({L1})		{Referrals.Referral.Id}		2			100		
+Referrals.ReferralLinkedInv||DBMSStorage||DBMSMaster	Referrals.ReferralLinkedInv||DBMSStorage||DBMSMaster||3	sub	^["MHRHMO"]HMOREF({L1},{L2})		{Referrals.Referral.Rin}		3	S {L3}={L3}+100 I {L3}]]((^["MHRHMO"]HMOREF({L1},{L2},0)*100)) S {L3}=""				
+Referrals.ReferralLinkedInv||DBMSStorage||DBMSMaster	Referrals.ReferralLinkedInv||DBMSStorage||DBMSMaster||4	sub	^["MHRHMO"]HMOREF({L1},{L2},{L3})		"BAR"		4					
+Referrals.ReferralLinkedInv||DBMSStorage||DBMSMaster	Referrals.ReferralLinkedInv||DBMSStorage||DBMSMaster||5	sub	^["MHRHMO"]HMOREF({L1},{L2},{L3},{L4})		{Invoice}		5					
+Referrals.ReferralRequest||DBMSStorage||DBMSMaster	Referrals.ReferralRequest||DBMSStorage||DBMSMaster||1				{Id}		1					
+Referrals.ReferralRequest||DBMSStorage||DBMSMaster	Referrals.ReferralRequest||DBMSStorage||DBMSMaster||2				0		2					
+Referrals.ReferralRequest||DBMSStorage||Extent	Referrals.ReferralRequest||DBMSStorage||Extent||1				"$bitmap"		1					
+Referrals.ReferralRequest||DBMSStorage||ZClinRequest	Referrals.ReferralRequest||DBMSStorage||ZClinRequest||1				"MCA_B_REFERRAL_REQUEST.CLINICAL_REQUEST"		1					
+Referrals.ReferralRequest||DBMSStorage||ZClinRequest	Referrals.ReferralRequest||DBMSStorage||ZClinRequest||2				{ClinRequest}		2					
+Referrals.ReferralRequest||DBMSStorage||ZPatient	Referrals.ReferralRequest||DBMSStorage||ZPatient||1				"MCA_B_REFERRAL_REQUEST.PATIENT"		1					
+Referrals.ReferralRequest||DBMSStorage||ZPatient	Referrals.ReferralRequest||DBMSStorage||ZPatient||2				$$SQLUPPER({Patient})		2					
+Referrals.ReferralRequest||DBMSStorage||ZPatient	Referrals.ReferralRequest||DBMSStorage||ZPatient||3				{Id}		3					
+Referrals.ReferralRequest||DBMSStorage||ZReferral	Referrals.ReferralRequest||DBMSStorage||ZReferral||1				"MCA_B_REFERRAL_REQUEST.REFERRAL"		1					
+Referrals.ReferralRequest||DBMSStorage||ZReferral	Referrals.ReferralRequest||DBMSStorage||ZReferral||2				{Referral}		2					
+Referrals.ReferralRequestAudit||DBMSStorage||DBMSMaster	Referrals.ReferralRequestAudit||DBMSStorage||DBMSMaster||1				{Id}		1					
+Referrals.ReferralRequestAudit||DBMSStorage||DBMSMaster	Referrals.ReferralRequestAudit||DBMSStorage||DBMSMaster||2				0		2					
+Referrals.ReferralRequestAudit||DBMSStorage||Dt	Referrals.ReferralRequestAudit||DBMSStorage||Dt||1				"DT"		1					
+Referrals.ReferralRequestAudit||DBMSStorage||Dt	Referrals.ReferralRequestAudit||DBMSStorage||Dt||2				{Event_Dt}		2					
+Referrals.ReferralRequestAudit||DBMSStorage||Extent	Referrals.ReferralRequestAudit||DBMSStorage||Extent||1				"$bitmap"		1					
+Referrals.ReferralRequestAudit||DBMSStorage||Ini	Referrals.ReferralRequestAudit||DBMSStorage||Ini||1				"INI"		1					
+Referrals.ReferralRequestAudit||DBMSStorage||Ini	Referrals.ReferralRequestAudit||DBMSStorage||Ini||2				{Event_Ini}		2					
+Referrals.ReferralRequestAudit||DBMSStorage||ReferralRequest	Referrals.ReferralRequestAudit||DBMSStorage||ReferralRequest||1				"PARENT"		1					
+Referrals.ReferralRequestAudit||DBMSStorage||ReferralRequest	Referrals.ReferralRequestAudit||DBMSStorage||ReferralRequest||2				{ReferralRequest}		2					
+Referrals.ReferralRequestAudit||DBMSStorage||ReferralRequest	Referrals.ReferralRequestAudit||DBMSStorage||ReferralRequest||3				{Id}		3					
+Referrals.ReferralRequestAuditTxn||DBMSStorage||DBMSMaster	Referrals.ReferralRequestAuditTxn||DBMSStorage||DBMSMaster||1				{Referrals.ReferralRequestAudit.Id}		1					
+Referrals.ReferralRequestAuditTxn||DBMSStorage||DBMSMaster	Referrals.ReferralRequestAuditTxn||DBMSStorage||DBMSMaster||2				0		2					
+Referrals.ReferralRequestAuditTxn||DBMSStorage||DBMSMaster	Referrals.ReferralRequestAuditTxn||DBMSStorage||DBMSMaster||3				"TXN"		3					
+Referrals.ReferralRequestAuditTxn||DBMSStorage||DBMSMaster	Referrals.ReferralRequestAuditTxn||DBMSStorage||DBMSMaster||4				{Txn}		4					
+Referrals.ReferralStatusHistory||DBMSStorage||DBMSMaster	Referrals.ReferralStatusHistory||DBMSStorage||DBMSMaster||1				{Referrals.Referral.Hmo}		1					
+Referrals.ReferralStatusHistory||DBMSStorage||DBMSMaster	Referrals.ReferralStatusHistory||DBMSStorage||DBMSMaster||2	sub	^["MHRHMO"]HMOREF({L1})		{Referrals.Referral.Id}		2			100		
+Referrals.ReferralStatusHistory||DBMSStorage||DBMSMaster	Referrals.ReferralStatusHistory||DBMSStorage||DBMSMaster||3	sub	^["MHRHMO"]HMOREF({L1},{L2})		{Referrals.Referral.Rin}		3	S {L3}={L3}+100 I {L3}]]((^["MHRHMO"]HMOREF({L1},{L2},0)*100)) S {L3}=""				
+Referrals.ReferralStatusHistory||DBMSStorage||DBMSMaster	Referrals.ReferralStatusHistory||DBMSStorage||DBMSMaster||4	Piece	^["MHRHMO"]HMOREF({L1},{L2},{L3}+2)	"/"	{JoinVar}		4					
+Referrals.ReferralVisit||DBMSStorage||DBMSMaster	Referrals.ReferralVisit||DBMSStorage||DBMSMaster||1				{Referrals.Referral.Hmo}		1					
+Referrals.ReferralVisit||DBMSStorage||DBMSMaster	Referrals.ReferralVisit||DBMSStorage||DBMSMaster||2	sub	^["MHRREG"]HMOREF({L1})		{Referrals.Referral.Id}		2					
+Referrals.ReferralVisit||DBMSStorage||DBMSMaster	Referrals.ReferralVisit||DBMSStorage||DBMSMaster||3	sub	^["MHRREG"]HMOREF({L1},{L2})		{Referrals.Referral.Rin}		3	S {L3}={L3}+100 I {L3}]]((^["MHRREG"]HMOREF({L1},{L2},0)*100)) S {L3}=""				
+Referrals.ReferralVisit||DBMSStorage||DBMSMaster	Referrals.ReferralVisit||DBMSStorage||DBMSMaster||4	sub	^["MHRREG"]HMOREF({L1},{L2},{L3})		"VISIT"		4					
+Referrals.ReferralVisit||DBMSStorage||DBMSMaster	Referrals.ReferralVisit||DBMSStorage||DBMSMaster||5	sub	^["MHRREG"]HMOREF({L1},{L2},{L3},{L4})		1		5					
+Referrals.ReferralVisit||DBMSStorage||DBMSMaster	Referrals.ReferralVisit||DBMSStorage||DBMSMaster||6	sub	^["MHRREG"]HMOREF({L1},{L2},{L3},{L4},{L5})		{Grp}		6					
+Referrals.ReferralVisit||DBMSStorage||DBMSMaster	Referrals.ReferralVisit||DBMSStorage||DBMSMaster||7	sub	^["MHRREG"]HMOREF({L1},{L2},{L3},{L4},{L5},{L6})		{Vid}		7					
+Referrals.ReferralWorkingDx||DBMSStorage||DBMSMaster	Referrals.ReferralWorkingDx||DBMSStorage||DBMSMaster||1				{Referrals.Referral.Hmo}		1					
+Referrals.ReferralWorkingDx||DBMSStorage||DBMSMaster	Referrals.ReferralWorkingDx||DBMSStorage||DBMSMaster||2	sub	^["MHRHMO"]HMOREF({L1})		{Referrals.Referral.Id}		2			100		
+Referrals.ReferralWorkingDx||DBMSStorage||DBMSMaster	Referrals.ReferralWorkingDx||DBMSStorage||DBMSMaster||3	sub	^["MHRHMO"]HMOREF({L1},{L2})		{Referrals.Referral.Rin}		3	S {L3}={L3}+100 I {L3}]]((^["MHRHMO"]HMOREF({L1},{L2},0)*100)) S {L3}=""				
+Referrals.ReferralWorkingDx||DBMSStorage||DBMSMaster	Referrals.ReferralWorkingDx||DBMSStorage||DBMSMaster||4	Piece	^["MHRHMO"]HMOREF({L1},{L2},{L3}+34)	"^"	{Repet}		4					
+Referrals.ReferralWorkingPx||DBMSStorage||DBMSMaster	Referrals.ReferralWorkingPx||DBMSStorage||DBMSMaster||1				{Referrals.Referral.Hmo}		1					
+Referrals.ReferralWorkingPx||DBMSStorage||DBMSMaster	Referrals.ReferralWorkingPx||DBMSStorage||DBMSMaster||2	sub	^["MHRHMO"]HMOREF({L1})		{Referrals.Referral.Id}		2			100		
+Referrals.ReferralWorkingPx||DBMSStorage||DBMSMaster	Referrals.ReferralWorkingPx||DBMSStorage||DBMSMaster||3	sub	^["MHRHMO"]HMOREF({L1},{L2})		{Referrals.Referral.Rin}		3	S {L3}={L3}+100 I {L3}]]((^["MHRHMO"]HMOREF({L1},{L2},0)*100)) S {L3}=""				
+Referrals.ReferralWorkingPx||DBMSStorage||DBMSMaster	Referrals.ReferralWorkingPx||DBMSStorage||DBMSMaster||4	Piece	^["MHRHMO"]HMOREF({L1},{L2},{L3}+35)	"^"	{RgNum}		4					
+Referrals.StatusRule||DBMSStorage||DBMSMaster	Referrals.StatusRule||DBMSStorage||DBMSMaster||1				{Hmo}		1					
+Referrals.StatusRule||DBMSStorage||DBMSMaster	Referrals.StatusRule||DBMSStorage||DBMSMaster||2	sub	^["MHRHMO"]HMORSR({L1})		{Rule}		2			1		
+Referrals.StatusRuleCondition||DBMSStorage||DBMSMaster	Referrals.StatusRuleCondition||DBMSStorage||DBMSMaster||1				{Referrals.StatusRule.Hmo}		1					
+Referrals.StatusRuleCondition||DBMSStorage||DBMSMaster	Referrals.StatusRuleCondition||DBMSStorage||DBMSMaster||2	sub	^["MHRHMO"]HMORSR({L1})		{Referrals.StatusRule.Rule}		2			1		
+Referrals.StatusRuleCondition||DBMSStorage||DBMSMaster	Referrals.StatusRuleCondition||DBMSStorage||DBMSMaster||3	sub	^["MHRHMO"]HMORSR({L1},{L2})		0		3					
+Referrals.StatusRuleCondition||DBMSStorage||DBMSMaster	Referrals.StatusRuleCondition||DBMSStorage||DBMSMaster||4	sub	^["MHRHMO"]HMORSR({L1},{L2},{L3})		{Txn}		4					
+Referrals.StatusRuleCondition||DBMSStorage||DBMSMaster	Referrals.StatusRuleCondition||DBMSStorage||DBMSMaster||5	Piece		"^"	{Repet}		5					
+225 row(s) affected
+

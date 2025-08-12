@@ -1,0 +1,82 @@
+MyUtils ; Utility routines for CSV export
+
+ExportParentCSV(refFile,outFile)  ; entry point
+    NEW io,line,fieldsList,valuesList,count,sc
+    NEW stmt,rs,className,idx,subMeta
+    NEW data,id,j,row,piece,out
+
+    //— Define your class name here
+    SET className = "Your.App.Class"  ; adjust accordingly
+
+    //— Load storage subscript metadata
+    SET stmt = ##class(%SQL.Statement).%New()
+    SET sc = stmt.%Prepare(
+      "SELECT StorageSubscript, StorageParent, DataAccess, Expression, PropertyName " _
+     _ "FROM %Dictionary.StorageSQLMapSubDefinition " _
+     _ "WHERE ClassName = ? ORDER BY StorageSubscript")
+    IF sc'=1 { WRITE "Error preparing StorageSQLMapSubDefinition",! DO $SYSTEM.Status.DisplayError(sc) QUIT 0 }
+    SET rs = stmt.%Execute(className)
+    IF rs.%Status'=1 { WRITE "Error executing StorageSQLMapSubDefinition",! DO $SYSTEM.Status.DisplayError(rs.%Status) QUIT 0 }
+    FOR  QUIT:'(rs.%Next())  DO
+    . SET idx = +rs.Get("StorageSubscript")
+    . SET subMeta(idx,"Expression")   = rs.Get("Expression")
+    . SET subMeta(idx,"Property")     = rs.Get("PropertyName")
+    DO rs.%Close()
+
+    //— Read header from reference file
+    SET io = ##class(%Stream.FileCharacter).%New()
+    SET sc = io.LinkToFile(refFile)
+    IF sc'=1 { WRITE "Error opening ",refFile,! DO $SYSTEM.Status.DisplayError(sc) QUIT 0 }
+    FOR  {
+        SET line = io.ReadLine()  QUIT:line=""  ; EOF
+        IF line'="" SET header=line QUIT
+    }
+    DO io.%Close()
+    SET header = $TRANSLATE(header,"""","" )
+    SET fieldsList = $LISTFROMSTRING(header,",")
+    SET count = $LISTLENGTH(fieldsList)
+
+    //— Process each row into data(...) array
+    SET io = ##class(%Stream.FileCharacter).%New()
+    SET sc = io.LinkToFile(refFile)
+    DO io.ReadLine()  ; skip header
+    FOR  {
+        SET line = io.ReadLine()  QUIT:line=""  ; EOF
+        IF line="" QUIT
+        SET valuesList = $LISTFROMSTRING($TRANSLATE(line,"""",""),",")
+        ; unique id is column 2
+        SET id = $LISTGET(valuesList,2)
+        IF '$DATA(data(id)) DO
+        . ; initialize by clearing any existing mapping
+        . KILL data(id)
+                ; process by subscript (col 3), dynamically using dictionary mapping
+        SET idx = $LISTGET(valuesList,3)
+        SET propName = $GET(subMeta(idx,"Property"))
+        IF propName="" SET propName="Sub"_idx  ; fallback key
+        ; for simple cases, take first data piece as property value
+        SET value = $LISTGET(valuesList,4)
+        SET data(id,propName) = value
+    }
+    DO io.%Close()()
+
+    //— Write output CSV
+    SET out = ##class(%Stream.FileCharacter).%New()
+    SET sc = out.LinkToFile(outFile,2)  ; overwrite
+    IF sc'=1 { WRITE "Error opening ",outFile,! DO $SYSTEM.Status.DisplayError(sc) QUIT 0 }
+    ; header
+    DO out.WriteLine(header)
+    ; rows
+    SET id=""
+    FOR  {
+        SET id = $ORDER(data(id)) QUIT:id=""
+        SET row=""
+        FOR j=1:1:count {
+            SET piece = $GET(data(id,$LISTGET(fieldsList,j)),"")
+            SET row = row_$QUOTE(piece,1)_$SELECT(j<count:",",1:""
+        }
+        DO out.WriteLine(row)
+    }
+    DO out.%Close()
+    WRITE "CSV generated: ",outFile,!
+    QUIT 1
+```

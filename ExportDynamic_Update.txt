@@ -1,0 +1,177 @@
+ ; ==============================================================================
+; StripNS — remove ^|ns| or ^["ns"] from a global ref
+; Docs: Extended refs  https://docs.intersystems.com/ens201817/csp/docbook/DocBook.UI.Page.cls?KEY=GGBL_global
+; ==============================================================================
+StripNS(gref)
+    NEW p
+    IF $EXTRACT(gref,1,2)="^|" {
+    . SET p=$FIND(gref,"|",2) IF p>0 SET gref="^"_$EXTRACT(gref,p+1,*)
+    }
+    IF $EXTRACT(gref,1,2)="^[" {
+    . SET p=$FIND(gref,"]") IF p>0 SET gref="^"_$EXTRACT(gref,p+1,*)
+    }
+    QUIT gref
+; ==============================================================================
+; MakeBase — choose base global, ignore namespace tokens
+; Docs: Indirection  https://docs.intersystems.com/ens201817/csp/docbook/DocBook.UI.Page.cls?KEY=RLANGF_indirection
+; ==============================================================================
+MakeBase(parmGlobalRef,mapDataAccess,Verbose)
+    NEW rootRef
+    SET rootRef=$GET(parmGlobalRef)
+    IF rootRef="" SET rootRef=$PIECE(mapDataAccess,"(",1)
+    SET rootRef=$$StripNS(rootRef)
+    IF rootRef'["^" SET rootRef="^HMOREF"
+    IF $EXTRACT(rootRef,$L(rootRef))'="(" SET rootRef=rootRef_"("
+    IF +$GET(Verbose) WRITE !,"[BASE] rootRef=",rootRef
+    QUIT rootRef
+; ==============================================================================
+; BuildTriggerSpec — derive dynamic row trigger from SQLMap
+; subMap(n,"DataAccess"/"Expression"/"AccessType")  ; <Subscript>
+; dataMap(name,"Node"/"Piece"/"Delimiter")          ; <Data>
+; Output:
+;  trigger("KeyCount") = max {L#}
+;  trigger("NeedBase") = 1 if any Node is "" or "+.x"
+;  trigger("Base")     = 1 if any Node is "" (whole-base node)
+;  trigger("Frac",".x")= 1 for fractional nodes (.2,.8,.9)
+;  trigger("Abs",n)    = 1 for absolute nodes (102,155,156)
+; Docs: $FIND/$PIECE/$ORDER  https://docs.intersystems.com/ens201817/csp/docbook/DocBook.UI.Page.cls?KEY=RLANGF_find
+; ==============================================================================
+BuildTriggerSpec(subMap,dataMap,Verbose,trigger)
+    NEW n,s,i,num,nm,ns,needBase,maxL
+    K trigger
+    SET maxL=0
+    SET n="" FOR  SET n=$ORDER(subMap(n)) QUIT:n=""  DO
+    . SET s=$GET(subMap(n,"DataAccess"))
+    . SET i=0 FOR  SET i=$FIND(s,"{L",i) QUIT:'i  DO
+    . . SET num=+$PIECE($EXTRACT(s,i,*),"}",1)
+    . . IF num>maxL SET maxL=num
+    SET trigger("KeyCount")=maxL
+    SET needBase=0
+    SET nm="" FOR  SET nm=$ORDER(dataMap(nm)) QUIT:nm=""  DO
+    . SET ns=$GET(dataMap(nm,"Node"))
+    . IF ns="" SET trigger("Base")=1,needBase=1 QUIT
+    . IF $EXTRACT(ns,1,2)="+." SET trigger("Frac","."_+$EXTRACT(ns,3,*))=1,needBase=1 QUIT
+    . IF $EXTRACT(ns,1)="+" SET trigger("Abs",+$EXTRACT(ns,2,*))=1
+    SET:needBase trigger("NeedBase")=1
+    IF +$GET(Verbose) WRITE !,"[TRIGSPEC] Keys=",trigger("KeyCount")," NeedBase=",$GET(trigger("NeedBase"),0)
+    QUIT
+; ==============================================================================
+; ShouldTrigger — fire only when depth == keys+1 and node matches map
+; subsList="Hmo,Id,node" (comma list, no parens)
+; Accept node=100/200 for base; 100.x/200.x for fractional; absolute nodes as-is
+; ==============================================================================
+ShouldTrigger(subsList,trigger,Verbose)
+    NEW have,last,ok,maj,frac,abs
+    SET ok=0
+    SET have=$L(subsList,",")
+    IF have'=(+$GET(trigger("KeyCount"))+1) QUIT 0
+    SET last=$PIECE(subsList,",",have)
+    SET maj=+last,frac=""
+    IF last["." SET frac="."_+$PIECE(last,".",2)
+    IF $GET(trigger("Base")),((maj=100)!(maj=200)) SET ok=1
+    IF 'ok,frac'="",($GET(trigger("Frac",frac))=1),((maj=100)!(maj=200)) SET ok=1
+    IF 'ok SET abs=maj IF $GET(trigger("Abs",abs))=1 SET ok=1
+    IF +$GET(Verbose) WRITE !,"[TRIG] subs='",subsList,"' ok=",ok
+    QUIT ok
+; ==============================================================================
+; PickFamily — pick major family (100 or 200) for this Id by presence
+; Docs: $DATA  https://docs.intersystems.com/ens201817/csp/docbook/DocBook.UI.Page.cls?KEY=RLANGF_data
+; ==============================================================================
+PickFamily(base,subs2,Verbose)
+    NEW ref,fam,have
+    SET fam=100
+    SET ref=base_subs2_",100)"
+    SET have=$DATA(@ref)
+    IF '(have#2),'(have>0) {
+    . SET ref=base_subs2_",200)"
+    . SET have=$DATA(@ref)
+    . IF (have#2)||(have>0) SET fam=200
+    }
+    IF +$GET(Verbose) WRITE !,"[FAM] ",subs2," -> ",fam
+    QUIT fam
+; ==============================================================================
+; ResolveNodeDyn — turn Node spec into real subscript using major family
+; Node ""    → baseFam
+; Node "+.x" → baseFam.x
+; Node "+n"  → n
+; ==============================================================================
+ResolveNodeDyn(nodeSpec,baseFam)
+    NEW out
+    SET out=""
+    IF nodeSpec="" SET out=baseFam
+    ELSE  IF $EXTRACT(nodeSpec,1,2)="+." SET out=baseFam_"."_+$EXTRACT(nodeSpec,3,*)
+    ELSE  IF $EXTRACT(nodeSpec,1)="+" SET out=+$EXTRACT(nodeSpec,2,*)
+    QUIT out
+; ==============================================================================
+; ReadNode — read ^HMOREF(Hmo,Id,node) using base and subs2 "Hmo,Id"
+; Docs: $GET  https://docs.intersystems.com/ens201817/csp/docbook/DocBook.UI.Page.cls?KEY=RLANGF_get
+; ==============================================================================
+ReadNode(base,subs2,nodeSub,Verbose)
+    NEW full
+    SET full=base_subs2_","_nodeSub_")"
+    IF +$GET(Verbose) WRITE !,"[NODE] ",full
+    QUIT $GET(@full)
+; ==============================================================================
+; GetPiece — apply delimiters sequentially (primary then secondary)
+; pieceSpec: "p" or "p1,p2" ; delimSpec: '"^"' or '"^",","' or '"^","*"'
+; Docs: $PIECE  https://docs.intersystems.com/ens201817/csp/docbook/DocBook.UI.Page.cls?KEY=RLANGF_piece
+; ==============================================================================
+GetPiece(val,pieceSpec,delimSpec)
+    NEW d1,d2,p1,p2
+    SET d1=$PIECE(delimSpec,"""",2)
+    SET d2=$PIECE(delimSpec,"""",4)
+    SET p1=+$PIECE(pieceSpec,",",1)
+    SET p2=+$PIECE(pieceSpec,",",2)
+    IF d1'="" SET val=$PIECE(val,d1,$SELECT(p1>0:p1,1:1)) ELSE  IF p1>1 QUIT ""
+    IF p2>0,d2'="" SET val=$PIECE(val,d2,p2)
+    QUIT val
+; ==============================================================================
+; BuildRow — build one CSV row for current Id using SQLMap
+; Inputs:
+;  base, subsList="Hmo,Id,node", parent, id
+;  dataMap(name,"Node"/"Piece"/"Delimiter")
+; Effects: MERGE into tableRows(parent,id,*)
+; Notes:
+;  - No K tableRows except (parent,id)
+;  - Dynamic major family (100 or 200) per Id
+;  - Example Rin from 100.9 piece 1 if present
+; ==============================================================================
+BuildRow(base,subsList,parent,id,dataMap,Verbose,tableRows)
+    NEW row,subs2,fam,raw,nm,nodeSpec,nodeSub,piece,delim
+    IF +$GET(Verbose) WRITE !,"[BR] parent=",parent," id=",id," subs='",subsList,"'"
+    K row
+    SET row("Hmo")=$PIECE(subsList,",",1)
+    SET row("Id")=$PIECE(subsList,",",2)
+    SET subs2=$PIECE(subsList,",",1,2)
+    SET fam=$$PickFamily(base,subs2,Verbose)
+    SET raw=$$ReadNode(base,subs2,$$ResolveNodeDyn("+.9",fam),Verbose)
+    SET row("Rin")=$$GetPiece(raw,"1","""^""")
+    SET nm="" FOR  SET nm=$ORDER(dataMap(nm)) QUIT:nm=""  DO
+    . SET nodeSpec=$GET(dataMap(nm,"Node"))
+    . SET piece=$GET(dataMap(nm,"Piece"))
+    . SET delim=$GET(dataMap(nm,"Delimiter"))
+    . SET nodeSub=$$ResolveNodeDyn(nodeSpec,fam)
+    . IF nodeSub="" SET row(nm)="" QUIT
+    . SET raw=$$ReadNode(base,subs2,nodeSub,Verbose)
+    . IF raw="" SET row(nm)="" QUIT
+    . SET row(nm)=$$GetPiece(raw,piece,delim)
+    DO AddRow(parent,id,.row,Verbose,.tableRows)
+    QUIT
+; ==============================================================================
+; AddRow — replace only this (parent,id) entry
+; ==============================================================================
+AddRow(parent,id,row,Verbose,tableRows)
+    IF +$GET(Verbose) WRITE !,"[ADD] ",parent," id=",id," cols=",$ORDER(row(""),-1)
+    K tableRows(parent,id)
+    MERGE tableRows(parent,id)=row
+    QUIT
+; ==============================================================================
+; TriggerRow — call from traversal at each visited node
+; Usage:
+;  DO BuildTriggerSpec(.subMap,.dataMap,Verbose,.trigger)  ; once per class
+;  IF $$ShouldTrigger(subsList,.trigger,Verbose) DO BuildRow(base,subsList,parent,id,.dataMap,Verbose,.tableRows)
+; Docs: $ORDER two-arg child  https://docs.intersystems.com/ens201817/csp/docbook/DocBook.UI.Page.cls?KEY=RLANGF_order
+; ==============================================================================
+TriggerRow(base,subsList,parent,id,subMap,dataMap,trigger,Verbose,tableRows)
+    IF $$ShouldTrigger(subsList,.trigger,Verbose) DO BuildRow(base,subsList,parent,id,.dataMap,Verbose,.tableRows)
+    QUIT

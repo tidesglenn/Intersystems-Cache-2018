@@ -1,0 +1,147 @@
+ExportThree
+    QUIT
+
+LIST(VAR) ;
+    NEW NSTR
+    IF '$DATA(VAR) SET VAR=""
+    SET NSTR="(SITE,RPW,PR,SEC,CS,HT,FF,DV,D1,D2,D3,D4,CM,QT,TIO,TC,XLL,OPSY,TMSTAT,TML00,IQLOG,FUNC,LKINF,%SF,%TYP,%EF,%PM,dvt,auto,hosp,mulhos,trm,altpw,LDV"
+    IF $DATA(XLL) SET NSTR=NSTR_",LL"
+    SET NSTR=NSTR_VAR_")"
+    QUIT NSTR
+
+EXPORTCSV(paramSchema) ;
+    QUIT:'$LENGTH($GET(paramSchema))
+    SET $ZTRAP="TRAP^ExportThree"
+
+    NEW logPath,logFile,LDIR,classes,class,stackCap
+    SET logPath="C:\InterSystems\Cache\Mgr\Sunquest\"_paramSchema_"_EXPORT_LOG.txt"
+    SET logFile=##class(%File).%New(logPath)
+    IF 'logFile.Open("AWS") WRITE !,"Cannot open log: ",logPath QUIT
+    DO logFile.WriteLine("Timestamp,ClassName,Status,Rows,StackDepth,Note")
+
+    SET LDIR=$ZU(5)
+    DO ODBC^RD1
+    DO $SYSTEM.OBJ.GetClassList(.classes)
+
+    SET stackCap=100
+    SET class=""
+    FOR  SET class=$ORDER(classes(class)) QUIT:class=""  DO
+    . IF $PIECE(class,".",1)'=paramSchema QUIT
+    . IF $STACK>stackCap DO logFile.WriteLine($ZDATETIME($H,3)_","_class_",ERROR,0,"_$STACK_",\"STACK TOO DEEP BEFORE EXPORT\") QUIT
+
+    . WRITE !,"=== Exporting class: ",class,!
+    . IF '##class(%Dictionary.ClassDefinition).%ExistsId(class) DO logFile.WriteLine($ZDATETIME($H,3)_","_class_",ERROR,0,"_$STACK_",\"No ClassDefinition\") QUIT
+
+    . NEW sc SET sc=0
+    . SET cdef=##class(%Dictionary.ClassDefinition).%OpenId(class,.sc)
+    . IF sc'=1 DO logFile.WriteLine($ZDATETIME($H,3)_","_class_",ERROR,0,"_$STACK_",\"Class Open Error: "_$SYSTEM.Status.GetErrorText(sc)_"\") QUIT
+
+    . NEW tableName SET tableName=$GET(cdef.SqlTableName) IF '$LENGTH(tableName) SET tableName=class
+    . NEW selectList,joinClauses SET selectList="",joinClauses=""
+
+    . ;-- Safe scalar property detection (skip mult-dim, collections, relationships, streams)
+    . NEW i,prop,fldName
+    . FOR i=1:1:cdef.Properties.Count()  DO
+    . . SET prop=cdef.Properties.GetAt(i)
+    . . IF prop.MultiDimensional QUIT
+    . . IF $LENGTH(prop.Collection) QUIT
+    . . IF prop.Relationship QUIT
+    . . IF $E(prop.Type,1,8)="%Stream." QUIT
+    . . SET fldName=$GET(prop.SqlFieldName)
+    . . IF '$LENGTH(fldName) SET fldName=prop.Name
+    . . IF '$LENGTH(fldName) QUIT
+    . . SET selectList=selectList_$SELECT($LENGTH(selectList):",",1:"")_"main."_fldName
+
+    . IF '$LENGTH(selectList) DO  QUIT
+    . . DO logFile.WriteLine($ZDATETIME($H,3)_","_class_",SKIPPED,0,"_$STACK_",\"No scalar properties to export\")
+
+    . ;-- Build joins for foreign keys
+    . NEW fkList DO GetForeignKeysByClass(class,.fkList)
+    . NEW fkIdx,fkDesc,localField,targetClass,targetKey,alias,friendlyField
+    . FOR fkIdx=1:1:fkList.Count()  DO
+    . . SET fkDesc=fkList.GetAt(fkIdx)
+    . . SET localField=$PIECE($PIECE(fkDesc,"^",2),",",1)
+    . . IF '$LENGTH(localField) QUIT
+    . . SET targetClass=$PIECE(fkDesc,"^",3)
+    . . SET targetKey=$PIECE(fkDesc,"^",4)
+    . . SET friendlyField=""
+    . . IF $$HasProperty(targetClass,"Name") SET friendlyField="Name"
+    . . IF $LENGTH(friendlyField) DO
+    . . . SET alias="J"_fkIdx
+    . . . SET selectList=selectList_","_alias_"."_friendlyField_" AS "_localField_"_Name"
+    . . . SET joinClauses=joinClauses_" LEFT JOIN "_paramSchema_"."_targetClass_" AS "_alias_" ON main."_localField_"="_alias_"."_targetKey
+
+    . ;-- Prepare and execute SQL
+    . NEW sql,rs,ok
+    . SET sql="SELECT "_selectList_" FROM "_paramSchema_"."_tableName_" AS main"_joinClauses
+    . WRITE !," SQL: ",sql,!
+    . SET rs=##class(%ResultSet).%New("%DynamicQuery:SQL")
+    . SET ok=rs.Prepare(sql) IF 'ok DO logFile.WriteLine($ZDATETIME($H,3)_","_class_",ERROR,0,"_$STACK_",\"Prepare Failed\") QUIT
+    . SET ok=rs.Execute()     IF 'ok DO logFile.WriteLine($ZDATETIME($H,3)_","_class_",ERROR,0,"_$STACK_",\"Execute Failed\") QUIT
+
+    . ;-- Open CSV file
+    . NEW csvPath,csvFile SET csvPath="C:\InterSystems\Cache\Mgr\Sunquest\"_class_".csv"
+    . SET csvFile=##class(%File).%New(csvPath)
+    . IF 'csvFile.Open("AWS") DO logFile.WriteLine($ZDATETIME($H,3)_","_class_",ERROR,0,"_$STACK_",\"Cannot open CSV file\") QUIT
+
+    . ;-- Write header row
+    . NEW metaData,colCount,header,colName
+    . SET metaData=rs.%GetMetadata(),colCount=metaData.Columns.Count(),header=""
+    . FOR i=1:1:colCount  DO  
+    . . SET colName=metaData.Columns.GetAt(i).ColName
+    . . SET header=header_$SELECT(i>1:",",1:"")_"~"_$$ESCAPE(colName)_"~"
+    . DO csvFile.WriteLine(header)
+
+    . ;-- Fetch rows
+    . NEW cnt SET cnt=0
+    . WHILE rs.Next()  DO
+    . . IF $STACK>stackCap DO logFile.WriteLine($ZDATETIME($H,3)_","_class_",ERROR,"_cnt_","_$STACK_",\"STACK TOO DEEP DURING LOOP\") QUIT
+    . . NEW row,val SET row=""
+    . . FOR i=1:1:colCount  DO
+    . . . SET val=rs.%GetData(i)
+    . . . SET row=row_$SELECT(i>1:",",1:"")_"~"_$$ESCAPE(val)_"~"
+    . . DO csvFile.WriteLine(row)
+    . . SET cnt=cnt+1
+
+    . DO csvFile.Close()
+    . WRITE !," → Wrote ",cnt," rows to ",csvPath,!
+    . DO logFile.WriteLine($ZDATETIME($H,3)_","_class_",OK,"_cnt_","_$STACK_",\"Success\")
+    QUIT
+
+TRAP ;
+    SET $ZTRAP=""
+    NEW errorText,depth
+    SET errorText=$ZERROR,depth=$STACK
+    SET ^FRAMESTACKERR($J,$H,"ERROR")=errorText
+    SET ^FRAMESTACKERR($J,$H,"STACKDEPTH")=depth
+    IF depth<95 DO ^%STACK H 10
+    ELSE  WRITE !,"[TRAP] Stack too deep: ",depth,!
+    QUIT
+
+GetForeignKeysByClass(className,fkList) ;
+    NEW root,fkName,id,fkDef
+    KILL fkList
+    SET fkList=##class(%ListOfDataTypes).%New()
+    SET root=$SELECT($DATA(^%Dictionary.ForeignKeyDefinition):"^%Dictionary.ForeignKeyDefinition",1:"^%Library.ForeignKeyDefinition")
+    SET fkName=""
+    FOR  SET fkName=$ORDER(@root@("C",className,fkName)) QUIT:fkName=""  DO
+    . SET id=$ORDER(@root@("C",className,fkName,"")
+    . QUIT:id=""
+    . SET fkDef=##class(%Dictionary.ForeignKeyDefinition).%OpenId(id)
+    . DO fkList.Insert(fkName_"^"_fkDef.Properties_"^"_fkDef.ReferencedClass_"^"_fkDef.ReferencedKey_"^"_fkDef.SqlName)
+    QUIT
+
+HasProperty(className,propName) ;
+    NEW sc,cdef,prop,i,ok
+    SET ok=0
+    IF '##class(%Dictionary.ClassDefinition).%ExistsId(className) QUIT ok
+    SET cdef=##class(%Dictionary.ClassDefinition).%OpenId(className,.sc)
+    IF sc'=1 QUIT ok
+    FOR i=1:1:cdef.Properties.Count()  DO
+    . SET prop=cdef.Properties.GetAt(i)
+    . IF prop.Name=propName SET ok=1 QUIT
+    . IF prop.SqlFieldName=propName SET ok=1 QUIT
+    QUIT ok
+
+ESCAPE(val) ;
+    QUIT $REPLACE($GET(val),$CHAR(34),$CHAR(34,34))

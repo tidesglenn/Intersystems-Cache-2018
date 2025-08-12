@@ -1,0 +1,1101 @@
+ .Visit||DBMSStorage||ZPreAdmDt||2
+[MAPID] base=VM.Visit||DBMSStorage||ZPreAdmDt subs=2
+[MAPID] VM.Visit||DBMSStorage||ZPreAdmDt||3
+[MAPID] base=VM.Visit||DBMSStorage||ZPreAdmDt subs=3
+[MAPID] VM.Visit||DBMSStorage||ZPreAdmDt||4
+[MAPID] base=VM.Visit||DBMSStorage||ZPreAdmDt subs=4
+[INFO] SubDef rows kept=56059
+ 
+[DEBUG] Preparing SQL for DataDefinition...
+[DEBUG] DataDef Prepare status=1
+[DEBUG] DataDef Execute ok; scanning rows ...
+[INFO] DataDef rows kept=62235
+ 
+[EXIT] Storage metadata loaded
+--- [ENTER] BuildPieceMap ---
+[DICT] pieceSpec primary count=62235 secondary count=13009[TABLE] keep Referrals.AuditIndex||DBMSStorage||DBMSMaster
+[TABLE] keep Referrals.FundDefaultBreakDown||DBMSStorage||DBMSMaster
+[TABLE] keep Referrals.FundDefault||DBMSStorage||DBMSMaster
+[TABLE] keep Referrals.ReferralAdmittingDx||DBMSStorage||DBMSMaster
+[TABLE] keep Referrals.ReferralAdmittingPx||DBMSStorage||DBMSMaster
+[TABLE] keep Referrals.ReferralAppointment||DBMSStorage||DBMSMaster
+[TABLE] keep Referrals.ReferralApptSummary||DBMSStorage||DBMSMaster
+[TABLE] keep Referrals.ReferralAudit||DBMSStorage||DBMSMaster
+[TABLE] keep Referrals.ReferralAuthorizedPx||DBMSStorage||DBMSMaster
+[TABLE] keep Referrals.ReferralBenefit||DBMSStorage||DBMSMaster
+[TABLE] keep Referrals.ReferralDischargeDx||DBMSStorage||DBMSMaster
+[TABLE] keep Referrals.ReferralDischargePxIcd9||DBMSStorage||DBMSMaster
+[TABLE] keep Referrals.ReferralDischargePx||DBMSStorage||DBMSMaster
+[TABLE] keep Referrals.ReferralDuplicate||DBMSStorage||DBMSMaster
+[TABLE] keep Referrals.ReferralDx||DBMSStorage||DBMSMaster
+[TABLE] keep Referrals.ReferralEdiTxn||DBMSStorage||DBMSMaster
+[TABLE] keep Referrals.ReferralInpatientDt||DBMSStorage||DBMSMaster
+[TABLE] keep Referrals.ReferralLine||DBMSStorage||DBMSMaster
+[TABLE] keep Referrals.ReferralLinkedCase||DBMSStorage||DBMSMaster
+[TABLE] keep Referrals.ReferralLinkedClm||DBMSStorage||DBMSMaster
+[TABLE] keep Referrals.ReferralLinkedInv||DBMSStorage||DBMSMaster
+[TABLE] keep Referrals.ReferralRequestAuditTxn||DBMSStorage||DBMSMaster
+[TABLE] keep Referrals.ReferralRequestAudit||DBMSStorage||DBMSMaster
+[TABLE] keep Referrals.ReferralRequestAudit||DBMSStorage||Dt
+[TABLE] keep Referrals.ReferralRequestAudit||DBMSStorage||Extent
+[TABLE] keep Referrals.ReferralRequestAudit||DBMSStorage||Ini
+[TABLE] keep Referrals.ReferralRequestAudit||DBMSStorage||ReferralRequest
+[TABLE] keep Referrals.ReferralRequest||DBMSStorage||DBMSMaster
+[TABLE] keep Referrals.ReferralRequest||DBMSStorage||Extent
+[TABLE] keep Referrals.ReferralRequest||DBMSStorage||ZClinRequest
+[TABLE] keep Referrals.ReferralRequest||DBMSStorage||ZPatient
+[TABLE] keep Referrals.ReferralRequest||DBMSStorage||ZReferral
+[TABLE] keep Referrals.ReferralStatusHistory||DBMSStorage||DBMSMaster
+[TABLE] keep Referrals.ReferralVisit||DBMSStorage||DBMSMaster
+[TABLE] keep Referrals.ReferralWorkingDx||DBMSStorage||DBMSMaster
+[TABLE] keep Referrals.ReferralWorkingPx||DBMSStorage||DBMSMaster
+[TABLE] keep Referrals.Referral||DBMSStorage||DBMSMaster
+[TABLE] keep Referrals.Referral||DBMSStorage||ZActAdmDt
+[TABLE] keep Referrals.Referral||DBMSStorage||ZActDischDt
+[TABLE] keep Referrals.Referral||DBMSStorage||ZCreatedBy
+[TABLE] keep Referrals.Referral||DBMSStorage||ZDtOrd
+[TABLE] keep Referrals.Referral||DBMSStorage||ZExpAdmDt
+[TABLE] keep Referrals.Referral||DBMSStorage||ZExpDischDt
+[TABLE] keep Referrals.Referral||DBMSStorage||ZExtnum
+[TABLE] keep Referrals.Referral||DBMSStorage||ZRefNum
+[TABLE] keep Referrals.Referral||DBMSStorage||ZRefProv
+[TABLE] keep Referrals.Referral||DBMSStorage||ZRefType
+[TABLE] keep Referrals.Referral||DBMSStorage||ZReferToBa
+[TABLE] keep Referrals.Referral||DBMSStorage||ZReferToDiv
+[TABLE] keep Referrals.Referral||DBMSStorage||ZReferToLoc
+[TABLE] keep Referrals.Referral||DBMSStorage||ZReferToPhy
+[TABLE] keep Referrals.Referral||DBMSStorage||ZReferToProv
+[TABLE] keep Referrals.Referral||DBMSStorage||ZReferToVnd
+[TABLE] keep Referrals.Referral||DBMSStorage||ZStatus
+[TABLE] keep Referrals.Referral||DBMSStorage||ZValidFromDt
+[TABLE] keep Referrals.Referral||DBMSStorage||ZValidToDt
+[TABLE] keep Referrals.StatusRuleCondition||DBMSStorage||DBMSMaster
+[TABLE] keep Referrals.StatusRule||DBMSStorage||DBMSMaster
+[INFO] Table set entries=0
+ 
+[DICT] Table set entries=58 (filtered by schema)
+--- [ENTER] BuildPropertyMap ---
+[BuildPropertyMap] FK SQL Prepare error
+[INFO] Computed maxKeys=1
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=4
+    [SUBS] 4 -> build base & traverse[CollectRow] Enter: class=Referrals.Referral rootRef=^|"MHRCONV"|HMOREF subs=4
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(4)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+ID=Referrals.Referral||DBMSStorage||ZReferToBa
+  [MAPID] Referrals.Referral||DBMSStorage||ZReferToBaSUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.Referral rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=2
+    [SUBS] 2 -> build base & traverse[CollectRow] Enter: class=Referrals.Referral rootRef=^|"MHRCONV"|HMOREF subs=2
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(2)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=3
+    [SUBS] 3 -> build base & traverse[CollectRow] Enter: class=Referrals.Referral rootRef=^|"MHRCONV"|HMOREF subs=3
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(3)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=4
+    [SUBS] 4 -> build base & traverse[CollectRow] Enter: class=Referrals.Referral rootRef=^|"MHRCONV"|HMOREF subs=4
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(4)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+ID=Referrals.Referral||DBMSStorage||ZReferToDiv
+  [MAPID] Referrals.Referral||DBMSStorage||ZReferToDivSUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.Referral rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=2
+    [SUBS] 2 -> build base & traverse[CollectRow] Enter: class=Referrals.Referral rootRef=^|"MHRCONV"|HMOREF subs=2
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(2)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=3
+    [SUBS] 3 -> build base & traverse[CollectRow] Enter: class=Referrals.Referral rootRef=^|"MHRCONV"|HMOREF subs=3
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(3)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=4
+    [SUBS] 4 -> build base & traverse[CollectRow] Enter: class=Referrals.Referral rootRef=^|"MHRCONV"|HMOREF subs=4
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(4)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+ID=Referrals.Referral||DBMSStorage||ZReferToLoc
+  [MAPID] Referrals.Referral||DBMSStorage||ZReferToLocSUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.Referral rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=2
+    [SUBS] 2 -> build base & traverse[CollectRow] Enter: class=Referrals.Referral rootRef=^|"MHRCONV"|HMOREF subs=2
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(2)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=3
+    [SUBS] 3 -> build base & traverse[CollectRow] Enter: class=Referrals.Referral rootRef=^|"MHRCONV"|HMOREF subs=3
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(3)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=4
+    [SUBS] 4 -> build base & traverse[CollectRow] Enter: class=Referrals.Referral rootRef=^|"MHRCONV"|HMOREF subs=4
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(4)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+ID=Referrals.Referral||DBMSStorage||ZReferToPhy
+  [MAPID] Referrals.Referral||DBMSStorage||ZReferToPhySUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.Referral rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=2
+    [SUBS] 2 -> build base & traverse[CollectRow] Enter: class=Referrals.Referral rootRef=^|"MHRCONV"|HMOREF subs=2
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(2)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=3
+    [SUBS] 3 -> build base & traverse[CollectRow] Enter: class=Referrals.Referral rootRef=^|"MHRCONV"|HMOREF subs=3
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(3)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=4
+    [SUBS] 4 -> build base & traverse[CollectRow] Enter: class=Referrals.Referral rootRef=^|"MHRCONV"|HMOREF subs=4
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(4)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+ID=Referrals.Referral||DBMSStorage||ZReferToProv
+  [MAPID] Referrals.Referral||DBMSStorage||ZReferToProvSUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.Referral rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=2
+    [SUBS] 2 -> build base & traverse[CollectRow] Enter: class=Referrals.Referral rootRef=^|"MHRCONV"|HMOREF subs=2
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(2)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=3
+    [SUBS] 3 -> build base & traverse[CollectRow] Enter: class=Referrals.Referral rootRef=^|"MHRCONV"|HMOREF subs=3
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(3)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=4
+    [SUBS] 4 -> build base & traverse[CollectRow] Enter: class=Referrals.Referral rootRef=^|"MHRCONV"|HMOREF subs=4
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(4)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+ID=Referrals.Referral||DBMSStorage||ZReferToVnd
+  [MAPID] Referrals.Referral||DBMSStorage||ZReferToVndSUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.Referral rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=2
+    [SUBS] 2 -> build base & traverse[CollectRow] Enter: class=Referrals.Referral rootRef=^|"MHRCONV"|HMOREF subs=2
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(2)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=3
+    [SUBS] 3 -> build base & traverse[CollectRow] Enter: class=Referrals.Referral rootRef=^|"MHRCONV"|HMOREF subs=3
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(3)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=4
+    [SUBS] 4 -> build base & traverse[CollectRow] Enter: class=Referrals.Referral rootRef=^|"MHRCONV"|HMOREF subs=4
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(4)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+ID=Referrals.Referral||DBMSStorage||ZStatus
+  [MAPID] Referrals.Referral||DBMSStorage||ZStatusSUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.Referral rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=2
+    [SUBS] 2 -> build base & traverse[CollectRow] Enter: class=Referrals.Referral rootRef=^|"MHRCONV"|HMOREF subs=2
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(2)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=3
+    [SUBS] 3 -> build base & traverse[CollectRow] Enter: class=Referrals.Referral rootRef=^|"MHRCONV"|HMOREF subs=3
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(3)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=4
+    [SUBS] 4 -> build base & traverse[CollectRow] Enter: class=Referrals.Referral rootRef=^|"MHRCONV"|HMOREF subs=4
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(4)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+ID=Referrals.Referral||DBMSStorage||ZValidFromDt
+  [MAPID] Referrals.Referral||DBMSStorage||ZValidFromDtSUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.Referral rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=2
+    [SUBS] 2 -> build base & traverse[CollectRow] Enter: class=Referrals.Referral rootRef=^|"MHRCONV"|HMOREF subs=2
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(2)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=3
+    [SUBS] 3 -> build base & traverse[CollectRow] Enter: class=Referrals.Referral rootRef=^|"MHRCONV"|HMOREF subs=3
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(3)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=4
+    [SUBS] 4 -> build base & traverse[CollectRow] Enter: class=Referrals.Referral rootRef=^|"MHRCONV"|HMOREF subs=4
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(4)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+ID=Referrals.Referral||DBMSStorage||ZValidToDt
+  [MAPID] Referrals.Referral||DBMSStorage||ZValidToDtSUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.Referral rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=2
+    [SUBS] 2 -> build base & traverse[CollectRow] Enter: class=Referrals.Referral rootRef=^|"MHRCONV"|HMOREF subs=2
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(2)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=3
+    [SUBS] 3 -> build base & traverse[CollectRow] Enter: class=Referrals.Referral rootRef=^|"MHRCONV"|HMOREF subs=3
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(3)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=4
+    [SUBS] 4 -> build base & traverse[CollectRow] Enter: class=Referrals.Referral rootRef=^|"MHRCONV"|HMOREF subs=4
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(4)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+PARENT=Referrals.ReferralAdmittingDx
+[CLASS] Referrals.ReferralAdmittingDx
+ID=Referrals.ReferralAdmittingDx||DBMSStorage||DBMSMaster
+  [MAPID] Referrals.ReferralAdmittingDx||DBMSStorage||DBMSMasterSUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralAdmittingDx rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=2
+    [SUBS] 2 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralAdmittingDx rootRef=^|"MHRCONV"|HMOREF subs=2
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(2)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=3
+    [SUBS] 3 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralAdmittingDx rootRef=^|"MHRCONV"|HMOREF subs=3
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(3)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=4
+    [SUBS] 4 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralAdmittingDx rootRef=^|"MHRCONV"|HMOREF subs=4
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(4)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+PARENT=Referrals.ReferralAdmittingPx
+[CLASS] Referrals.ReferralAdmittingPx
+ID=Referrals.ReferralAdmittingPx||DBMSStorage||DBMSMaster
+  [MAPID] Referrals.ReferralAdmittingPx||DBMSStorage||DBMSMasterSUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralAdmittingPx rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=2
+    [SUBS] 2 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralAdmittingPx rootRef=^|"MHRCONV"|HMOREF subs=2
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(2)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=3
+    [SUBS] 3 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralAdmittingPx rootRef=^|"MHRCONV"|HMOREF subs=3
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(3)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=4
+    [SUBS] 4 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralAdmittingPx rootRef=^|"MHRCONV"|HMOREF subs=4
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(4)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+PARENT=Referrals.ReferralAppointment
+[CLASS] Referrals.ReferralAppointment
+ID=Referrals.ReferralAppointment||DBMSStorage||DBMSMaster
+  [MAPID] Referrals.ReferralAppointment||DBMSStorage||DBMSMasterSUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralAppointment rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=2
+    [SUBS] 2 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralAppointment rootRef=^|"MHRCONV"|HMOREF subs=2
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(2)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=3
+    [SUBS] 3 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralAppointment rootRef=^|"MHRCONV"|HMOREF subs=3
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(3)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=4
+    [SUBS] 4 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralAppointment rootRef=^|"MHRCONV"|HMOREF subs=4
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(4)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=5
+    [SUBS] 5 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralAppointment rootRef=^|"MHRCONV"|HMOREF subs=5
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(5)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+PARENT=Referrals.ReferralApptSummary
+[CLASS] Referrals.ReferralApptSummary
+ID=Referrals.ReferralApptSummary||DBMSStorage||DBMSMaster
+  [MAPID] Referrals.ReferralApptSummary||DBMSStorage||DBMSMasterSUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralApptSummary rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=2
+    [SUBS] 2 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralApptSummary rootRef=^|"MHRCONV"|HMOREF subs=2
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(2)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=3
+    [SUBS] 3 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralApptSummary rootRef=^|"MHRCONV"|HMOREF subs=3
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(3)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=4
+    [SUBS] 4 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralApptSummary rootRef=^|"MHRCONV"|HMOREF subs=4
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(4)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=5
+    [SUBS] 5 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralApptSummary rootRef=^|"MHRCONV"|HMOREF subs=5
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(5)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+PARENT=Referrals.ReferralAudit
+[CLASS] Referrals.ReferralAudit
+ID=Referrals.ReferralAudit||DBMSStorage||DBMSMaster
+  [MAPID] Referrals.ReferralAudit||DBMSStorage||DBMSMasterSUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralAudit rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=2
+    [SUBS] 2 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralAudit rootRef=^|"MHRCONV"|HMOREF subs=2
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(2)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=3
+    [SUBS] 3 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralAudit rootRef=^|"MHRCONV"|HMOREF subs=3
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(3)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=4
+    [SUBS] 4 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralAudit rootRef=^|"MHRCONV"|HMOREF subs=4
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(4)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=5
+    [SUBS] 5 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralAudit rootRef=^|"MHRCONV"|HMOREF subs=5
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(5)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=6
+    [SUBS] 6 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralAudit rootRef=^|"MHRCONV"|HMOREF subs=6
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(6)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=7
+    [SUBS] 7 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralAudit rootRef=^|"MHRCONV"|HMOREF subs=7
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(7)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+PARENT=Referrals.ReferralAuthorizedPx
+[CLASS] Referrals.ReferralAuthorizedPx
+ID=Referrals.ReferralAuthorizedPx||DBMSStorage||DBMSMaster
+  [MAPID] Referrals.ReferralAuthorizedPx||DBMSStorage||DBMSMasterSUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralAuthorizedPx rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=2
+    [SUBS] 2 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralAuthorizedPx rootRef=^|"MHRCONV"|HMOREF subs=2
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(2)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=3
+    [SUBS] 3 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralAuthorizedPx rootRef=^|"MHRCONV"|HMOREF subs=3
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(3)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=4
+    [SUBS] 4 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralAuthorizedPx rootRef=^|"MHRCONV"|HMOREF subs=4
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(4)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=5
+    [SUBS] 5 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralAuthorizedPx rootRef=^|"MHRCONV"|HMOREF subs=5
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(5)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=6
+    [SUBS] 6 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralAuthorizedPx rootRef=^|"MHRCONV"|HMOREF subs=6
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(6)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+PARENT=Referrals.ReferralBenefit
+[CLASS] Referrals.ReferralBenefit
+ID=Referrals.ReferralBenefit||DBMSStorage||DBMSMaster
+  [MAPID] Referrals.ReferralBenefit||DBMSStorage||DBMSMasterSUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralBenefit rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=2
+    [SUBS] 2 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralBenefit rootRef=^|"MHRCONV"|HMOREF subs=2
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(2)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=3
+    [SUBS] 3 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralBenefit rootRef=^|"MHRCONV"|HMOREF subs=3
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(3)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=4
+    [SUBS] 4 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralBenefit rootRef=^|"MHRCONV"|HMOREF subs=4
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(4)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=5
+    [SUBS] 5 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralBenefit rootRef=^|"MHRCONV"|HMOREF subs=5
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(5)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=6
+    [SUBS] 6 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralBenefit rootRef=^|"MHRCONV"|HMOREF subs=6
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(6)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+PARENT=Referrals.ReferralDischargeDx
+[CLASS] Referrals.ReferralDischargeDx
+ID=Referrals.ReferralDischargeDx||DBMSStorage||DBMSMaster
+  [MAPID] Referrals.ReferralDischargeDx||DBMSStorage||DBMSMasterSUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralDischargeDx rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=2
+    [SUBS] 2 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralDischargeDx rootRef=^|"MHRCONV"|HMOREF subs=2
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(2)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=3
+    [SUBS] 3 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralDischargeDx rootRef=^|"MHRCONV"|HMOREF subs=3
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(3)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=4
+    [SUBS] 4 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralDischargeDx rootRef=^|"MHRCONV"|HMOREF subs=4
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(4)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+PARENT=Referrals.ReferralDischargePx
+[CLASS] Referrals.ReferralDischargePx
+ID=Referrals.ReferralDischargePx||DBMSStorage||DBMSMaster
+  [MAPID] Referrals.ReferralDischargePx||DBMSStorage||DBMSMasterSUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralDischargePx rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=2
+    [SUBS] 2 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralDischargePx rootRef=^|"MHRCONV"|HMOREF subs=2
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(2)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=3
+    [SUBS] 3 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralDischargePx rootRef=^|"MHRCONV"|HMOREF subs=3
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(3)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=4
+    [SUBS] 4 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralDischargePx rootRef=^|"MHRCONV"|HMOREF subs=4
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(4)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+PARENT=Referrals.ReferralDischargePxIcd9
+[CLASS] Referrals.ReferralDischargePxIcd9
+ID=Referrals.ReferralDischargePxIcd9||DBMSStorage||DBMSMaster
+  [MAPID] Referrals.ReferralDischargePxIcd9||DBMSStorage||DBMSMasterSUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralDischargePxIcd9 rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=2
+    [SUBS] 2 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralDischargePxIcd9 rootRef=^|"MHRCONV"|HMOREF subs=2
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(2)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=3
+    [SUBS] 3 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralDischargePxIcd9 rootRef=^|"MHRCONV"|HMOREF subs=3
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(3)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=4
+    [SUBS] 4 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralDischargePxIcd9 rootRef=^|"MHRCONV"|HMOREF subs=4
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(4)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+PARENT=Referrals.ReferralDuplicate
+[CLASS] Referrals.ReferralDuplicate
+ID=Referrals.ReferralDuplicate||DBMSStorage||DBMSMaster
+  [MAPID] Referrals.ReferralDuplicate||DBMSStorage||DBMSMasterSUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralDuplicate rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=2
+    [SUBS] 2 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralDuplicate rootRef=^|"MHRCONV"|HMOREF subs=2
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(2)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=3
+    [SUBS] 3 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralDuplicate rootRef=^|"MHRCONV"|HMOREF subs=3
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(3)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=4
+    [SUBS] 4 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralDuplicate rootRef=^|"MHRCONV"|HMOREF subs=4
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(4)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+PARENT=Referrals.ReferralDx
+[CLASS] Referrals.ReferralDx
+ID=Referrals.ReferralDx||DBMSStorage||DBMSMaster
+  [MAPID] Referrals.ReferralDx||DBMSStorage||DBMSMasterSUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralDx rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=2
+    [SUBS] 2 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralDx rootRef=^|"MHRCONV"|HMOREF subs=2
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(2)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=3
+    [SUBS] 3 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralDx rootRef=^|"MHRCONV"|HMOREF subs=3
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(3)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=4
+    [SUBS] 4 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralDx rootRef=^|"MHRCONV"|HMOREF subs=4
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(4)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=5
+    [SUBS] 5 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralDx rootRef=^|"MHRCONV"|HMOREF subs=5
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(5)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+PARENT=Referrals.ReferralEdiTxn
+[CLASS] Referrals.ReferralEdiTxn
+ID=Referrals.ReferralEdiTxn||DBMSStorage||DBMSMaster
+  [MAPID] Referrals.ReferralEdiTxn||DBMSStorage||DBMSMasterSUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralEdiTxn rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=2
+    [SUBS] 2 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralEdiTxn rootRef=^|"MHRCONV"|HMOREF subs=2
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(2)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=3
+    [SUBS] 3 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralEdiTxn rootRef=^|"MHRCONV"|HMOREF subs=3
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(3)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=4
+    [SUBS] 4 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralEdiTxn rootRef=^|"MHRCONV"|HMOREF subs=4
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(4)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=5
+    [SUBS] 5 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralEdiTxn rootRef=^|"MHRCONV"|HMOREF subs=5
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(5)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=6
+    [SUBS] 6 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralEdiTxn rootRef=^|"MHRCONV"|HMOREF subs=6
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(6)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+PARENT=Referrals.ReferralInpatientDt
+[CLASS] Referrals.ReferralInpatientDt
+ID=Referrals.ReferralInpatientDt||DBMSStorage||DBMSMaster
+  [MAPID] Referrals.ReferralInpatientDt||DBMSStorage||DBMSMasterSUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralInpatientDt rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=2
+    [SUBS] 2 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralInpatientDt rootRef=^|"MHRCONV"|HMOREF subs=2
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(2)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=3
+    [SUBS] 3 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralInpatientDt rootRef=^|"MHRCONV"|HMOREF subs=3
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(3)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=4
+    [SUBS] 4 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralInpatientDt rootRef=^|"MHRCONV"|HMOREF subs=4
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(4)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=5
+    [SUBS] 5 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralInpatientDt rootRef=^|"MHRCONV"|HMOREF subs=5
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(5)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+PARENT=Referrals.ReferralLine
+[CLASS] Referrals.ReferralLine
+ID=Referrals.ReferralLine||DBMSStorage||DBMSMaster
+  [MAPID] Referrals.ReferralLine||DBMSStorage||DBMSMasterSUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralLine rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=2
+    [SUBS] 2 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralLine rootRef=^|"MHRCONV"|HMOREF subs=2
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(2)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=3
+    [SUBS] 3 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralLine rootRef=^|"MHRCONV"|HMOREF subs=3
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(3)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=4
+    [SUBS] 4 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralLine rootRef=^|"MHRCONV"|HMOREF subs=4
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(4)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+PARENT=Referrals.ReferralLinkedCase
+[CLASS] Referrals.ReferralLinkedCase
+ID=Referrals.ReferralLinkedCase||DBMSStorage||DBMSMaster
+  [MAPID] Referrals.ReferralLinkedCase||DBMSStorage||DBMSMasterSUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralLinkedCase rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=2
+    [SUBS] 2 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralLinkedCase rootRef=^|"MHRCONV"|HMOREF subs=2
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(2)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=3
+    [SUBS] 3 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralLinkedCase rootRef=^|"MHRCONV"|HMOREF subs=3
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(3)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=4
+    [SUBS] 4 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralLinkedCase rootRef=^|"MHRCONV"|HMOREF subs=4
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(4)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=5
+    [SUBS] 5 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralLinkedCase rootRef=^|"MHRCONV"|HMOREF subs=5
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(5)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+PARENT=Referrals.ReferralLinkedClm
+[CLASS] Referrals.ReferralLinkedClm
+ID=Referrals.ReferralLinkedClm||DBMSStorage||DBMSMaster
+  [MAPID] Referrals.ReferralLinkedClm||DBMSStorage||DBMSMasterSUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralLinkedClm rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=2
+    [SUBS] 2 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralLinkedClm rootRef=^|"MHRCONV"|HMOREF subs=2
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(2)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=3
+    [SUBS] 3 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralLinkedClm rootRef=^|"MHRCONV"|HMOREF subs=3
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(3)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=4
+    [SUBS] 4 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralLinkedClm rootRef=^|"MHRCONV"|HMOREF subs=4
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(4)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=5
+    [SUBS] 5 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralLinkedClm rootRef=^|"MHRCONV"|HMOREF subs=5
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(5)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+PARENT=Referrals.ReferralLinkedInv
+[CLASS] Referrals.ReferralLinkedInv
+ID=Referrals.ReferralLinkedInv||DBMSStorage||DBMSMaster
+  [MAPID] Referrals.ReferralLinkedInv||DBMSStorage||DBMSMasterSUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralLinkedInv rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=2
+    [SUBS] 2 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralLinkedInv rootRef=^|"MHRCONV"|HMOREF subs=2
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(2)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=3
+    [SUBS] 3 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralLinkedInv rootRef=^|"MHRCONV"|HMOREF subs=3
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(3)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=4
+    [SUBS] 4 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralLinkedInv rootRef=^|"MHRCONV"|HMOREF subs=4
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(4)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=5
+    [SUBS] 5 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralLinkedInv rootRef=^|"MHRCONV"|HMOREF subs=5
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(5)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+PARENT=Referrals.ReferralRequest
+[CLASS] Referrals.ReferralRequest
+ID=Referrals.ReferralRequest||DBMSStorage||DBMSMaster
+  [MAPID] Referrals.ReferralRequest||DBMSStorage||DBMSMasterSUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralRequest rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=2
+    [SUBS] 2 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralRequest rootRef=^|"MHRCONV"|HMOREF subs=2
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(2)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+ID=Referrals.ReferralRequest||DBMSStorage||Extent
+  [MAPID] Referrals.ReferralRequest||DBMSStorage||ExtentSUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralRequest rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+ID=Referrals.ReferralRequest||DBMSStorage||ZClinRequest
+  [MAPID] Referrals.ReferralRequest||DBMSStorage||ZClinRequestSUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralRequest rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=2
+    [SUBS] 2 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralRequest rootRef=^|"MHRCONV"|HMOREF subs=2
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(2)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+ID=Referrals.ReferralRequest||DBMSStorage||ZPatient
+  [MAPID] Referrals.ReferralRequest||DBMSStorage||ZPatientSUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralRequest rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=2
+    [SUBS] 2 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralRequest rootRef=^|"MHRCONV"|HMOREF subs=2
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(2)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=3
+    [SUBS] 3 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralRequest rootRef=^|"MHRCONV"|HMOREF subs=3
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(3)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+ID=Referrals.ReferralRequest||DBMSStorage||ZReferral
+  [MAPID] Referrals.ReferralRequest||DBMSStorage||ZReferralSUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralRequest rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=2
+    [SUBS] 2 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralRequest rootRef=^|"MHRCONV"|HMOREF subs=2
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(2)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+PARENT=Referrals.ReferralRequestAudit
+[CLASS] Referrals.ReferralRequestAudit
+ID=Referrals.ReferralRequestAudit||DBMSStorage||DBMSMaster
+  [MAPID] Referrals.ReferralRequestAudit||DBMSStorage||DBMSMasterSUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralRequestAudit rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=2
+    [SUBS] 2 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralRequestAudit rootRef=^|"MHRCONV"|HMOREF subs=2
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(2)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+ID=Referrals.ReferralRequestAudit||DBMSStorage||Dt
+  [MAPID] Referrals.ReferralRequestAudit||DBMSStorage||DtSUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralRequestAudit rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=2
+    [SUBS] 2 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralRequestAudit rootRef=^|"MHRCONV"|HMOREF subs=2
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(2)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+ID=Referrals.ReferralRequestAudit||DBMSStorage||Extent
+  [MAPID] Referrals.ReferralRequestAudit||DBMSStorage||ExtentSUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralRequestAudit rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+ID=Referrals.ReferralRequestAudit||DBMSStorage||Ini
+  [MAPID] Referrals.ReferralRequestAudit||DBMSStorage||IniSUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralRequestAudit rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=2
+    [SUBS] 2 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralRequestAudit rootRef=^|"MHRCONV"|HMOREF subs=2
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(2)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+ID=Referrals.ReferralRequestAudit||DBMSStorage||ReferralRequest
+  [MAPID] Referrals.ReferralRequestAudit||DBMSStorage||ReferralRequestSUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralRequestAudit rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=2
+    [SUBS] 2 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralRequestAudit rootRef=^|"MHRCONV"|HMOREF subs=2
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(2)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=3
+    [SUBS] 3 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralRequestAudit rootRef=^|"MHRCONV"|HMOREF subs=3
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(3)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+PARENT=Referrals.ReferralRequestAuditTxn
+[CLASS] Referrals.ReferralRequestAuditTxn
+ID=Referrals.ReferralRequestAuditTxn||DBMSStorage||DBMSMaster
+  [MAPID] Referrals.ReferralRequestAuditTxn||DBMSStorage||DBMSMasterSUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralRequestAuditTxn rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=2
+    [SUBS] 2 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralRequestAuditTxn rootRef=^|"MHRCONV"|HMOREF subs=2
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(2)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=3
+    [SUBS] 3 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralRequestAuditTxn rootRef=^|"MHRCONV"|HMOREF subs=3
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(3)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=4
+    [SUBS] 4 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralRequestAuditTxn rootRef=^|"MHRCONV"|HMOREF subs=4
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(4)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+PARENT=Referrals.ReferralStatusHistory
+[CLASS] Referrals.ReferralStatusHistory
+ID=Referrals.ReferralStatusHistory||DBMSStorage||DBMSMaster
+  [MAPID] Referrals.ReferralStatusHistory||DBMSStorage||DBMSMasterSUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralStatusHistory rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=2
+    [SUBS] 2 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralStatusHistory rootRef=^|"MHRCONV"|HMOREF subs=2
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(2)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=3
+    [SUBS] 3 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralStatusHistory rootRef=^|"MHRCONV"|HMOREF subs=3
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(3)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=4
+    [SUBS] 4 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralStatusHistory rootRef=^|"MHRCONV"|HMOREF subs=4
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(4)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+PARENT=Referrals.ReferralVisit
+[CLASS] Referrals.ReferralVisit
+ID=Referrals.ReferralVisit||DBMSStorage||DBMSMaster
+  [MAPID] Referrals.ReferralVisit||DBMSStorage||DBMSMasterSUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralVisit rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=2
+    [SUBS] 2 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralVisit rootRef=^|"MHRCONV"|HMOREF subs=2
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(2)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=3
+    [SUBS] 3 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralVisit rootRef=^|"MHRCONV"|HMOREF subs=3
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(3)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=4
+    [SUBS] 4 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralVisit rootRef=^|"MHRCONV"|HMOREF subs=4
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(4)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=5
+    [SUBS] 5 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralVisit rootRef=^|"MHRCONV"|HMOREF subs=5
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(5)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=6
+    [SUBS] 6 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralVisit rootRef=^|"MHRCONV"|HMOREF subs=6
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(6)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=7
+    [SUBS] 7 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralVisit rootRef=^|"MHRCONV"|HMOREF subs=7
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(7)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+PARENT=Referrals.ReferralWorkingDx
+[CLASS] Referrals.ReferralWorkingDx
+ID=Referrals.ReferralWorkingDx||DBMSStorage||DBMSMaster
+  [MAPID] Referrals.ReferralWorkingDx||DBMSStorage||DBMSMasterSUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralWorkingDx rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=2
+    [SUBS] 2 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralWorkingDx rootRef=^|"MHRCONV"|HMOREF subs=2
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(2)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=3
+    [SUBS] 3 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralWorkingDx rootRef=^|"MHRCONV"|HMOREF subs=3
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(3)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=4
+    [SUBS] 4 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralWorkingDx rootRef=^|"MHRCONV"|HMOREF subs=4
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(4)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+PARENT=Referrals.ReferralWorkingPx
+[CLASS] Referrals.ReferralWorkingPx
+ID=Referrals.ReferralWorkingPx||DBMSStorage||DBMSMaster
+  [MAPID] Referrals.ReferralWorkingPx||DBMSStorage||DBMSMasterSUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralWorkingPx rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=2
+    [SUBS] 2 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralWorkingPx rootRef=^|"MHRCONV"|HMOREF subs=2
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(2)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=3
+    [SUBS] 3 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralWorkingPx rootRef=^|"MHRCONV"|HMOREF subs=3
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(3)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=4
+    [SUBS] 4 -> build base & traverse[CollectRow] Enter: class=Referrals.ReferralWorkingPx rootRef=^|"MHRCONV"|HMOREF subs=4
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(4)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+PARENT=Referrals.StatusRule
+[CLASS] Referrals.StatusRule
+ID=Referrals.StatusRule||DBMSStorage||DBMSMaster
+  [MAPID] Referrals.StatusRule||DBMSStorage||DBMSMasterSUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.StatusRule rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=2
+    [SUBS] 2 -> build base & traverse[CollectRow] Enter: class=Referrals.StatusRule rootRef=^|"MHRCONV"|HMOREF subs=2
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(2)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+PARENT=Referrals.StatusRuleCondition
+[CLASS] Referrals.StatusRuleCondition
+ID=Referrals.StatusRuleCondition||DBMSStorage||DBMSMaster
+  [MAPID] Referrals.StatusRuleCondition||DBMSStorage||DBMSMasterSUBS=1
+    [SUBS] 1 -> build base & traverse[CollectRow] Enter: class=Referrals.StatusRuleCondition rootRef=^|"MHRCONV"|HMOREF subs=1
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(1)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=2
+    [SUBS] 2 -> build base & traverse[CollectRow] Enter: class=Referrals.StatusRuleCondition rootRef=^|"MHRCONV"|HMOREF subs=2
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(2)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=3
+    [SUBS] 3 -> build base & traverse[CollectRow] Enter: class=Referrals.StatusRuleCondition rootRef=^|"MHRCONV"|HMOREF subs=3
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(3)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=4
+    [SUBS] 4 -> build base & traverse[CollectRow] Enter: class=Referrals.StatusRuleCondition rootRef=^|"MHRCONV"|HMOREF subs=4
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(4)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+SUBS=5
+    [SUBS] 5 -> build base & traverse[CollectRow] Enter: class=Referrals.StatusRuleCondition rootRef=^|"MHRCONV"|HMOREF subs=5
+[CollectRow] Evaluating global=^|"MHRCONV"|HMOREF(5)
+[CollectRow] Raw value=
+[CollectRow] Single value mapped to prop=%BI.Hi||HiStorage||HiMaster
+ 
+[READ] 0 rows collected
+--- [ENTER] WriteAllCSVs (per class) ---
+=== [DONE] Export complete -> C:/InterSystems/Cache/Hackensack/ExportDynamic/ ===

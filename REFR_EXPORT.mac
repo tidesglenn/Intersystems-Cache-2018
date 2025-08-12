@@ -1,0 +1,168 @@
+;; REFR_EXPORT.mac  - One routine to export Referrals.Referral to CSV (v2)
+;; Purpose:
+;;   - Walks ^|"MHRHMO"|HMOREF(Hmo, Id, Rin+offset) and flattens key fields
+;;   - Uses *correct* extended global reference syntax: ^|"namespace"|Global(...)
+;;   - Heavy logging, comments, and $SELECT sanity checks included
+;;   - Column names for foreign keys are the downstream "schema.class.field" as requested
+;;   - Reusable pattern for other data globals (see META MAP and HOW TO EXTEND at bottom)
+;;
+;; Key docs mirrored here for quick reference (see InterSystems docs):
+;;   - Extended Globals: ^|"NS"|Global(Sub1,Sub2,...)
+;;   - $PIECE(string,delimiter,piece[,pieceTo]) – piece extraction
+;;   - $ORDER(globalSubscript, direction) – ordered traversal of subscripts
+;;   - $SELECT(cond1:value1, 1:valueElse) – conditional selection
+;;   - $ZCVT/$ZCONVERT – string conversions if needed (not required here)
+;;   - Error trap via $ET/$ES and $ZT – we use a minimal wrapper LOGERR
+;;
+;; Delimiters:
+;;   - Node values are caret (^) delimited unless otherwise noted.
+;;   - When multiple foreign keys target the same table we join with "|" in a single column.
+;;
+;; Continue vs Quit:
+;;   - Missing/empty nodes: we *continue* to next record.
+;;   - Fatal I/O or namespace errors: we *quit* the routine with a non-zero status.
+;;
+;; Reusability:
+;;   - The core loop (EXPORT^REFR_EXPORT) is global-agnostic.
+;;   - You supply a MAP of {Column -> NodeOffset & Piece} for each class.
+;;   - Example map for Referrals.Referral is in BuildMap^REFR_EXPORT.
+;;
+;; ------------------------------
+REFR_EXPORT ; One-stop Exporter
+ QUIT  ; entry labels only
+ ;
+EXPORT(NS,OUTDIR) ; public: export Referrals.Referral from a namespace to CSV
+ ; NS     - namespace string (e.g. "MHRHMO")
+ ; OUTDIR - OS path ending with separator (e.g. "/tmp/" or "c:\out\")
+ NEW $ET,$ES S $ET="DO ERR^REFR_EXPORT QUIT 0"
+ NEW ok SET ok=$$EnsureDir^REFR_EXPORT(OUTDIR) IF 'ok QUIT 0
+ NEW map DO BuildMap(.map)
+ NEW cols DO HeaderOrder(.map,.cols)
+ NEW file SET file=$$Normalize^REFR_EXPORT(OUTDIR)_"Referrals.Referral.csv"
+ NEW log SET log=$$Normalize^REFR_EXPORT(OUTDIR)_"Referrals.Referral.log"
+ NEW %dev,%log OPEN file:"WNS":0 ELSE  DO LOGERR("Cannot open "_file) QUIT 0
+ OPEN log:"WNS":0 ELSE  USE %dev WRITE "WARN: cannot open log, using console",! USE %dev
+ USE log WRITE "== REFERRALS.REFERRAL EXPORT v2 ==",!, "NS=",NS,!
+ DO WriteHeader(%dev,.cols)
+ NEW hmo,id,rin,sub,sep SET sep=","
+ SET hmo=""
+ FOR  SET hmo=$ORDER(^|(NS)|HMOREF(hmo)) QUIT:hmo=""  DO
+ . SET id=""
+ . FOR  SET id=$ORDER(^|(NS)|HMOREF(hmo,id)) QUIT:id=""  DO
+ . . NEW node0 SET node0=$GET(^|(NS)|HMOREF(hmo,id,0))
+ . . IF node0="" DO LOG("skip: empty node0 for HMO="_hmo_" ID="_id) QUIT  ; continue
+ . . ; gather all integer RIN subscripts for this (hmo,id)
+ . . NEW rinlist SET rinlist=$$RINLIST^REFR_EXPORT(NS,hmo,id)
+ . . ; extract columns
+ . . NEW row DO ExtractRow(.map,NS,hmo,id,node0,rinlist,.row)
+ . . DO WriteRow(%dev,.cols,.row)
+ CLOSE file CLOSE log QUIT 1
+ ;
+WriteHeader(dev,cols) ; write CSV header
+ NEW i USE dev
+ FOR i=1:1:$L(cols,"|") WRITE $$CSVESC($PIECE(cols,"|",i)) IF i<$L(cols,"|") WRITE ","
+ WRITE ! QUIT
+ ;
+WriteRow(dev,cols,row) ; write one CSV row matching header order
+ NEW i USE dev
+ FOR i=1:1:$L(cols,"|") DO
+ . NEW c SET c=$PIECE(cols,"|",i)
+ . WRITE $$CSVESC($GET(row(c)))
+ . IF i<$L(cols,"|") WRITE ","
+ WRITE ! QUIT
+ ;
+CSVESC(s) ; escape a string for CSV
+ NEW q SET q=$CHAR(34)
+ SET s=$GET(s)
+ SET s=$TRANSLATE(s,$CHAR(13,10), "  ") ; strip CR/LF to spaces
+ IF s[q] SET s=$TRANSLATE(s,q,q_q)
+ QUIT q_s_q
+ ;
+RINLIST(NS,HMO,ID) ; compute pipe-delimited list of base integer RINs
+ NEW r,sub SET r="",sub=""
+ FOR  SET sub=$ORDER(^|(NS)|HMOREF(HMO,ID,sub)) QUIT:sub=""  DO
+ . IF sub?.N DO  ; pure integer
+ . . IF r'="" SET r=r_"|"
+ . . SET r=r_sub
+ QUIT r
+ ;
+ExtractRow(map,NS,HMO,ID,node0,rinlist,row) ; fill row by map
+ KILL row
+ ; always include keys first
+ SET row("MHRREG.HMO.Id")=HMO
+ SET row("Referrals.Referral.Id")=ID
+ SET row("Referrals.Referral.Rin")=rinlist
+ ; parse node0 pieces once
+ NEW p SET p=node0
+ ; helper to pick a piece with default ""
+ NEW piece SET piece=$$PIECEF^REFR_EXPORT
+ ; header fields (NodeOffset=0)
+ SET row("Referrals.Referral.Status")=$$piece(p,"^",1)
+ SET row("Referrals.Referral.RefNum")=$$piece(p,"^",2)
+ SET row("Referrals.Referral.RefType")=$$piece(p,"^",3)
+ SET row("Referrals.Referral.ValidFromDt")=$$piece(p,"^",6)
+ SET row("Referrals.Referral.ValidToDt")=$$piece(p,"^",7)
+ SET row("Facilities.Location.Id")=$$piece(p,"^",8)
+ ; Providers: combine RefProv (10) and ReferToProv (12)
+ NEW prov1,prov2 SET prov1=$$piece(p,"^",10),prov2=$$piece(p,"^",12)
+ SET row("Providers.Provider.Id")=$SELECT(prov1'=""&(prov2'=""):prov1_"|"_prov2, prov1'="":prov1, prov2'="":prov2, 1:"")
+ SET row("Vendors.Vendor.Id")=$$piece(p,"^",26)
+ SET row("Referrals.Referral.DtOrd")=$$piece(p,"^",11)
+ SET row("Referrals.Referral.ActAdmDt")=$$piece(p,"^",19)
+ SET row("Referrals.Referral.ActDischDt")=$$piece(p,"^",20)
+ SET row("Referrals.Referral.ExpAdmDt")=$$piece(p,"^",17)
+ SET row("Referrals.Referral.ExpDischDt")=$$piece(p,"^",21)
+ QUIT
+ ;
+PIECEF() QUIT ""  ; placeholder label for XINDEX happiness
+ ;
+PIECEFNC(s,delim,n) QUIT $PIECE($GET(s),delim,n)
+ ;
+EnsureDir(path) ; naive dir check – for server-side use this may be a no-op
+ NEW ok SET ok=1 QUIT ok
+ ;
+Normalize(path) ; ensure trailing separator
+ NEW last SET last=$EXTRACT(path,$L(path))
+ NEW sep SET sep=$SELECT($ZVERSION["Windows":"\",1:"/")
+ QUIT $SELECT(last=sep:path,1:path_sep)
+ ;
+HeaderOrder(map,cols) ; compute header order – static for now
+ NEW arr
+ ; NB: Foreign key columns are named as target "schema.class.field"
+ SET cols="MHRREG.HMO.Id|Referrals.Referral.Id|Referrals.Referral.Rin|"_
+          "Referrals.Referral.Status|Referrals.Referral.RefNum|Referrals.Referral.RefType|"_
+          "Referrals.Referral.ValidFromDt|Referrals.Referral.ValidToDt|"_
+          "Facilities.Location.Id|Providers.Provider.Id|Vendors.Vendor.Id|"_
+          "Referrals.Referral.DtOrd|Referrals.Referral.ActAdmDt|Referrals.Referral.ActDischDt|"_
+          "Referrals.Referral.ExpAdmDt|Referrals.Referral.ExpDischDt"
+ QUIT
+ ;
+BuildMap(map) ; reserve hook to drive extraction via metadata (future)
+ KILL map QUIT
+ ;
+LOG(msg) USE $PRINCIPAL WRITE msg,!,! QUIT
+LOGERR(msg) DO LOG("ERROR: "_msg) QUIT
+ ;
+ERR ; error trap
+ NEW e SET e=$ZSTATUS DO LOGERR("trap: "_e) SET $ECODE="" QUIT
+ ;
+;; ------------------------------
+;; HOW TO EXTEND
+;; 1) Add a label EXPORT(NS,OUTDIR) – already generic.
+;; 2) Populate BuildMap^REFR_EXPORT for other classes using a  map:
+;;      map("Class","Column")="Offset^Delim^Piece"
+;;    where Offset is numeric (0=header, otherwise Rin+Offset).
+;; 3) In ExtractRow^REFR_EXPORT, loop map() and compute:
+;;      node=$GET(^|(NS)|GLOBAL(HMO,ID,$SELECT(Offset=0:RIN,1:RIN+Offset)))
+;;      value=$PIECE(node,Delim,Piece)
+;;    For brevity we coded Referrals.Referral inline above.
+;; 4) Keep FK columns named by target "schema.class.field" and join multiple
+;;    IDs with "|" per requirement.
+;;
+;; Expected outputs:
+;;  - CSV at OUTDIR/Referrals.Referral.csv
+;;  - Log at OUTDIR/Referrals.Referral.log
+;;
+;; Unit test target:
+;;  - Compare with the sample CSV we generated from HMOREF.txt for sanity.
+;;

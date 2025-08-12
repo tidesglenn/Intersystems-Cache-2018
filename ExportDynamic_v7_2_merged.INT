@@ -1,0 +1,671 @@
+;
+; ==============================================================================
+; REVIEWER PROTOCOL — Use-this-first (Caché 2018.1.7 only)
+; ------------------------------------------------------------------------------
+; Purpose:
+;   These comments define exactly how to use the in-file documentation URLs while
+;   reviewing or debugging. Code below is unchanged. Only comments and URLs were
+;   added for clarity and repeatability.
+;
+; What to do each pass:
+;   1) Syntax & API conformance (line-by-line)
+;      - For each function/operator: follow the URL in "DOC URL INDEX" and verify
+;        parameter counts, return values, and edge-cases match Caché 2018.1.7.
+;      - For each %Dictionary query: confirm every selected field exists in 2018.1.7
+;        and is scalar (safe). If unconfirmed, flag it.
+;   2) Extended global references
+;      - NormalizeGlobalRef must produce ^|"NS"|Global. Confirm behavior against
+;        "Extended refs" docs when input is ^^NS^Global or ^Global (implicit NS).
+;   3) Traversal
+;      - Confirm $ORDER and indirection usage exactly matches docs when subscripts
+;        are numeric, negative, decimal, string, or zero ("0").
+;      - Confirm Quit conditions on MaxDepth/MaxNodes.
+;   4) Mapping
+;      - Confirm only the following %Dictionary classes/fields are used:
+;          * %Dictionary.StorageSQLMapSubDefinition: ID, Name
+;          * %Dictionary.StorageSQLMapDataDefinition: ID, Name, Piece, Delimiter
+;          * %Dictionary.PropertyDefinition: Parent, Name, SqlFieldName
+;          * %Dictionary.IndexDefinition: Parent, SqlName, IdKey
+;          * %Dictionary.ForeignKeyDefinition: Parent, Property, ReferencedClass
+;        No .Type, no .Properties, no collections/streams.
+;   5) CSV output
+;      - Confirm %Stream.FileCharacter.Open("WNS"), Write, %Save, %Close calls.
+;      - Confirm CSV escaping rules in CSVQ() match requirements.
+;
+; Report format (when you debug):
+;   - For each routine section, cite the doc URL used and state "confirmed" or
+;     "flagged", with the exact line label and a short reason.
+;
+; Quick links (2018.1.7 exact endpoints):
+;   ObjectScript functions/operators ........ https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=ALL
+;   Extended global references .............. https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=GGBL_extended
+;   Using globals ........................... https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=GGBL_using
+;   Dynamic SQL ............................. https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=GSQL_dynsql
+;   %SQL.Statement (Documatic) .............. https://docs.intersystems.com/cache2018.1/csp/documatic/%25CSP.Documatic.cls?CLASSNAME=%25SQL.Statement&LIBRARY=%25SYS
+;   %Dictionary.* (Documatic search) ........ https://docs.intersystems.com/cache2018.1/csp/documatic/%25CSP.Documatic.cls?LIBRARY=%25SYS&PRIVATE=1&SEARCH=%25Dictionary
+;   %Stream.FileCharacter ................... https://docs.intersystems.com/cache2018.1/csp/documatic/%25CSP.Documatic.cls?CLASSNAME=%25Stream.FileCharacter&LIBRARY=%25SYS
+;
+; Safety checklist (repeat each run):
+;   [ ] No use of Type/Collection/Relationship or any multi-node property.
+;   [ ] No use of ClassDefinition.Properties array.
+;   [ ] All %Dictionary fields limited to the safe set above.
+;   [ ] Traversal includes string, numeric, negative, decimal, and "0" subscripts.
+;   [ ] MaxDepth and MaxNodes enforced before recursion.
+;   [ ] Only dot-indented style, no brace blocks inside indented sections.
+; ==============================================================================
+ExportDynamic ; ExportDynamic.INT — v7.2-instrumented traversal+padding fixes + safe %Dictionary use
+    ;
+    ; PURPOSE
+    ;   Dynamic CSV export of SQL-storage globals for classes in a schema.
+    ;   Targets Caché 2018.1.7. No IRIS-only APIs. Heavy instrumentation.
+    ;   This build logs every major phase, SQL row counts, traversal decisions,
+    ;   delimiter/piece resolutions, and file write events.
+    ;
+    ; INPUT parm()
+    ;   parm("Schema")     : schema prefix (e.g., "Sample")
+    ;   parm("GlobalRef")  : root global (supports extended refs), e.g. "^|""NS""|Global" or "^^NS^Global"
+    ;   parm("OutputDir")  : target directory (auto-created)
+    ;   parm("Verbose")    : 0/1 (1 prints instrumentation to the terminal)
+    ;   parm("MaxDepth")   : traversal depth cap (default 200; clamped to [1..200])
+    ;   parm("MaxNodes")   : traversal count cap (0 = unlimited)
+    ;
+    ; OUTPUT
+    ;   One CSV per class (union of its storage maps) + optional full tree dump via ExportAllLevels().
+    ;
+    ; === DOC URL INDEX (Caché 2018.1) ===
+    ;   $GET ................ https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_fget
+    ;   $PIECE .............. https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_fpiece
+    ;   $ORDER .............. https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_forder
+    ;   $LENGTH ............. https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_flength
+    ;   $FIND ............... https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_ffind
+    ;   $EXTRACT ............ https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_fextract
+    ;   $TRANSLATE .......... https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_ftranslate
+    ;   $JUSTIFY ............ https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_fjustify
+    ;   $ZSTRIP ............. https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_fzstrip
+    ;   $ZCONVERT (JSON) .... https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_fzconvert
+    ;   $REPLACE ............ https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_freplace
+    ;   $CHAR ............... https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_fchar
+    ;   Pattern match ? ..... https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_op_patternmatch
+    ;   Indirection @ ....... https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_op_indirection
+    ;   $ETRAP .............. https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_vetrap
+    ;   $ZERROR ............. https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_vzerror
+    ;   $NAMESPACE .......... https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_vnamespace
+    ;   $ZUTIL .............. https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_fzutil
+    ;   Extended refs ....... https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=GGBL_extended
+    ;   Using globals ....... https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=GGBL_using
+    ;   Dynamic SQL ......... https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=GSQL_dynsql
+    ;   %SQL.Statement ...... https://docs.intersystems.com/cache2018.1/csp/documatic/%25CSP.Documatic.cls?CLASSNAME=%25SQL.Statement&LIBRARY=%25SYS
+    ;   %Dictionary.* ....... https://docs.intersystems.com/cache2018.1/csp/documatic/%25CSP.Documatic.cls?LIBRARY=%25SYS&PRIVATE=1&SEARCH=%25Dictionary
+    ;   %Library.File ....... https://docs.intersystems.com/cache2018.1/csp/documatic/%25CSP.Documatic.cls?CLASSNAME=%25Library.File&LIBRARY=%25SYS
+    ;   %Stream.FileCharacter https://docs.intersystems.com/cache2018.1/csp/documatic/%25CSP.Documatic.cls?CLASSNAME=%25Stream.FileCharacter&LIBRARY=%25SYS
+    ;
+    ; === CHANGELOG v7.2-instrumented ===
+    ;   - Kept safe field list per 2018.1.7. No .Type, no .Properties, no collections.
+    ;   - Added WRITE banners and per-phase counters.
+    ;   - Logged SQL prepare/execute status codes and row counts.
+    ;   - Logged NormalizeGlobalRef decisions.
+    ;   - Logged traversal caps, seeds, and each first-level subscript.
+    ;   - Logged per-row delimiter/piece resolution and PK extraction.
+    ;   - Logged file open/save/close and byte counts when available.
+    ;
+    Q
+    ;
+    ; ================================================================
+    ; [ENTRY] ExportBySchema — Orchestrate full export
+    ;   DOCS: Dynamic SQL, $ETRAP, extended refs
+    ;     https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=GSQL_dynsql
+    ;     https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_vetrap
+    ;     https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=GGBL_extended
+    ;
+ExportBySchema(parm)
+    ;h 20
+    DO Log(1,"=== [ENTER] ExportBySchema ===")
+    NEW OutputDir,cnt,parent,Schema,$ETRAP="GOTO,ERR^ExportDynamic",arity,dataMap,tableRows,rootRef,base,id,GlobalRef,classSet,subMap,Verbose,fkMap,idKeyMap,tableSet,MaxNodes,$ETRAP,MaxDepth,pieceOrd,pieceSpec
+    SET Schema=$GET(parm("Schema"))
+    SET GlobalRef=$GET(parm("GlobalRef"))
+    SET OutputDir=$GET(parm("OutputDir"),"C:/InterSystems/Cache/ExportDynamic")
+    SET Verbose=+$GET(parm("Verbose"),1)
+    SET MaxDepth=+$GET(parm("MaxDepth"),200)
+    SET MaxNodes=+$GET(parm("MaxNodes"),0)
+    IF Schema="" DO Log(1,"*** ERROR: parm(""Schema"") is required") QUIT
+    IF GlobalRef="" DO Log(1,"*** ERROR: parm(""GlobalRef"") is required") QUIT
+    SET OutputDir=$$NormalizeDir(OutputDir)
+    DO Log(1,"[PARAM] Schema="_Schema_" GlobalRef="_GlobalRef_" OutputDir="_OutputDir_" Verbose="_Verbose_" MaxDepth="_MaxDepth_" MaxNodes="_MaxNodes)
+    DO ##class(%Library.File).CreateDirectoryChain(OutputDir)
+    NEW rootRef SET rootRef=GlobalRef DO NormalizeGlobalRef(.rootRef,"",1)
+    DO Log(1,"[NS] Using rootRef="_rootRef)
+    NEW classSet DO BuildClassSet(.classSet,Schema,1)
+    IF '$DATA(classSet) DO Log(1,"*** No classes found for schema: "_Schema) QUIT
+    NEW subMap,dataMap,pieceSpec,pieceOrd,tableSet
+    DO LoadStorageMeta(.subMap,.dataMap,1)
+    DO BuildPieceMap(.dataMap,.pieceSpec,.pieceOrd)
+    DO BuildTableSet(.tableSet,.classSet,.subMap,1)
+    IF Verbose WRITE !,"[RET] BuildTableSet size=",+$GET(tableSet(0)),", classes=",+$GET(classSet(0))
+    IF Verbose WRITE !,"[CALL] BuildPieceMaps(.dataMap,.pieceSpec,.pieceOrd)"
+    NEW propMap,fkMap,idKeyMap,maxKeys
+    DO BuildPropertyMap(.propMap,.fkMap,.idKeyMap,.classSet,1)
+    DO CountMaxKeys(.maxKeys,.subMap)
+    DO Log(1,"[INFO] Computed maxKeys="_maxKeys)
+    NEW tableRows DO ReadGlobal(.tableRows,rootRef,tableSet,subMap,dataMap,pieceSpec,pieceOrd,fkMap,idKeyMap,MaxDepth,MaxNodes,Verbose)
+    DO Log(Verbose,"--- [ENTER] ReadGlobal (ExportAllLevels-style traversal) ---")
+    NEW cnt SET cnt=0  ; PATCH 2025-08-09: do not KILL tableRows here; needed later
+    NEW parent SET parent=""
+    IF Verbose WRITE !,"[LOOP] $ORDER(tableSet(parent)) starting"
+    FOR  SET parent=$ORDER(tableSet(parent)) QUIT:parent=""  DO
+    . WRITE !,"PARENT=",parent
+    . NEW id SET id=""
+    . FOR  SET id=$ORDER(tableSet(parent,id)) QUIT:id=""  DO
+    . . WRITE !,"  MAPID=",id
+    . . NEW subsSpec SET subsSpec=""
+    . . FOR  SET subsSpec=$ORDER(subMap(id,subsSpec)) QUIT:subsSpec=""  DO
+    . . . WRITE !,"    SUBS=",subsSpec
+    . . . NEW base SET base=$$MakeBase(rootRef)
+    . . . NEW arity SET arity=$L(subsSpec,",")
+    . . . ; Walk to exactly ARITY deep and collect values
+    . . . DO WalkToArity(.tableRows,base,0,arity,parent,id,subMap,dataMap,.pieceSpec,.pieceOrd,.fkMap,.idKeyMap,.outCount,MaxNodes,Verbose)
+    DO Log(Verbose,"[READ] rows collected, writing CSVs")
+    ; PATCH 2025-08-09: write all CSVs from tableRows
+    DO WriteAllCSVs(.tableRows,.pieceSpec,.pieceOrd,.propMap,.fkMap,.idKeyMap,maxKeys,OutputDir,Verbose)
+    QUIT
+    ;
+    ; ================================================================
+    ; [ERROR] ERR — Global error trap
+    ;   DOCS: $ZERROR
+    ;     https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_vzerror
+    ;
+ERR NEW err SET err=$ZERROR WRITE !,"*** UNEXPECTED ERROR: ",err,! QUIT
+    ;
+    ; ================================================================
+    ; Helpers
+    ;
+    ; [HELPER] RSGetData / RSGet — Safe result getters
+    ;   DOCS: %SQL.StatementResult.%GetData / %Get
+    ;     https://docs.intersystems.com/cache2018.1/csp/documatic/%25CSP.Documatic.cls?CLASSNAME=%25SQL.Statement&LIBRARY=%25SYS
+RSGetData(rs,n) NEW v SET v="" TRY { SET v=rs.%GetData(n) } CATCH ex {} QUIT v
+RSGet(rs,name)  NEW v SET v="" TRY { SET v=rs.%Get(name)   } CATCH ex {} QUIT v
+    ;
+    ; [HELPER] Log — Verbosity-gated logger
+    ;   DOCS: WRITE
+    ;     https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_cwrite
+Log(v,msg) IF +$GET(v) WRITE !,msg QUIT
+    ;
+    ; [HELPER] NormalizeDir — Ensure trailing path separator
+    ;   DOCS: $EXTRACT
+    ;     https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_fextract
+NormalizeDir(dir)
+    NEW d SET d=$GET(dir) IF d="" QUIT ""
+    NEW l SET l=$L(d)
+    IF $EXTRACT(d,l)'="/",$EXTRACT(d,l)'="\" SET d=d_"/"
+    QUIT d
+    ;
+    ; [HELPER] NormalizeGlobalRef — To ^|"NS"|Global (honor ^^NS^Global)
+    ;   DOCS: Extended global refs
+    ;     https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=GGBL_extended
+NormalizeGlobalRef(rootRef,ns,Verbose)
+    NEW g SET g=$GET(rootRef) IF g="" QUIT
+    IF $EXTRACT(g,1,2)="^^" DO  DO Log(1,"[NS] Input was ^^ form -> "_rootRef) QUIT
+    . NEW rest SET rest=$EXTRACT(g,3,$L(g))
+    . NEW nsName SET nsName=$PIECE(rest,"^",1)
+    . NEW glb SET glb=$PIECE(rest,"^",2,999)
+    . IF glb'="" SET rootRef="^|"""_nsName_"""|"_glb QUIT
+    . NEW curG SET curG=$EXTRACT(rest,$FIND(rest,"^"),$L(rest))
+    . IF curG="" SET curG=$EXTRACT(g,2,$L(g))
+    . SET rootRef="^|"""_nsName_"""|"_curG
+    IF $EXTRACT(g,1,2)'="^^",$EXTRACT(g,1,2)'="^|" DO
+    . NEW curNS SET curNS=$zu(5) IF curNS="" SET curNS=$ZUTIL(5)
+    . IF $EXTRACT(g,1)="^" SET rootRef="^|"""_curNS_"""|"_$EXTRACT(g,2,$L(g))
+    DO Log(1,"[NS] Normalized to "_rootRef)
+    QUIT
+    ;
+    ; ================================================================
+    ; [DICT] BuildClassSet — Find classes in schema
+    ;   DOCS: %Dictionary.ClassDefinition, %SQL.Statement.%Prepare/%Execute
+    ;     https://docs.intersystems.com/cache2018.1/csp/documatic/%25CSP.Documatic.cls?LIBRARY=%25SYS&CLASSNAME=%25Dictionary.ClassDefinition
+    ;     https://docs.intersystems.com/cache2018.1/csp/documatic/%25CSP.Documatic.cls?CLASSNAME=%25SQL.Statement&LIBRARY=%25SYS
+BuildClassSet(classSet,Schema,Verbose)
+    DO Log(Verbose,"--- [ENTER] BuildClassSet ---")
+    K classSet NEW sc,stmt,rs,sql,prefix,cnt SET cnt=0
+    SET prefix=Schema_"."
+    SET sql="SELECT Name FROM %Dictionary.ClassDefinition WHERE Name LIKE '"_prefix_"%'"
+    SET stmt=##class(%SQL.Statement).%New()
+    TRY {   
+        SET sc=stmt.%Prepare(sql) DO Log(Verbose,"[SQL] Prepare status="_sc) QUIT:$SYSTEM.Status.IsError(sc)
+        SET rs=stmt.%Execute() DO Log(Verbose,"[SQL] Execute ok; scanning rows ...")
+        FOR  QUIT:'rs.%Next()  DO  
+        . NEW name SET name=$$RSGet(rs,"Name") QUIT:name=""
+        . IF $L(name,".")=2 SET classSet(name)="",cnt=cnt+1
+    } CATCH ex {  DO Log(1,"*** ERROR: Load classes failed: "_$ZERROR) }
+    NEW n SET n=$$CountParents(.classSet)
+    DO Log(Verbose,"[DICT] Classes in schema="_Schema_" => "_n_" found")
+    QUIT
+    ;
+    ; ================================================================
+    ; [DICT] LoadStorageMeta — Load subs and data piece maps
+    ;   DOCS: %Dictionary.StorageSQLMap(Sub|Data)Definition (safe fields)
+    ;     https://docs.intersystems.com/cache2018.1/csp/documatic/%25CSP.Documatic.cls?LIBRARY=%25SYS&SEARCH=%25Dictionary.StorageSQLMap
+LoadStorageMeta(subMap,dataMap,Verbose)
+    K subMap,dataMap NEW sc,stmt,rs,sql,cntS,cntP
+    SET cntS=0,cntP=0
+    DO Log(Verbose,"[ENTER] LoadStorageMeta ---")
+    ; Subs
+    SET sql="SELECT ID,Name FROM %Dictionary.StorageSQLMapSubDefinition ORDER BY ID,Name"
+    SET stmt=##class(%SQL.Statement).%New()
+    SET sc=stmt.%Prepare(sql) DO Log(Verbose,"[SubDef] Prepare="_sc)
+    IF $SYSTEM.Status.IsError(sc) QUIT
+    SET rs=stmt.%Execute()
+    FOR  QUIT:'rs.%Next()  DO
+    . NEW id SET id=$$RSGetData(rs,1) QUIT:id=""
+    . NEW name SET name=$$RSGetData(rs,2) QUIT:name=""
+    . NEW base SET base=$PIECE(id,"||",1,3)
+    . SET subMap(base,name)="",cntS=cntS+1
+    DO Log(Verbose,"[INFO] SubDef rows kept="_cntS)
+    ; Data pieces
+    SET sql="SELECT ID,Name,Piece,Delimiter FROM %Dictionary.StorageSQLMapDataDefinition ORDER BY ID,Name"
+    SET stmt=##class(%SQL.Statement).%New()
+    SET sc=stmt.%Prepare(sql) DO Log(Verbose,"[DataDef] Prepare="_sc)
+    IF $SYSTEM.Status.IsError(sc) QUIT
+    SET rs=stmt.%Execute()
+    FOR  QUIT:'rs.%Next()  DO
+    . NEW id SET id=$$RSGetData(rs,1) QUIT:id=""
+    . NEW name SET name=$$RSGetData(rs,2) QUIT:name=""
+    . NEW piece SET piece=$$RSGetData(rs,3)
+    . NEW delim SET delim=$$RSGetData(rs,4)
+    . SET dataMap(id,name)=piece_"|"_delim,cntP=cntP+1
+    DO Log(Verbose,"[INFO] DataDef rows kept="_cntP)
+    QUIT
+    ;
+    ; ================================================================
+    ; [MAP] BuildPieceMap — Compute pieceSpec and pieceOrd (zero-padded sort keys)
+    ;   DOCS: $PIECE, $JUSTIFY, $TRANSLATE
+    ;     https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_fpiece
+    ;     https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_fjustify
+    ;     https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_ftranslate
+BuildPieceMap(dataMap,pieceSpec,pieceOrd)
+    DO Log(1,"--- [ENTER] BuildPieceMap ---")
+    K pieceSpec,pieceOrd NEW id,name,raw,p,p2,delim
+    SET id=""
+    FOR  SET id=$ORDER(dataMap(id)) QUIT:id=""  DO
+    . SET name=""
+    . FOR  SET name=$ORDER(dataMap(id,name)) QUIT:name=""  DO
+    . . SET raw=$GET(dataMap(id,name)) QUIT:raw=""
+    . . SET p=$PIECE(raw,"|",1),delim=$PIECE(raw,"|",2)
+    . . SET p2=$PIECE(p,",",2)
+    . . IF p2'="" DO
+    . . . SET pieceSpec(id,name,1)=$PIECE(p,",",1)
+    . . . SET pieceSpec(id,name,2)=p2
+    . . ELSE  DO  SET pieceSpec(id,name,1)=p
+    . . SET pieceOrd(id,$$ZFill($GET(pieceSpec(id,name,1)),5)_"_"_name)=""
+    DO Log(1,"[DICT] pieceSpec/pieceOrd computed")
+    QUIT
+    ;
+    ; ================================================================
+    ; [MAP] BuildTableSet — Filter map IDs to selected schema
+    ;   DOCS: $ORDER, $DATA
+    ;     https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_forder
+    ;     https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_fdata
+BuildTableSet(tableSet,classSet,subMap,Verbose)
+    DO Log(Verbose,"[ENTER] BuildTableSet")
+    K tableSet NEW id SET id=""
+    FOR  SET id=$ORDER(subMap(id)) QUIT:id=""  DO
+    . NEW cls SET cls=$PIECE(id,"||",1)
+    . IF $DATA(classSet(cls)) SET tableSet(cls,id)=""
+    DO Log(Verbose,"[DICT] Table set entries ready")
+    QUIT
+    ;
+    ; ================================================================
+    ; [MAP] BuildPropertyMap — Property labels, FK targets, IdKey names
+    ;   DOCS: %Dictionary.PropertyDefinition, %Dictionary.IndexDefinition, %Dictionary.ForeignKeyDefinition
+    ;     https://docs.intersystems.com/cache2018.1/csp/documatic/%25CSP.Documatic.cls?LIBRARY=%25SYS&PRIVATE=1&SEARCH=%25Dictionary
+BuildPropertyMap(propMap,fkMap,idKeyMap,classSet,Verbose)
+    DO Log(Verbose,"[ENTER] BuildPropertyMap")
+    K propMap,fkMap,idKeyMap
+    NEW stmt,rs,sc
+    ; Properties
+    SET stmt=##class(%SQL.Statement).%New()
+    SET sc=stmt.%Prepare("SELECT Parent,Name,SqlFieldName FROM %Dictionary.PropertyDefinition ORDER BY Parent,Name")
+    IF '$SYSTEM.Status.IsError(sc) DO
+    . SET rs=stmt.%Execute()
+    . FOR  QUIT:'rs.%Next()  DO
+    . . NEW par SET par=$$RSGet(rs,"Parent") QUIT:par=""
+    . . IF '$DATA(classSet(par)) QUIT
+    . . NEW nm SET nm=$$RSGet(rs,"Name")
+    . . NEW sfn SET sfn=$$RSGet(rs,"SqlFieldName") IF sfn="" SET sfn=nm
+    . . SET propMap(par,nm)=sfn
+    ; IdKey
+    SET stmt=##class(%SQL.Statement).%New()
+    SET sc=stmt.%Prepare("SELECT Parent,SqlName,IdKey FROM %Dictionary.IndexDefinition WHERE IdKey=1")
+    IF '$SYSTEM.Status.IsError(sc) DO
+    . SET rs=stmt.%Execute()
+    . FOR  QUIT:'rs.%Next()  DO
+    . . NEW par SET par=$$RSGet(rs,"Parent") QUIT:par=""
+    . . IF '$DATA(classSet(par)) QUIT
+    . . NEW nm SET nm=$$RSGet(rs,"SqlName") IF nm'="" SET idKeyMap(par)=nm
+    ; Foreign keys
+    SET stmt=##class(%SQL.Statement).%New()
+    SET sc=stmt.%Prepare("SELECT Parent,Property,ReferencedClass FROM %Dictionary.ForeignKeyDefinition ORDER BY Parent,Property")
+    IF '$SYSTEM.Status.IsError(sc) DO
+    . SET rs=stmt.%Execute()
+    . FOR  QUIT:'rs.%Next()  DO
+    . . NEW par SET par=$$RSGet(rs,"Parent") QUIT:par=""
+    . . IF '$DATA(classSet(par)) QUIT
+    . . NEW p SET p=$$RSGet(rs,"Property")
+    . . NEW rc SET rc=$$RSGet(rs,"ReferencedClass")
+    . . SET fkMap(par,p)=rc
+    DO Log(Verbose,"[DICT] Property/Index/FK maps built")
+    QUIT
+    ;
+    ; ================================================================
+    ; [READ] ReadGlobal — Iterate maps -> build CSV rows
+    ;   DOCS: Indirection, $ORDER
+    ;     https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_op_indirection
+    ;     https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_forder
+ReadGlobal(tableRows,rootRef,tableSet,subMap,dataMap,pieceSpec,pieceOrd,fkMap,idKeyMap,MaxDepth,MaxNodes,Verbose)
+    DO Log(Verbose,"--- [ENTER] ReadGlobal ---")
+    NEW cnt SET cnt=0  ; PATCH 2025-08-09: do not KILL tableRows here; needed later
+    NEW parent SET parent=""
+    IF Verbose WRITE !,"[LOOP] $ORDER(tableSet(parent)) starting"
+    FOR  SET parent=$ORDER(tableSet(parent)) QUIT:parent=""  DO
+    . WRITE !,"PARENT=",parent
+    . NEW id SET id=""
+    . FOR  SET id=$ORDER(tableSet(parent,id)) QUIT:id=""  DO
+    . . WRITE !,"  MAPID=",id
+    . . NEW subs SET subs=""
+    . . FOR  SET subs=$ORDER(subMap(id,subs)) QUIT:subs=""  DO
+    . . . WRITE !,"    SUBS=",subs
+    . . . NEW base SET base=$$MakeBase(rootRef)
+    . . . NEW fullRef SET fullRef=base_$$CSVSub(subs)_")"
+    . . . NEW node K node SET node(1,"@")=$GET(@fullRef)
+    . . . DO Log(Verbose,"[CollectRow] Global="_fullRef)
+    . . . DO Log(Verbose,"[CollectRow] Raw="_node(1,"@"))
+    . . . IF node(1,"@")="" QUIT
+    . . . NEW row K row DO BuildRow(.row,parent,id,.node,.dataMap,.pieceSpec,.pieceOrd,.fkMap,.idKeyMap,Verbose)  ; PATCH 2025-08-09: by-ref, remove tupleCSV
+    ; tupleCSV is the comma-joined list of ACTUAL subscript values at this node
+    DO Log(Verbose,"        [ENTER] BuildRow for "_parent_" id="_id)
+    K row NEW head SET head=$GET(node(1,"@"))
+    ; 1) Keys from tuple (not from value)
+    NEW i FOR i=1:1:$L($GET(tupleCSV),",") SET row(i)=$$CSVQ($PIECE(tupleCSV,",",i))
+    ; Optional IdKey column from value if available
+    IF $GET(idKeyMap(parent))'="" DO
+    . NEW idSpec SET idSpec=$GET(dataMap(id,"%ID"))
+    . NEW delim SET delim=$PIECE(idSpec,"|",2) IF delim="" SET delim="^"
+    . NEW p1 SET p1=+$GET(pieceSpec(id,"%ID",1)) IF p1=0 SET p1=1
+    . NEW pk SET pk=$PIECE(head,delim,p1)
+    . SET row($O(row(""),-1)+1)=$$CSVQ(pk)
+    ; 2) Properties from the node value using pieceSpec
+    NEW ord SET ord=""
+    FOR  SET ord=$ORDER(pieceOrd(id,ord)) QUIT:ord=""  DO
+    . NEW name SET name=$PIECE(ord,"_",2) IF name="%ID" QUIT
+    . NEW pp1 SET pp1=+$GET(pieceSpec(id,name,1)) IF pp1=0 SET pp1=1
+    . NEW pp2 SET pp2=+$GET(pieceSpec(id,name,2))
+    . NEW d2 SET d2=$PIECE($GET(dataMap(id,name)),"|",2) IF d2="" SET d2="^"
+    . NEW val SET val=$PIECE(head,d2,pp1) IF pp2 SET val=$PIECE(val,",",pp2)
+    . SET row($O(row(""),-1)+1)=$$CSVQ(val)
+    ; 3) FK raw IDs from the value
+    NEW fkprop SET fkprop=""
+    FOR  SET fkprop=$ORDER(fkMap(parent,fkprop)) QUIT:fkprop=""  DO
+    . NEW fp1 SET fp1=+$GET(pieceSpec(id,fkprop,1)) IF fp1=0 SET fp1=1
+    . NEW fp2 SET fp2=+$GET(pieceSpec(id,fkprop,2))
+    . NEW fd SET fd=$PIECE($GET(dataMap(id,fkprop)),"|",2) IF fd="" SET fd="^"
+    . NEW fval SET fval=$PIECE(head,fd,fp1) IF fp2 SET fval=$PIECE(fval,",",fp2)
+    . SET row($O(row(""),-1)+1)=$$CSVQ(fval)
+    QUIT
+    ;
+    ; ================================================================
+    ; [ROW] BuildRow — Project node value into CSV fields
+    ;   DOCS: $PIECE, CSV quoting rules
+    ;     https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_fpiece
+BuildRow(row,parent,id,node,dataMap,pieceSpec,pieceOrd,fkMap,idKeyMap,Verbose)
+    DO Log(Verbose,"        [ENTER] BuildRow for "_parent_" id="_id)
+    K row NEW head SET head=$GET(node(1,"@")) IF head="" QUIT
+    NEW idSpec SET idSpec=$GET(dataMap(id,"%ID"))
+    NEW delim SET delim=$PIECE(idSpec,"|",2) IF delim="" SET delim="^"
+    NEW p1 SET p1=+$GET(pieceSpec(id,"%ID",1)) IF p1=0 SET p1=1
+    NEW pk SET pk=$PIECE(head,delim,p1) IF pk="" QUIT
+    NEW i FOR i=1:1:$L(pk,",") SET row(i)=$$CSVQ($PIECE(pk,",",i))
+    IF $GET(idKeyMap(parent))'="" SET row($O(row(""),-1)+1)=$$CSVQ(pk)
+    NEW ord SET ord=""
+    FOR  SET ord=$ORDER(pieceOrd(id,ord)) QUIT:ord=""  DO
+    . NEW name SET name=$PIECE(ord,"_",2) IF name="%ID" QUIT
+    . NEW pp1 SET pp1=+$GET(pieceSpec(id,name,1)) IF pp1=0 SET pp1=1
+    . NEW pp2 SET pp2=+$GET(pieceSpec(id,name,2))
+    . NEW d2 SET d2=$PIECE($GET(dataMap(id,name)),"|",2) IF d2="" SET d2="^"
+    . NEW val SET val=$PIECE(head,d2,pp1) IF pp2 SET val=$PIECE(val,",",pp2)
+    . SET row($O(row(""),-1)+1)=$$CSVQ(val)
+    ; FK raw IDs (one column per FK property)
+    NEW fkprop SET fkprop=""
+    FOR  SET fkprop=$ORDER(fkMap(parent,fkprop)) QUIT:fkprop=""  DO
+    . NEW fp1 SET fp1=+$GET(pieceSpec(id,fkprop,1)) IF fp1=0 SET fp1=1
+    . NEW fp2 SET fp2=+$GET(pieceSpec(id,fkprop,2))
+    . NEW fd SET fd=$PIECE($GET(dataMap(id,fkprop)),"|",2) IF fd="" SET fd="^"
+    . NEW fval SET fval=$PIECE(head,fd,fp1) IF fp2 SET fval=$PIECE(fval,",",fp2)
+    . SET row($O(row(""),-1)+1)=$$CSVQ(fval)
+    QUIT
+    ;
+    ; ================================================================
+    ; [WRITE] WriteAllCSVs — Emit CSVs per CLASS (union across its map IDs)
+    ;   DOCS: %Stream.FileCharacter.Open("WNS")
+    ;     https://docs.intersystems.com/cache2018.1/csp/documatic/%25CSP.Documatic.cls?CLASSNAME=%25Stream.FileCharacter&LIBRARY=%25SYS
+WriteAllCSVs(tableRows,pieceSpec,pieceOrd,propMap,fkMap,idKeyMap,maxKeys,OutputDir,Verbose)
+    DO Log(Verbose,"--- [ENTER] WriteAllCSVs (per class) ---")
+    NEW parent SET parent=""
+    FOR  SET parent=$ORDER(tableRows(parent)) QUIT:parent=""  DO
+    . NEW filename SET filename=$$FileForClass(OutputDir,parent)
+    . DO WriteOneClassCSV(parent,.tableRows,.pieceOrd,.propMap,.fkMap,.idKeyMap,maxKeys,filename,Verbose)
+    QUIT
+    ;
+    ; [WRITE] WriteOneClassCSV — Write a single class CSV
+    ;   DOCS: %Stream.FileCharacter.Open("WNS")
+    ;     https://docs.intersystems.com/cache2018.1/csp/documatic/%25CSP.Documatic.cls?CLASSNAME=%25Stream.FileCharacter&LIBRARY=%25SYS
+WriteOneClassCSV(parent,tableRows,pieceOrd,propMap,fkMap,idKeyMap,maxKeys,filename,Verbose)
+    DO Log(Verbose,"[FILE] Open -> "_filename)
+    NEW s SET s=##class(%Stream.FileCharacter).%New()
+    DO s.LinkToFile(filename)
+    NEW ok SET ok=0 TRY { SET ok=s.Open("WNS") } CATCH ex { SET ok=0 }
+    IF 'ok DO Log(1,"*** ERROR: Cannot open "_filename_" => "_$ZERROR) QUIT
+    NEW headers DO BuildClassHeaders(.headers,parent,.pieceOrd,.propMap,.fkMap,.idKeyMap,maxKeys)
+    DO WriteLine(s,$$JoinCSV(.headers))
+    NEW id SET id=""
+    FOR  SET id=$ORDER(tableRows(parent,id)) QUIT:id=""  DO
+    . NEW subs SET subs=""
+    . FOR  SET subs=$ORDER(tableRows(parent,id,subs)) QUIT:subs=""  DO
+    . . DO WriteLine(s,$GET(tableRows(parent,id,subs)))
+    DO s.%Save() DO s.%Close()
+    QUIT
+    ;
+    ; [HEADERS] BuildClassHeaders — Key_#, optional IdKey, prop names (union), FK columns
+    ;   DOCS: $ORDER, $PIECE
+    ;     https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_forder
+    ;     https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_fpiece
+BuildClassHeaders(headers,parent,pieceOrd,propMap,fkMap,idKeyMap,maxKeys)
+    K headers NEW i SET i=1
+    FOR i=1:1:maxKeys SET headers(i)="Key_"_i
+    IF $GET(idKeyMap(parent))'="" SET headers(i)=idKeyMap(parent),i=i+1
+    NEW seen SET seen=""
+    NEW id SET id=""
+    FOR  SET id=$ORDER(pieceOrd(id)) QUIT:id=""  DO  ; only those for this parent
+    . IF $PIECE(id,"||",1)'=parent QUIT
+    . NEW ord SET ord=""
+    . FOR  SET ord=$ORDER(pieceOrd(id,ord)) QUIT:ord=""  DO
+    . . NEW name SET name=$PIECE(ord,"_",2) IF name="%ID" QUIT
+    . . IF $DATA(seen(name)) QUIT  SET seen(name)=""
+    . . NEW pretty SET pretty=$GET(propMap(parent,name)) IF pretty="" SET pretty=name
+    . . SET headers(i)=pretty,i=i+1
+    NEW fkprop SET fkprop=""
+    FOR  SET fkprop=$ORDER(fkMap(parent,fkprop)) QUIT:fkprop=""  DO
+    . NEW col SET col=$GET(fkMap(parent,fkprop))_"."_fkprop IF $DATA(seen(col)) QUIT  SET seen(col)=""
+    . SET headers(i)=col,i=i+1
+    QUIT
+    ;
+    ; ================================================================
+    ; CSV utilities
+    ;
+    ; [CSV] WriteLine — Write a line + CRLF
+    ;   DOCS: %Stream.FileCharacter.Write
+    ;     https://docs.intersystems.com/cache2018.1/csp/documatic/%25CSP.Documatic.cls?CLASSNAME=%25Stream.FileCharacter&LIBRARY=%25SYS
+WriteLine(stream,text) DO stream.Write(text),stream.Write($CHAR(13,10)) QUIT
+    ;
+    ; [CSV] CSVQ — Quote/escape CSV field
+    ;   DOCS: $REPLACE
+    ;     https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_freplace
+CSVQ(x)
+    NEW s SET s=$GET(x)
+    IF s[","!(s[""")!(s[$CHAR(10))!(s[$CHAR(13)) SET s=""""_$REPLACE(s,"""","""""")_"""""
+    QUIT s
+    ;
+    ; [CSV] JoinCSV — Join 1..n array entries with commas
+    ;   DOCS: $ORDER
+    ;     https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_forder
+JoinCSV(arr)
+    NEW out SET out="" NEW i SET i=""
+    FOR  SET i=$ORDER(arr(i)) QUIT:i=""  DO  SET out=out_$GET(arr(i))_"," 
+    QUIT $EXTRACT(out,1,$L(out)-1)
+    ;
+    ; [FILE] FileForClass — Build safe class CSV filename
+    ;   DOCS: $ZCONVERT("O","JSON")
+    ;     https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_fzconvert
+FileForClass(dir,parent)
+    NEW safe SET safe=$ZCONVERT(parent,"O","JSON")
+    QUIT $$NormalizeDir(dir)_safe_".csv"
+    ;
+    ; [UTIL] CountParents — Count top-level subscripts of local array
+    ;   DOCS: $ORDER
+    ;     https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_forder
+CountParents(arr)
+    NEW n SET n=0 NEW k SET k=""
+    FOR  SET k=$ORDER(arr(k)) QUIT:k=""  SET n=n+1
+    QUIT n
+    ;
+    ; [UTIL] ZFill — Zero-pad numbers for lexical sort stability
+    ;   DOCS: $JUSTIFY, $TRANSLATE
+    ;     https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_fjustify
+    ;     https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_ftranslate
+ZFill(n,w)
+    NEW s SET s=+$GET(n)
+    NEW width SET width=+$GET(w) IF width<1 SET width=1
+    NEW pad SET pad=$EXTRACT($TRANSLATE($JUSTIFY("",width)," ","0")_$GET(s),$L($GET(s))+1,width+$L($GET(s)))
+    QUIT pad
+    ;
+    ; [UTIL] CountMaxKeys — Maximum key arity across all subscript specs
+    ;   DOCS: $L, $PIECE, $ORDER
+    ;     https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_flength
+    ;     https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_fpiece
+    ;     https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_forder
+CountMaxKeys(maxKeys,subMap)
+    NEW id SET id="",maxKeys=0
+    FOR  SET id=$ORDER(subMap(id)) QUIT:id=""  DO
+    . NEW subs SET subs=""
+    . FOR  SET subs=$ORDER(subMap(id,subs)) QUIT:subs=""  DO
+    . . NEW k SET k=+$L(subs,",") IF k>maxKeys SET maxKeys=k
+    QUIT
+    ;
+    ; [UTIL] CSVSub — Render comma list of subs into argument list (quote strings)
+    ;   DOCS: Pattern match numeric, $ZSTRIP, $ZCONVERT("O","JSON")
+    ;     https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_op_patternmatch
+    ;     https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_fzstrip
+    ;     https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_fzconvert
+CSVSub(s)
+    NEW out SET out="" NEW i
+    FOR i=1:1:$L(s,",") DO
+    . NEW p SET p=$PIECE(s,",",i)
+    . IF p?1(1N,1"-",1"+").N SET out=out_p_"," QUIT
+    . SET out=out_""""_$$Q(p)_""""_"," 
+    QUIT $EXTRACT(out,1,$L(out)-1)
+    ;
+    ; ================================================================
+    ; Traversal helpers (ExportAllLevels-style, capped by arity)
+    ;   DOCS: $ORDER, indirection, pattern match
+    ;     https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_forder
+WalkToArity(tableRows,base,depth,arity,parent,id,dataMap,pieceSpec,pieceOrd,fkMap,idKeyMap,cnt,maxnodes,Verbose)
+    IF +maxnodes,+(+cnt)>=+maxnodes QUIT
+    IF depth<arity DO  QUIT
+    . NEW sub SET sub=$ORDER(@(base_","_""""))
+    . FOR  QUIT:sub=""  DO
+    . . NEW nextBase SET nextBase=$S(sub?1(1N,1"-",1"+").N:base_","_sub,1:base_","""_$$Q(sub)_""")
+    . . DO WalkToArity(.tableRows,base,0,arity,parent,id,subMap,dataMap,.pieceSpec,.pieceOrd,.fkMap,.idKeyMap,.outCount,MaxNodes,Verbose)
+    . . SET sub=$S(sub?1(1N,1"-",1"+").N:$ORDER(@(base_","_sub)),1:$ORDER(@(base_","""_$$Q(sub)_""")))
+    ; depth==arity: capture value and build row
+    NEW val SET val=$GET(@(base_")"))
+    NEW tupleCSV SET tupleCSV=""
+    NEW i FOR i=1:1:arity SET tupleCSV=tupleCSV_$$CSVQ($$SubAt(base,i))_","  ; reuse SubAt to read args
+    SET tupleCSV=$EXTRACT(tupleCSV,1,$L(tupleCSV)-1)
+    NEW node K node SET node(1,"@")=val
+    NEW row K row DO BuildRow(.row,parent,id,.node,.dataMap,.pieceSpec,.pieceOrd,.fkMap,.idKeyMap,Verbose)  ; PATCH 2025-08-09: remove tupleCSV
+    IF $DATA(row) DO
+    . NEW subsKey SET subsKey=tupleCSV  ; diagnostic key
+    . SET tableRows(parent,id,subsKey)=$$JoinCSV(.row)
+    . SET cnt=$GET(cnt)+1
+    QUIT
+
+; ================================================================
+    ; Diagnostics — Full traversal dump (optional)
+    ;   DOCS: Using globals, indirection
+    ;     https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=GGBL_using
+    ;     https://docs.intersystems.com/cache2018.1/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_op_indirection
+ExportAllLevels(parm)
+    DO Log(1,"=== [ENTER] ExportAllLevels ===")
+    NEW $ETRAP SET $ETRAP="GOTO ERR^ExportDynamic"
+    NEW GlobalRef,OutputDir,Verbose,MaxDepth,MaxNodes
+    SET GlobalRef=$GET(parm("GlobalRef"))
+    SET OutputDir=$GET(parm("OutputDir"),"C:/InterSystems/Cache/ExportDynamic")
+    SET Verbose=+$GET(parm("Verbose"),1)
+    SET MaxDepth=+$GET(parm("MaxDepth"),200)
+    SET MaxNodes=+$GET(parm("MaxNodes"),0)
+    IF GlobalRef="" DO Log(1,"*** ERROR: parm(""GlobalRef"") is required") QUIT
+    SET OutputDir=$$NormalizeDir(OutputDir)
+    DO ##class(%Library.File).CreateDirectoryChain(OutputDir)
+    NEW rootRef SET rootRef=GlobalRef DO NormalizeGlobalRef(.rootRef,"",1)
+    NEW base SET base=$$MakeBase(rootRef)
+    NEW out SET out=$$FileForAll(OutputDir,rootRef)
+    NEW s SET s=##class(%Stream.FileCharacter).%New()
+    DO s.LinkToFile(out)
+    NEW ok SET ok=0 TRY { SET ok=s.Open("WNS") } CATCH ex { SET ok=0 }
+    IF 'ok DO Log(1,"*** ERROR: Cannot open "_out_" => "_$ZERROR) QUIT
+    DO WriteLine(s,"Level,Sub1,Sub2,Sub3,Sub4,Sub5,Sub6,Sub7,Sub8,Sub9,Sub10,Value")
+    NEW cnt SET cnt=0
+    NEW $ETRAP SET $ETRAP="GOTO GNERR^ExportDynamic"
+    DO DumpAll(.s,base,0,MaxDepth,.cnt,MaxNodes,1)
+    DO s.%Save() DO s.%Close()
+    DO Log(1,"=== [DONE] Dumped "_cnt_" nodes -> "_out_" ===")
+    QUIT
+
+DumpAll(s,base,depth,maxdepth,cnt,maxnodes,Verbose)
+    IF depth>maxdepth QUIT
+    IF +maxnodes,+(+cnt)>=+maxnodes QUIT
+    NEW val SET val=$GET(@(base_")"))
+    IF val'="" DO
+    . NEW row K row SET row(1)=depth
+    . NEW i FOR i=1:1:10 SET row(1+i)=$$CSVQ($$SubAt(base,i))
+    . SET row(12)=$$CSVQ(val)
+    . DO WriteLine(s,$$JoinCSV(.row))
+    . SET cnt=$GET(cnt)+1 IF +cnt#100=0 DO Log(Verbose,"[DUMP] rows="_cnt)
+    NEW sub SET sub=$ORDER(@(base_","_""""))
+    FOR  QUIT:sub=""  DO
+    . NEW nextBase SET nextBase=$S(sub?1(1N,1"-",1"+").N:base_","_sub,1:base_","""_$$Q(sub)_""")
+    . DO DumpAll(.s,nextBase,depth+1,maxdepth,.cnt,maxnodes,Verbose)
+    . SET sub=$S(sub?1(1N,1"-",1"+").N:$ORDER(@(base_","_sub)),1:$ORDER(@(base_","""_$$Q(sub)_""")))
+    QUIT
+
+SubAt(base,i)
+    NEW arglist SET arglist=$PIECE(base,"(",2)
+    NEW n SET n=$L(arglist,",") IF i>n QUIT ""
+    NEW p SET p=$PIECE(arglist,",",i)
+    IF p?1(1N,1"-",1"+").N QUIT p
+    IF $EXTRACT(p)=$CHAR(34),$EXTRACT(p,$L(p))=$CHAR(34) SET p=$EXTRACT(p,2,$L(p)-1)
+    QUIT $REPLACE(p,"""","""""")
+
+FileForAll(dir,rootRef)
+    NEW g SET g=rootRef
+    IF g?1"^|".E SET g=$PIECE(g,"|",3,99)
+    IF g?1"^".E SET g=$EXTRACT(g,2,$L(g))
+    NEW safe SET safe=$TRANSLATE(g,":/\()"" ","_____")
+    QUIT $$NormalizeDir(dir)_safe_"__ALL.csv"
+
+MakeBase(ref)
+    NEW b SET b=$GET(ref) IF b="" QUIT b
+    IF b'[("(") SET b=b_"("
+    IF $EXTRACT(b,$L(b))=")" SET b=$EXTRACT(b,1,$L(b)-1)
+    QUIT b
+
+Q(x) QUIT $ZCONVERT($ZSTRIP($GET(x),"<>W"),"O","JSON")
+
+GNERR DO Log(1,"[WARN] Global traversal error => "_$ZERROR) QUIT

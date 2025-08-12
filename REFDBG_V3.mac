@@ -1,0 +1,326 @@
+
+REFDBG_V3 ; Referrals extractor/debugger (v3) — new syntax + heavy logging
+ ;-----------------------------------------------------------------------------
+ ; Purpose:
+ ;   Flatten referrals-related data from Cache/IRIS globals (e.g. ^["MHRHMO"]HMOREF)
+ ;   into CSVs with real property names in headers, tons of logging, and
+ ;   "new syntax" (TRY/CATCH, IF/ELSE, FOR {..}, CONTINUE/QUIT).
+ ;
+ ; What you get:
+ ;   - Foreign keys embedded: Hmo, Id, Rin, and repeat keys (Line, Txn, etc.)
+ ;   - Provenance columns: __link_to, __link_keys, __source_ns, __source_path,
+ ;                         __extract_ts, __batch_id
+ ;   - Debug log in ^REFDBGLOG and file-level summary in ^REFDBGSTAT
+ ;   - Simulation entry point (SIM) to seed fake data for dry-runs
+ ;
+ ; Notes:
+ ;   * This routine is designed to be easy to extend. See INITMAPS() and
+ ;     the extractor methods XReferral* where field lists are centralized.
+ ;   * "Continue" vs "Quit": CONTINUE skips to next loop iteration; QUIT exits
+ ;     current block/procedure (per ObjectScript Language Reference).
+ ;   * Docs referenced while writing (for your reviewers): ObjectScript
+ ;     Language Reference: IF/ELSE, FOR/WHILE, QUIT, CONTINUE, $ORDER;
+ ;     Error Handling: TRY/CATCH; I/O: %Stream.FileCharacter; $ZCONVERT.
+ ;
+ ;-----------------------------------------------------------------------------
+ Q  ; No fall-through
+
+RUN(HMO,ID,OUTDIR) PUBLIC  ; Extract a single HMO/ID (all RINs)
+ NEW $ZTRAP S $ZTRAP="ZTRAP^REFDBG_V3"
+ DO RESETLOG()
+ DO LOG("RUN","begin",HMO,ID,OUTDIR)
+ IF HMO=""!(ID="") DO LOG("RUN","missing HMO/ID") QUIT
+ IF OUTDIR="" SET OUTDIR=$G(^%SYS("Mgr","mhr","outdir"),"/tmp")
+ DO INITMAPS(.MAP)
+ NEW BATCH SET BATCH=$ZDATETIME($H,3)_"-"_$J
+ NEW OUT SET OUT("Referral")=$$NewFile(OUTDIR_"/Referrals.Referral.csv")
+ SET OUT("ReferralLine")=$$NewFile(OUTDIR_"/Referrals.ReferralLine.csv")
+ SET OUT("ReferralEdiTxn")=$$NewFile(OUTDIR_"/Referrals.ReferralEdiTxn.csv")
+ ; headers
+ DO WriteHeader(OUT("Referral"),.MAP,"Referral",.ERR)
+ DO WriteHeader(OUT("ReferralLine"),.MAP,"ReferralLine",.ERR)
+ DO WriteHeader(OUT("ReferralEdiTxn"),.MAP,"ReferralEdiTxn",.ERR)
+ ; iterate RINs
+ NEW RIN SET RIN=""
+ FOR  SET RIN=$ORDER(^["MHRHMO"]HMOREF(HMO,ID,RIN)) QUIT:RIN=""  {
+   TRY {
+     DO LOG("RIN","visit",HMO,ID,RIN)
+     NEW row
+     DO XReferral(HMO,ID,RIN,.MAP,.row,.BATCH)
+     DO WriteRow(OUT("Referral"),.MAP,"Referral",.row)
+     ; Child: ReferralLine (repeat by Line sub-piece)
+     DO XReferralLine(HMO,ID,RIN,.MAP,.BATCH,OUT("ReferralLine"))
+     ; Child: ReferralEdiTxn (repeat by Txn)
+     DO XReferralEdiTxn(HMO,ID,RIN,.MAP,.BATCH,OUT("ReferralEdiTxn"))
+   } CATCH ex {
+     DO LOG("RIN","error",HMO,ID,RIN,$GET(ex.Name),$GET(ex.Data))
+     CONTINUE
+   }
+ }
+ DO LOG("RUN","end",HMO,ID,OUTDIR)
+ ; close files
+ NEW n SET n=""
+ FOR  SET n=$ORDER(OUT(n)) QUIT:n=""  DO OUT(n).%Save()  ; flush to disk
+ QUIT
+
+RUNALL(HMO,OUTDIR,MAX) PUBLIC  ; Extract all IDs for an HMO (bounded by MAX)
+ NEW $ZTRAP S $ZTRAP="ZTRAP^REFDBG_V3"
+ DO RESETLOG()
+ DO LOG("RUNALL","begin",HMO,OUTDIR)
+ IF HMO="" DO LOG("RUNALL","missing HMO") QUIT
+ IF OUTDIR="" SET OUTDIR=$G(^%SYS("Mgr","mhr","outdir"),"/tmp")
+ SET MAX=+$GET(MAX,999999)
+ NEW ID SET ID=""
+ FOR  SET ID=$ORDER(^["MHRHMO"]HMOREF(HMO,ID)) QUIT:ID=""  {
+   IF MAX'>0 QUIT
+   DO RUN(HMO,ID,OUTDIR) SET MAX=MAX-1
+ }
+ DO LOG("RUNALL","end",HMO)
+ QUIT
+
+ ; ---------------------------- Extractors ------------------------------------
+
+XReferral(HMO,ID,RIN,MAP,row,BATCH) ; single parent row
+ K row NEW now SET now=$ZDATETIME($H,3)
+ ; Foreign keys (flattened)
+ SET row("Hmo")=HMO,row("Id")=ID,row("Rin")=RIN
+ ; Core fields (expand as needed)
+ SET row("Status")=$$PIECE(HMO,ID,RIN,0,1)          ; ^(...,0) piece 1
+ SET row("RefNum")=$$PIECE(HMO,ID,RIN,0,2)          ; ^(...,0) piece 2
+ SET row("RefType")=$$ZHMORIDX(HMO,ID,"REFTYP",RIN) ; via HMORIDX index
+ SET row("RefProv")=$$ZHMORIDX(HMO,ID,"RBYDOC",RIN)
+ SET row("ReferToProv")=$$ZHMORIDX(HMO,ID,"RTODOC",RIN)
+ SET row("ReferToLoc")=$$ZHMORIDX(HMO,ID,"RTOLOC",RIN)
+ SET row("DtOrd")=$$ZHMORIDX(HMO,ID,"ORDAT",RIN)
+ SET row("ValidFromDt")=$$ZHMORIDX(HMO,ID,"FROMDAT",RIN)
+ SET row("ValidToDt")=$$ZHMORIDX(HMO,ID,"TODAT",RIN)
+ SET row("Extnum")=$$ZHMORIDX(HMO,ID,"EXTNUM",RIN)
+ SET row("CreatedBy")=$$ZHMORIDX(HMO,ID,"INI",RIN)
+ SET row("ActAdmDt")=$$ZHMORIDX(HMO,ID,"ACTADM",RIN)
+ SET row("ActDischDt")=$$ZHMORIDX(HMO,ID,"ACTDSC",RIN)
+ ; Example Oxy and HH fields (add more as needed)
+ SET row("OxygenFlowRate")=$$PIECE(HMO,ID,RIN,25,11)
+ SET row("HhStartDt")=$$PIECE(HMO,ID,RIN,25,34)
+ ; Provenance
+ SET row("__link_to")="Referrals.Referral"
+ SET row("__link_keys")="Hmo=" _ HMO _ ";Id="_ID_";Rin="_RIN
+ SET row("__source_ns")="MHRHMO"
+ SET row("__source_path")="^[""MHRHMO""]HMOREF("_HMO_","_ID_","_RIN_")"
+ SET row("__extract_ts")=now
+ SET row("__batch_id")=BATCH
+ QUIT
+
+XReferralLine(HMO,ID,RIN,MAP,BATCH,OUTSTRM) ; repeat over Lines
+ NEW L SET L=0
+ FOR  SET L=$ORDER(^["MHRHMO"]HMOREF(HMO,ID,RIN,6,L)) QUIT:'L  {
+   NEW row DO XReferral(HMO,ID,RIN,.MAP,.row,.BATCH)  ; inherit parent
+   ; override link target
+   SET row("__link_to")="Referrals.ReferralLine"
+   SET row("Line")=L
+   ; Fields from mapping (see spec: +6 node for proc group)
+   SET row("ProcCode")=$PIECE($GET(^["MHRHMO"]HMOREF(HMO,ID,RIN,6,L)),"^",1)
+   SET row("Units")  =$PIECE($GET(^["MHRHMO"]HMOREF(HMO,ID,RIN,7,L)),"^",L)
+   SET row("UnitType")=$PIECE($GET(^["MHRHMO"]HMOREF(HMO,ID,RIN,8,L)),"^",L)
+   SET row("Freq")   =$PIECE($GET(^["MHRHMO"]HMOREF(HMO,ID,RIN,9,L)),"^",L)
+   SET row("Days")   =$PIECE($GET(^["MHRHMO"]HMOREF(HMO,ID,RIN,14,L)),"^",L)
+   SET row("EstLiab")=$PIECE($GET(^["MHRHMO"]HMOREF(HMO,ID,RIN,15,L)),"^",L)
+   SET row("ServOrd")=$PIECE($GET(^["MHRHMO"]HMOREF(HMO,ID,RIN,11,L)),"^",L)
+   SET row("CovCatOver")=$PIECE($GET(^["MHRHMO"]HMOREF(HMO,ID,RIN,38,L)),"^",L)
+   ; write
+   DO WriteRow(OUTSTRM,.MAP,"ReferralLine",.row)
+ }
+ QUIT
+
+XReferralEdiTxn(HMO,ID,RIN,MAP,BATCH,OUTSTRM) ; repeat over EDI txns
+ ; Per spec: ^["MHRHMO"]HMOREF(HMO,ID,RIN,"EDI",Tx,"PROC",Repet)
+ NEW TX SET TX=0
+ FOR  SET TX=$ORDER(^["MHRHMO"]HMOREF(HMO,ID,RIN,"EDI",TX)) QUIT:'TX  {
+   NEW row DO XReferral(HMO,ID,RIN,.MAP,.row,.BATCH)
+   SET row("__link_to")="Referrals.ReferralEdiTxn"
+   SET row("Tx")=TX
+   SET row("ReqCat")=$GET(^["MHRHMO"]HMOREF(HMO,ID,RIN,"EDI",TX,"REQCAT"))
+   SET row("ServType")=$GET(^["MHRHMO"]HMOREF(HMO,ID,RIN,"EDI",TX,"SERVTYPE"))
+   SET row("EdiAction")=$GET(^["MHRHMO"]HMOREF(HMO,ID,RIN,"EDI",TX,"ACTION"))
+   SET row("TradingPartner")=$GET(^["MHRHMO"]HMOREF(HMO,ID,RIN,"EDI",TX,"TRADINGPARTNER"))
+   ; requested/response validity
+   SET row("ValidFromDtReq")=$GET(^["MHRHMO"]HMOREF(HMO,ID,RIN,"EDI",TX,"FROMDTREQ"))
+   SET row("ValidToDtReq")  =$GET(^["MHRHMO"]HMOREF(HMO,ID,RIN,"EDI",TX,"TODTREQ"))
+   SET row("ValidFromDtResp")=$GET(^["MHRHMO"]HMOREF(HMO,ID,RIN,"EDI",TX,"FROMDTRESP"))
+   SET row("ValidToDtResp")  =$GET(^["MHRHMO"]HMOREF(HMO,ID,RIN,"EDI",TX,"TODTRESP"))
+   ; counts
+   SET row("TreatmentsRequested")=$GET(^["MHRHMO"]HMOREF(HMO,ID,RIN,"EDI",TX,"TXREQ"))
+   SET row("TreatmentsAuth")     =$GET(^["MHRHMO"]HMOREF(HMO,ID,RIN,"EDI",TX,"TXAUTH"))
+   DO WriteRow(OUTSTRM,.MAP,"ReferralEdiTxn",.row)
+ }
+ QUIT
+
+ ; --------------------------- Mapping & Helpers -------------------------------
+
+INITMAPS(MAP) ; central header maps (extend here)
+ K MAP
+ ; Parent: Referral
+ SET MAP("Referral",1)="Hmo"
+ SET MAP("Referral",2)="Id"
+ SET MAP("Referral",3)="Rin"
+ SET MAP("Referral",4)="Status"
+ SET MAP("Referral",5)="RefNum"
+ SET MAP("Referral",6)="RefType"
+ SET MAP("Referral",7)="RefProv"
+ SET MAP("Referral",8)="ReferToProv"
+ SET MAP("Referral",9)="ReferToLoc"
+ SET MAP("Referral",10)="DtOrd"
+ SET MAP("Referral",11)="ValidFromDt"
+ SET MAP("Referral",12)="ValidToDt"
+ SET MAP("Referral",13)="Extnum"
+ SET MAP("Referral",14)="CreatedBy"
+ SET MAP("Referral",15)="ActAdmDt"
+ SET MAP("Referral",16)="ActDischDt"
+ SET MAP("Referral",17)="OxygenFlowRate"
+ SET MAP("Referral",18)="HhStartDt"
+ ; Provenance
+ SET MAP("Referral",90)="__link_to"
+ SET MAP("Referral",91)="__link_keys"
+ SET MAP("Referral",92)="__source_ns"
+ SET MAP("Referral",93)="__source_path"
+ SET MAP("Referral",94)="__extract_ts"
+ SET MAP("Referral",95)="__batch_id"
+
+ ; Child: ReferralLine
+ SET MAP("ReferralLine",1)="Hmo"
+ SET MAP("ReferralLine",2)="Id"
+ SET MAP("ReferralLine",3)="Rin"
+ SET MAP("ReferralLine",4)="Line"
+ SET MAP("ReferralLine",5)="ProcCode"
+ SET MAP("ReferralLine",6)="Units"
+ SET MAP("ReferralLine",7)="UnitType"
+ SET MAP("ReferralLine",8)="Freq"
+ SET MAP("ReferralLine",9)="Days"
+ SET MAP("ReferralLine",10)="EstLiab"
+ SET MAP("ReferralLine",11)="ServOrd"
+ SET MAP("ReferralLine",12)="CovCatOver"
+ ; Provenance
+ SET MAP("ReferralLine",90)="__link_to"
+ SET MAP("ReferralLine",91)="__link_keys"
+ SET MAP("ReferralLine",92)="__source_ns"
+ SET MAP("ReferralLine",93)="__source_path"
+ SET MAP("ReferralLine",94)="__extract_ts"
+ SET MAP("ReferralLine",95)="__batch_id"
+
+ ; Child: ReferralEdiTxn
+ SET MAP("ReferralEdiTxn",1)="Hmo"
+ SET MAP("ReferralEdiTxn",2)="Id"
+ SET MAP("ReferralEdiTxn",3)="Rin"
+ SET MAP("ReferralEdiTxn",4)="Tx"
+ SET MAP("ReferralEdiTxn",5)="ReqCat"
+ SET MAP("ReferralEdiTxn",6)="ServType"
+ SET MAP("ReferralEdiTxn",7)="EdiAction"
+ SET MAP("ReferralEdiTxn",8)="TradingPartner"
+ SET MAP("ReferralEdiTxn",9)="ValidFromDtReq"
+ SET MAP("ReferralEdiTxn",10)="ValidToDtReq"
+ SET MAP("ReferralEdiTxn",11)="ValidFromDtResp"
+ SET MAP("ReferralEdiTxn",12)="ValidToDtResp"
+ SET MAP("ReferralEdiTxn",13)="TreatmentsRequested"
+ SET MAP("ReferralEdiTxn",14)="TreatmentsAuth"
+ ; Provenance
+ SET MAP("ReferralEdiTxn",90)="__link_to"
+ SET MAP("ReferralEdiTxn",91)="__link_keys"
+ SET MAP("ReferralEdiTxn",92)="__source_ns"
+ SET MAP("ReferralEdiTxn",93)="__source_path"
+ SET MAP("ReferralEdiTxn",94)="__extract_ts"
+ SET MAP("ReferralEdiTxn",95)="__batch_id"
+ QUIT
+
+PIECE(HMO,ID,RIN,OFFS,PI) ; general piece getter, OFFS can be 0 for base node
+ NEW ret SET ret=$PIECE($GET(^["MHRHMO"]HMOREF(HMO,ID,RIN,OFFS)),"^",PI)
+ QUIT ret
+
+ZHMORIDX(HMO,ID,KEY,RIN) ; helper for HMORIDX <-> returns piece 1 at KEY
+ ; Per data dictionary: ^["MHRHMO"]HMORIDX(HMO,"<KEY>",Id,Rin) -> value^RefNum
+ NEW v SET v=$PIECE($GET(^["MHRHMO"]HMORIDX(HMO,KEY,ID,RIN)),"^",1)
+ QUIT v
+
+ ; --------------------------- CSV + Logging ----------------------------------
+
+WriteHeader(STRM,MAP,NAME,ERR) ; write header line for table
+ NEW head SET head=""
+ NEW i SET i=0
+ FOR  SET i=$ORDER(MAP(NAME,i)) QUIT:'i  {
+   NEW col SET col=MAP(NAME,i)
+   SET head=head_$SELECT(head'="":",","")_$$CSVQ(col)
+ }
+ DO STRM.Write(head_$CHAR(13,10))
+ QUIT
+
+WriteRow(STRM,MAP,NAME,ROW) ; write a data row following MAP order
+ NEW line SET line="" NEW i SET i=0
+ FOR  SET i=$ORDER(MAP(NAME,i)) QUIT:'i  {
+   NEW col SET col=MAP(NAME,i)
+   NEW val SET val=$GET(ROW(col),"")
+   SET line=line_$SELECT(line'="":",","")_$$CSVQ(val)
+ }
+ DO STRM.Write(line_$CHAR(13,10))
+ QUIT
+
+CSVQ(x) ; csv quote/escape
+ NEW s SET s=$GET(x)
+ ; normalize line breaks
+ SET s=$TRANSLATE(s,$CHAR(13,10),"  ")
+ IF s[","!(s["""")!(s[" ") SET s=""""_$REPLACE(s,"""","""""")_""""
+ QUIT s
+
+NewFile(path) ; return %Stream.FileCharacter to write
+ NEW s SET s=##class(%Stream.FileCharacter).%New()
+ DO s.LinkToFile(path)
+ DO s.Clear()  ; ensure empty
+ QUIT s
+
+ ; --------------------------- Logging ----------------------------------------
+
+LOG(TAG,A,B,C,D,E) ;
+ NEW ts SET ts=$ZDATETIME($H,3)
+ NEW seq SET seq=$INCREMENT(^REFDBGLOG)
+ SET ^REFDBGLOG(seq)=ts_"|"_$GET(TAG)_"|"_$GET(A)_"|"_$GET(B)_"|"_$GET(C)_"|"_$GET(D)_"|"_$GET(E)
+ QUIT
+
+RESETLOG() K ^REFDBGLOG,^REFDBGSTAT QUIT
+
+ ; --------------------------- Simulation -------------------------------------
+
+SIM ; quick fake data to test file creation + loops
+ NEW ns SET ns="MHRHMO"
+ NEW HMO,ID,RIN SET HMO="HMOA",ID="0001",RIN=101.01
+ SET ^[ns]HMOREF(HMO,ID,RIN,0)="APPROVED^RF0001^^^^^^^INP"
+ SET ^[ns]HMOREF(HMO,ID,RIN,6,1)="PROC1^PROC-EXTRA"
+ SET ^[ns]HMOREF(HMO,ID,RIN,7,1)="3"
+ SET ^[ns]HMOREF(HMO,ID,RIN,8,1)="U"
+ SET ^[ns]HMOREF(HMO,ID,RIN,9,1)="W"
+ SET ^[ns]HMOREF(HMO,ID,RIN,14,1)="5"
+ SET ^[ns]HMOREF(HMO,ID,RIN,15,1)="250"
+ SET ^[ns]HMOREF(HMO,ID,RIN,11,1)="1"
+ SET ^[ns]HMOREF(HMO,ID,RIN,38,1)="CAT1"
+ ; Oxy/HH sample (node 25 pieces 11 and 34)
+ SET ^[ns]HMOREF(HMO,ID,RIN,25)="^^^^^^^^^^10^^^"
+ SET ^[ns]HMOREF(HMO,ID,RIN,"EDI",1,"REQCAT")="CERT"
+ SET ^[ns]HMOREF(HMO,ID,RIN,"EDI",1,"SERVTYPE")="21"
+ SET ^[ns]HMOREF(HMO,ID,RIN,"EDI",1,"ACTION")="SUBMIT"
+ SET ^[ns]HMOREF(HMO,ID,RIN,"EDI",1,"TRADINGPARTNER")="X12PAYER"
+ SET ^[ns]HMORIDX(HMO,"REFTYP",ID,RIN)="I"
+ SET ^[ns]HMORIDX(HMO,"RBYDOC",ID,RIN)="PRV123"
+ SET ^[ns]HMORIDX(HMO,"RTODOC",ID,RIN)="PRV789"
+ SET ^[ns]HMORIDX(HMO,"RTOLOC",ID,RIN)="LOC55"
+ SET ^[ns]HMORIDX(HMO,"ORDAT",ID,RIN)="2025-01-15"
+ SET ^[ns]HMORIDX(HMO,"FROMDAT",ID,RIN)="2025-01-20"
+ SET ^[ns]HMORIDX(HMO,"TODAT",ID,RIN)="2025-02-20"
+ SET ^[ns]HMORIDX(HMO,"EXTNUM",ID,RIN)="E12345"
+ SET ^[ns]HMORIDX(HMO,"INI",ID,RIN)="JSMITH"
+ SET ^[ns]HMORIDX(HMO,"ACTADM",ID,RIN)="2025-01-22"
+ SET ^[ns]HMORIDX(HMO,"ACTDSC",ID,RIN)="2025-01-25"
+ DO RUN(HMO,ID,"/tmp")
+ QUIT
+
+ ; --------------------------- Error Trap -------------------------------------
+
+ZTRAP ; legacy error trap for environments w/o TRY/CATCH coverage
+ NEW $ETRAP SET $ETRAP="ZGOTO "_$ZLEVEL_":ZTRAPEND^REFDBG_V3"
+ DO LOG("ZTRAP",$ZSTATUS)
+ZTRAPEND QUIT

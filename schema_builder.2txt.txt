@@ -1,0 +1,76 @@
+DataLoader ; Load CSV data into MyApp classes
+    ;
+    ; CONFIGURE:
+    SET ParentClass = "Referral"           ; must match your generated parent
+    SET InputCSV    = "referralData.csv"   ; your data-global CSV
+    ;
+    QUIT  ; prevents accidental fallthrough at compile
+
+INT  ; entry-point on compile, or call directly as ^DataLoader
+    NEW io,line,values,fields,id
+    NEW prop2table,tableProps,childOids,childObj,parObj
+    NEW subMeta,schemaMap  ; assume populated via your .INT generator
+    
+    ;--- BUILD REVERSE MAP: propertyName → tableName
+    FOR table=$ORDER(schemaMap("")) QUIT:table=""  DO  .
+    . FOR i=1:1:$LISTLENGTH(schemaMap(table))  DO  .
+    . . SET prop=$LISTGET(schemaMap(table),i)
+    . . SET prop2table(prop)=table
+    
+    ;--- OPEN CSV
+    SET io=##class(%Stream.FileCharacter).%New()
+    SET sc=io.LinkToFile(InputCSV)
+    IF sc'=1 { WRITE "Cannot open ",InputCSV,!  QUIT }
+    DO io.ReadLine()  ; skip header
+    
+    ;--- PROCESS EACH ROW
+    FOR  QUIT:io.AtEnd  DO  
+    . SET line=io.ReadLine() QUIT:line=""  
+    . SET values=$LISTFROMSTRING($TRANSLATE(line,"""",""),",")
+    . SET id=$LISTGET(values,2)
+    . KILL tableProps,childOids
+    . 
+    . ; GROUP VALUES BY TABLE
+    . FOR col=1:1:$LISTLENGTH(values)  DO  
+    . . SET prop=$GET(subMeta(col,"Property"))  QUIT:prop=""
+    . . SET val =$LISTGET(values,col)            QUIT:val=""
+    . . SET tbl=prop2table(prop)
+    . . SET tableProps(tbl,prop)=val
+    . 
+    . ; CREATE & SAVE CHILD OBJECTS
+    . SET tbl=""  
+    . FOR  SET tbl=$ORDER(tableProps(tbl)) QUIT:tbl=""  DO
+    . . ; instantiate child object
+    . . SET childObj=##class(MyApp._tbl).%New()
+    . . ; set its data properties
+    . . FOR prop=$ORDER(tableProps(tbl,"");"") QUIT:prop=""  DO  
+    . . . DO childObj.Set(prop,tableProps(tbl,prop))
+    . . ; link metadata: record the schema, parent class, and parent property
+    . . SET fkProp = $ORDER(schemaMap(tbl,"") )
+    . . ; only set if the child class defines these properties
+    . . IF childObj.%IsValid("LinkedSchema")     DO childObj.Set("LinkedSchema",tbl)
+    . . IF childObj.%IsValid("ForeignParentClass") DO childObj.Set("ForeignParentClass",ParentClass)
+    . . IF childObj.%IsValid("ForeignParentProperty") DO childObj.Set("ForeignParentProperty",fkProp)
+    . . ; save and capture OID
+    . . IF childObj.%Save()'=1 {
+    . . . WRITE "Error saving child ",tbl,":",!
+    . . . DO $SYSTEM.Status.DisplayError(childObj.%Status)
+    . . } ELSE  {
+    . . . SET childOids(tbl)=childObj.%Id()
+    . . }
+    . 
+    . ; CREATE & SAVE PARENT OBJECT
+    . SET parObj=##class(MyApp._ParentClass).%New()
+    . FOR tbl=$ORDER(childOids("")) QUIT:tbl=""  DO  
+    . . SET fkProp = $ORDER(schemaMap(tbl,"") )
+    . . DO parObj.Set(fkProp,childOids(tbl))
+    . 
+    . IF parObj.%Save()'=1 {
+    . . WRITE "Error saving parent for id=",id,!
+    . . DO $SYSTEM.Status.DisplayError(parObj.%Status)
+    . } ELSE  {
+    . . WRITE "Saved Referral OID=",parObj.%Id(),!
+    . }
+    
+    DO io.%Close()
+    Q

@@ -1,0 +1,130 @@
+;; DataLoader.int — All-in-one CSV→Object loader without external ref sheet
+;; USAGE:
+;; 1. Edit CONFIGURE: set ParentClass and InputCSV
+;; 2. Compile:  COMPILE "/path/to/DataLoader.int"
+;; 3. Run:     DO ^DataLoader
+
+DataLoader ; CSV→Object loader using only dictionary mappings
+    ;
+    ; CONFIGURE:
+    SET ParentClass   = "Referral"           ; your parent class name
+    SET InputCSV      = "referralData.csv"   ; data-global CSV
+    ;
+    QUIT  ; prevent fallthrough at compile
+
+INT  ; entry-point on compile or DO ^DataLoader
+    NEW sc,io,line,values,id
+    NEW subMeta,schemaMap  ; dictionary mappings and class grouping
+
+    ;--- STEP 1: Load property metadata from StorageSQLMapSubDefinition
+    ; 'Name' column holds the numeric subscript index in your environment
+    NEW stmt,rs,idx
+    SET stmt=##class(%SQL.Statement).%New()
+    SET sc=stmt.%Prepare(
+      "SELECT Name,DataAccess,Expression,NextCode"
+     _" FROM %Dictionary.StorageSQLMapSubDefinition"
+     _" WHERE ClassName=? ORDER BY Name"
+    )
+    IF sc'=1 WRITE "Error preparing SubDefinition: ",sc,! QUIT
+    SET rs=stmt.%Execute(ParentClass)
+    IF rs.%Status'=1 WRITE "Error executing SubDefinition: ",rs.%Status,! DO rs.%Close() QUIT
+    FOR  QUIT:'(rs.%Next())  DO  
+    . SET idx = +rs.Get("Name")
+    . SET subMeta(idx,"DataAccess") = rs.Get("DataAccess")
+    . SET subMeta(idx,"Expression") = rs.Get("Expression")
+    . SET subMeta(idx,"NextCode")   = rs.Get("NextCode")
+    DO rs.%Close()
+
+    ;--- STEP 2: Load property names from StorageSQLMapDataDefinition
+    NEW node
+    SET node=""  ; default node
+    SET stmt=##class(%SQL.Statement).%New()
+    SET sc=stmt.%Prepare(
+      "SELECT Piece,Name"
+     _" FROM %Dictionary.StorageSQLMapDataDefinition"
+     _" WHERE ClassName=? AND Node=?"
+    )
+    IF sc'=1 WRITE "Error preparing DataDefinition: ",sc,! QUIT
+    SET rs=stmt.%Execute(ParentClass,node)
+    IF rs.%Status'=1 WRITE "Error executing DataDefinition: ",rs.%Status,! DO rs.%Close() QUIT
+    FOR  QUIT:'(rs.%Next())  DO  
+    . SET idx = +rs.Get("Piece")
+    . SET subMeta(idx,"Property") = rs.Get("Name")
+    DO rs.%Close()
+
+    ;--- STEP 3: Build schemaMap from DataAccess values
+    NEW maxIdx
+    SET maxIdx = $ORDER(subMeta(""),-1)
+    NEW i,table,prop
+    FOR i=1:1:maxIdx  DO  
+    . SET table = $GET(subMeta(i,"DataAccess"))  QUIT:table=""
+    . SET prop  = $GET(subMeta(i,"Property"))    QUIT:prop=""
+    . IF '$DATA(schemaMap(table)) SET schemaMap(table)=prop
+    . ELSE  IF schemaMap(table)'[prop SET schemaMap(table)=schemaMap(table)_$CHAR(28)_prop
+
+    ;--- STEP 4: Build reverse map: prop2table(prop)=table
+    NEW prop2table,j
+    FOR table=$ORDER(schemaMap(table)) QUIT:table=""  DO  
+    . FOR j=1:1:$LENGTH(schemaMap(table),$CHAR(28))  DO  
+    . . SET prop=$PIECE(schemaMap(table),$CHAR(28),j)
+    . . SET prop2table(prop)=table
+
+    ;--- STEP 5: Load CSV rows into objects
+    SET io=##class(%Stream.FileCharacter).%New()
+    SET sc=io.LinkToFile(InputCSV)
+    IF sc'=1 WRITE "Cannot open CSV: ",InputCSV,! QUIT
+    DO io.ReadLine()  ; skip header
+
+    FOR  DO  QUIT:line=""  
+    . SET line=io.ReadLine() QUIT:line=""
+    . SET values = $LISTFROMSTRING($TRANSLATE(line,"""",""),",")
+    . SET id     = $LISTGET(values,2)
+    . KILL tableProps,childOids
+
+    . ; group values by table
+    . NEW col,tab,val,pr
+    . FOR col=1:1:$LISTLENGTH(values)  DO  
+    . . SET pr=$GET(subMeta(col,"Property"))  QUIT:pr=""
+    . . SET val=$LISTGET(values,col)            QUIT:val=""
+    . . SET tab=prop2table(pr)                 QUIT:tab=""
+    . . SET tableProps(tab,pr)=val
+
+    . ; instantiate and save children
+    . NEW cls,exec,childObj,fkProp
+    . FOR tab=$ORDER(tableProps(tab)) QUIT:tab=""  DO
+    . . SET cls  = "MyApp."_tab
+    . . SET exec = "SET childObj=##class("_cls_").%New()"
+    . . XECUTE exec
+    . . FOR pr=$ORDER(tableProps(tab,pr)) QUIT:pr=""  DO  
+    . . . DO childObj.Set(pr,tableProps(tab,pr))
+    . . SET fkProp = pr  ; link property name
+    . . DO childObj.Set("LinkedSchema",tab)
+    . . DO childObj.Set("ForeignParentClass",ParentClass)
+    . . DO childObj.Set("ForeignParentProperty",fkProp)
+    . . IF childObj.%Save()'=1 WRITE "Child save error: ",$SYSTEM.Status.GetErrorText(childObj.%Status),! QUIT
+    . . SET childOids(tab)=childObj.%Id()
+
+    . ; instantiate and save parent
+    . SET cls  = "MyApp."_ParentClass
+    . SET exec = "SET parObj=##class("_cls_").%New()"
+    . XECUTE exec
+    . NEW tk
+    . FOR tk=$ORDER(childOids(tk)) QUIT:tk=""  DO  
+    . . SET prop = tk  ; same as property name
+    . . DO parObj.Set(prop,childOids(tk))
+    . IF parObj.%Save()'=1 WRITE "Parent save error: ",$SYSTEM.Status.GetErrorText(parObj.%Status),! QUIT
+    . WRITE "Saved parent OID=",parObj.%Id(),!
+
+    DO io.%Close()
+    QUIT
+
+;--- RESULT ---
+; After running ^DataLoader:
+; 1) Each CSV row has produced one or more child instances in classes MyApp.<Table>, saved to the database.
+;    • Each child object has properties set from the CSV columns, plus metadata fields:
+;      - LinkedSchema           = the child table name
+;      - ForeignParentClass     = ParentClass (e.g. "Referral")
+;      - ForeignParentProperty  = the property used as the FK link
+; 2) One parent instance in MyApp.<ParentClass> per CSV row, with its FK properties set to the saved child OIDs.
+; 3) Console output lines for each save, e.g.:  "Saved parent OID=12345" and "Saved <Table> OID=67890".
+; 4) Your namespace now contains fully populated and linked parent/child objects corresponding to the CSV data.

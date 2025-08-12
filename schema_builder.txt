@@ -1,0 +1,132 @@
+SchemaBuilder ; Schema-to-class generator (.INT routine)
+    
+; Configuration parameters — adjust as needed
+    SET ParentClass   = "Referral"           ; your parent class name
+    SET RefSheetFile  = "Referenceshhet.txt" ; reference sheet CSV file
+    SET OutputDir     = "/path/to/output"    ; directory to write .cls files
+    
+INT     ; .INT entry point, called on compile
+    NEW sc,subMeta,schemaMap
+    
+    ; 1) Load storage subscript metadata
+    DO LoadSubMeta(.subMeta)
+    IF '$DATA(subMeta) WRITE "Error loading SubMeta",! QUIT
+    
+    ; 2) Load real property names
+    DO LoadPropNames(.subMeta)
+    
+    ; 3) Parse reference sheet to map tables → properties
+    DO LoadSchemaMap(.subMeta,.schemaMap)
+    
+    ; 4) Generate parent class
+    DO GenerateParent(.schemaMap)
+    
+    ; 5) Generate child classes
+    DO GenerateChildren(.schemaMap)
+    
+    WRITE "Schema generation complete.",!    
+    QUIT
+
+LoadSubMeta(subMeta)  ; Load %Dictionary.StorageSQLMapSubDefinition
+    NEW stmt,rs,idx
+    SET stmt=##class(%SQL.Statement).%New()
+    SET sc=stmt.%Prepare("SELECT Subscript,Expression,NextCode FROM %Dictionary.StorageSQLMapSubDefinition WHERE ClassName=? ORDER BY Subscript")
+    IF sc'=1 WRITE "Error preparing StorageSQLMapSubDefinition",! DO $SYSTEM.Status.DisplayError(sc) QUIT
+    SET rs=stmt.%Execute(ParentClass)
+    IF rs.%Status'=1 WRITE "Error executing SubDefinition",! DO $SYSTEM.Status.DisplayError(rs.%Status) DO rs.%Close() QUIT
+    FOR  QUIT:'(rs.%Next())  DO  
+    . SET idx=+rs.Get("Subscript")
+    . SET subMeta(idx,"Expression")=rs.Get("Expression")
+    . SET subMeta(idx,"NextCode")  =rs.Get("NextCode")
+    DO rs.%Close()
+    QUIT
+
+LoadPropNames(subMeta)  ; Load %Dictionary.StorageSQLMapDataDefinition
+    NEW stmt,rs,node,idx
+    SET node=""  ; default node
+    SET stmt=##class(%SQL.Statement).%New()
+    SET sc=stmt.%Prepare("SELECT Piece,Name FROM %Dictionary.StorageSQLMapDataDefinition WHERE ClassName=? AND Node=?")
+    IF sc'=1 WRITE "Error preparing StorageSQLMapDataDefinition",! DO $SYSTEM.Status.DisplayError(sc) QUIT
+    SET rs=stmt.%Execute(ParentClass,node)
+    IF rs.%Status'=1 WRITE "Error executing DataDefinition",! DO $SYSTEM.Status.DisplayError(rs.%Status) DO rs.%Close() QUIT
+    FOR  QUIT:'(rs.%Next())  DO  
+    . SET idx=+rs.Get("Piece")
+    . SET subMeta(idx,"Property")=rs.Get("Name")
+    DO rs.%Close()
+    QUIT
+
+LoadSchemaMap(subMeta,schemaMap)  ; Build table→property list
+    NEW io,line,header,headerList,fields,i,idx,prop,table
+    SET io=##class(%Stream.FileCharacter).%New()
+    SET sc=io.LinkToFile(RefSheetFile)
+    IF sc'=1 WRITE "Error opening ",RefSheetFile,! QUIT
+    
+    ; Read header with table names
+    SET header=io.ReadLine()
+    SET header=$TRANSLATE(header,"""","")
+    SET headerList=$LISTFROMSTRING(header,",")
+    FOR i=3:1:$LISTLENGTH(headerList) SET schemaMap($LISTGET(headerList,i))=""
+    
+    ; Process rows: column3=subscript, X marks membership
+    FOR  SET line=io.ReadLine() QUIT:line=""  DO  
+    . SET fields=$LISTFROMSTRING($TRANSLATE(line,"""","") ,",")
+    . SET idx=+$LISTGET(fields,3)
+    . SET prop=$GET(subMeta(idx,"Property")) QUIT:prop=""  ; skip unmapped
+    . FOR i=3:1:$LISTLENGTH(fields) IF $LISTGET(fields,i)'="" DO  
+    . . SET table=$LISTGET(headerList,i)
+    . . IF schemaMap(table)'[prop SET schemaMap(table)=$LISTBUILD($LISTGET(schemaMap(table)),prop)
+    DO io.%Close()
+    QUIT
+
+GenerateParent(schemaMap)  ; Write parent class .cls
+    NEW out,fn,table,props,j,prop
+    SET fn=OutputDir_"/"_ParentClass_".cls"
+    SET out=##class(%Stream.FileCharacter).%New(),sc=out.LinkToFile(fn,2)
+    IF sc'=1 WRITE "Error opening ",fn,! QUIT
+    
+    ; Class header
+    DO out.WriteLine("Class MyApp."_ParentClass_" Extends %Persistent")
+    DO out.WriteLine("{")
+    DO out.WriteLine("  Parameter Storage=\"OID\";")
+    
+    ; Foreign-key properties
+    SET table=""
+    FOR  SET table=$ORDER(schemaMap(table)) QUIT:table=""  DO  
+    . SET props=$LISTFROMSTRING(schemaMap(table),$CHAR(28))
+    . FOR j=1:1:$LISTLENGTH(props) SET prop=$LISTGET(props,j) DO  
+    . . DO out.WriteLine("  Property "_prop_" As MyApp."_table_
+    . . _" [ SqlColumn=\"_"_prop_"\" , JsonName=\""_prop_"\"];" )
+    . DO out.WriteLine("")
+    
+    DO out.WriteLine("}")
+    DO out.%Close()
+    QUIT
+
+GenerateChildren(schemaMap)  ; Write each child class .cls
+    NEW out,fn,table,props,j,prop,expr,idx
+    SET table=""
+    FOR  SET table=$ORDER(schemaMap(table)) QUIT:table=""  DO  
+    . SET fn=OutputDir_"/"_table_".cls"
+    . SET out=##class(%Stream.FileCharacter).%New(),sc=out.LinkToFile(fn,2)
+    . IF sc'=1 WRITE "Error opening ",fn,! QUIT
+    . 
+    . DO out.WriteLine("Class MyApp."_table_" Extends %Persistent")
+    . DO out.WriteLine("{")
+    . DO out.WriteLine("  Parameter Storage=\"OID\";")
+    . 
+    . SET props=$LISTFROMSTRING(schemaMap(table),$CHAR(28))
+    . FOR j=1:1:$LISTLENGTH(props) SET prop=$LISTGET(props,j) DO  
+    . . ; find matching idx for this prop
+    . . SET expr="" FOR idx=1:1:9999 IF $GET(subMeta(idx,"Property"))=prop SET expr=subMeta(idx,"Expression") QUIT
+    . . DO out.WriteLine(
+    . .   "  Property "_prop_" As %String [ SqlColumn=\"_"_prop_"\" , Default="_expr_" ];"
+    . . )
+    . 
+    . ; Link back to parent
+    . DO out.WriteLine("")
+    . DO out.WriteLine("  /// Link back to "_ParentClass)
+    . DO out.WriteLine("  Property "_ParentClass_"Ref As MyApp."_ParentClass_
+    . . _" [ SqlColumn=\"_"_ParentClass_"Ref\"];" )
+    . DO out.WriteLine("}")
+    . DO out.%Close()
+    QUIT

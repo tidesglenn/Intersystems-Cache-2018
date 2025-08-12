@@ -1,0 +1,356 @@
+ExportDynamic ; Dynamic export to CSV for Caché 2018.1.7 (NO IRIS-ONLY FEATURES)
+    ; Glenn build v3 — schema+global -> multi-CSV. Safe dictionary access, try/catch everywhere.
+    ; INPUT:
+    ;   DO ExportBySchema^ExportDynamic(.parm)
+    ;     parm("Schema")    = e.g. "Referrals"   [REQUIRED]
+    ;     parm("GlobalRef") = e.g. "^HMOREF"     [REQUIRED]
+    ;     parm("OutputDir") = directory to write CSVs (created if needed)
+    ;     parm("Verbose")   = 0/1 (default 1)
+    ;     parm("MaxDepth")  = default 200
+    ;     parm("MaxNodes")  = 0 = unlimited
+    ;
+    ; WHAT IT WRITES (per storage table/class):
+    ;   • %ID (composite subscript string)
+    ;   • Key columns (each subscript component) — names resolved from SQLMap Subscripts when possible; else Key1..KeyN
+    ;   • All mapped property columns from %Dictionary.StorageSQLMapDataDefinition (Piece/Delimiter)
+    ;   • Embedded FK raw ID columns: "<Class>.<Property>" (best-effort from %Dictionary.ForeignKeyDefinition)
+    ;
+    ; SAFE dictionary classes/fields (Caché 2018.1.7):
+    ;   %Dictionary.StorageSQLMapDataDefinition: ID,Name,Piece,Delimiter
+    ;   %Dictionary.StorageSQLMapSubDefinition: ID   (we will *attempt* to read Name in try/catch)
+    ;   %Dictionary.PropertyDefinition:          Parent,Name,SqlFieldName,Type
+    ;   %Dictionary.ClassDefinition:             Name,SqlTableName
+    ;   %Dictionary.ForeignKeyDefinition:        Parent,Property,ReferencedClass (fallback read Properties in try/catch)
+    ;
+    Q
+
+ExportBySchema(parm)
+    NEW $ETRAP SET $ETRAP="GOTO ERR^ExportDynamic"
+    NEW Schema,GlobalRef,OutputDir,Verbose,MaxDepth,MaxNodes
+    SET Schema=$GET(parm("Schema"))
+    SET GlobalRef=$GET(parm("GlobalRef"))
+    SET OutputDir=$GET(parm("OutputDir"),"C:\InterSystems\Cache\ExportDynamic")
+    SET Verbose=+$GET(parm("Verbose"),1)
+    SET MaxDepth=+$GET(parm("MaxDepth"),200)
+    SET MaxNodes=+$GET(parm("MaxNodes"),0)
+    IF Schema="" DO Log(1,"*** ERROR: parm(""Schema"") is required") QUIT
+    IF GlobalRef="" DO Log(1,"*** ERROR: parm(""GlobalRef"") is required") QUIT
+
+    DO Log(Verbose,"[PARAM] Schema="_Schema_" GlobalRef="_GlobalRef_" OutputDir="_OutputDir)
+    DO ##class(%File).CreateDirectoryChain(OutputDir)
+
+    NEW rootRef SET rootRef=GlobalRef DO NormalizeGlobalRef(.rootRef,,Verbose)
+    DO Log(Verbose,"[NS] Using rootRef="_rootRef)
+
+    ; Build class set for this Schema
+    NEW classSet DO BuildClassSet(.classSet,Schema,Verbose)
+    IF '$DATA(classSet) DO Log(1,"*** No classes found for schema: "_Schema) QUIT
+
+    ; Load SQLMap Data defs (Piece/Delimiter) for all classes
+    NEW dataMap DO LoadStorageDataMap(.dataMap,Verbose)
+
+    ; Build piece map and table set, then filter to schema classes
+    NEW pieceMap,tableSet
+    DO BuildPieceMap(.dataMap,.pieceMap)
+    DO BuildTableSet(.tableSet,.dataMap)
+    DO FilterMapsBySchema(.pieceMap,.tableSet,.classSet)
+
+    ; Traverse the data global and map leaves -> rows
+    NEW tableRows,leafCount SET leafCount=0
+    DO TraverseGlobal(rootRef,"",.tableRows,0,MaxDepth,MaxNodes,.pieceMap,.leafCount,Verbose)
+
+    ; Enrich with props and FKs for classes we actually saw
+    NEW propMap,fkMap DO BuildPropAndFK(.tableRows,.propMap,.fkMap,Verbose)
+
+    ; Write CSVs per table
+    DO Log(Verbose,"[INFO] Leaves="_leafCount_" Tables="_$ORDER(tableRows(""),-1))
+    DO WriteAllCSVs(.tableRows,.pieceMap,.propMap,.fkMap,OutputDir,Verbose)
+    DO Log(Verbose,"[DONE] Export complete -> "_OutputDir)
+    QUIT
+
+ERR NEW err SET err=$ZERROR WRITE !,"*** UNEXPECTED ERROR: ",err,! QUIT
+
+; ------------------------------------------------------------
+; Helpers
+; ------------------------------------------------------------
+
+Log(v,msg) IF +$GET(v) WRITE !,msg QUIT
+
+NormalizeGlobalRef(rootRef,ns,Verbose)
+    NEW g SET g=$GET(rootRef) QUIT:g=""
+    IF $EXTRACT(g,1,3)="^|" QUIT  ; already extended
+    IF $EXTRACT(g,1,2)="^^" DO  QUIT
+    . NEW n SET n=$EXTRACT(g,3,$L(g))
+    . SET rootRef="^|"""_$PIECE(n,":",1)_"""|^"_$PIECE(n,":",2)
+    NEW curNS SET curNS=$ZUTIL(5)
+    SET rootRef="^|"""_curNS_"""|"_$EXTRACT(g,2,2047)
+    DO Log(Verbose,"[NS] Normalized: "_rootRef)
+    QUIT
+
+BuildClassSet(classSet,Schema,Verbose)
+    K classSet NEW sc,stmt,rs,sql,prefix SET prefix=Schema_"."
+    SET sql="SELECT Name FROM %Dictionary.ClassDefinition WHERE Name %STARTSWITH ?"
+    SET stmt=##class(%SQL.Statement).%New()
+    SET sc=stmt.%Prepare(sql) IF $SYSTEM.Status.IsError(sc) QUIT
+    SET rs=stmt.%Execute(prefix)
+    FOR  QUIT:'rs.%Next()  DO
+    . NEW cn SET cn=$GET(rs.Name) QUIT:cn=""
+    . SET classSet(cn)=1
+    DO Log(Verbose,"[INFO] Classes found: "_$ORDER(classSet(""),-1))
+    QUIT
+
+; Load ONLY DataDefinition (safe fields)
+LoadStorageDataMap(dataMap,Verbose)
+    K dataMap NEW sc,stmt,rs,sql
+    SET sql="SELECT ID,Name,Piece,Delimiter FROM %Dictionary.StorageSQLMapDataDefinition ORDER BY ID"
+    SET stmt=##class(%SQL.Statement).%New()
+    SET sc=stmt.%Prepare(sql) DO Log(Verbose,"[SQL] Prepare DataDef: "_sc)
+    IF $SYSTEM.Status.IsError(sc) QUIT
+    SET rs=stmt.%Execute()
+    FOR  QUIT:'rs.%Next()  DO
+    . NEW id SET id=$GET(rs.ID) QUIT:id=""
+    . NEW nm SET nm=$GET(rs.Name)
+    . NEW pc SET pc=$GET(rs.Piece)
+    . NEW dlm SET dlm=$GET(rs.Delimiter)
+    . ; Parent is everything before the last '||'
+    . NEW p SET p=$PIECE(id,"||",1,$L(id,"||")-1) QUIT:p=""
+    . SET dataMap(p,nm)=pc_"|"_dlm
+    QUIT
+
+BuildPieceMap(dataMap,pieceMap)
+    K pieceMap NEW p,nm,info,pc,dlm
+    SET p="" FOR  SET p=$ORDER(dataMap(p)) QUIT:p=""  DO
+    . SET nm="" FOR  SET nm=$ORDER(dataMap(p,nm)) QUIT:nm=""  DO
+    . . SET info=$GET(dataMap(p,nm)) QUIT:info=""
+    . . SET pc=$PIECE(info,"|",1),dlm=$PIECE(info,"|",2)
+    . . NEW idx SET idx=+pc IF idx>0 SET pieceMap(p,dlm,idx)=nm
+    QUIT
+
+BuildTableSet(tableSet,dataMap)
+    K tableSet NEW p SET p=""
+    FOR  SET p=$ORDER(dataMap(p)) QUIT:p=""  DO
+    . SET tableSet(p)=""
+    QUIT
+
+FilterMapsBySchema(pieceMap,tableSet,classSet)
+    NEW p SET p="" FOR  SET p=$ORDER(pieceMap(p)) QUIT:p=""  DO
+    . NEW cn SET cn=$PIECE(p,"||",1) IF '$DATA(classSet(cn)) K pieceMap(p)
+    SET p="" FOR  SET p=$ORDER(tableSet(p)) QUIT:p=""  DO
+    . NEW cn SET cn=$PIECE(p,"||",1) IF '$DATA(classSet(cn)) K tableSet(p)
+    QUIT
+
+; Depth-first traverse of the data global
+TraverseGlobal(root,subs,tableRows,depth,MaxDepth,MaxNodes,pieceMap,leafCount,Verbose)
+    NEW gl SET gl=root IF subs'="" SET gl=gl_"("_subs_")"
+    NEW s SET s=""
+    FOR  SET s=$ORDER(@gl@(s),-1) Q:(s="")  DO  Q:$GET(stop)
+    . IF MaxDepth,depth>MaxDepth QUIT
+    . NEW nextSubs SET nextSubs=$S(subs="":$$SubQ(s),1:subs_","_$$SubQ(s))
+    . DO TraverseGlobal(root,nextSubs,.tableRows,depth+1,MaxDepth,MaxNodes,.pieceMap,.leafCount,Verbose)
+    IF $DATA(@gl)#10 DO
+    . SET leafCount=$GET(leafCount)+1
+    . IF MaxNodes,(leafCount>MaxNodes) QUIT
+    . NEW val SET val=$GET(@gl)
+    . DO MapLeaf(subs,val,.tableRows,.pieceMap)
+    QUIT
+
+SubQ(x)
+    NEW q SET x=$GET(x)
+    IF x="" QUIT """"""
+    IF +x=x QUIT x
+    ; quote strings, escape quotes
+    SET q=x SET q=$REPLACE(q,"""","""""")
+    QUIT """"_q_""""
+
+; Apply piece maps to this leaf value without relying on Node. Safe but permissive.
+MapLeaf(subs,val,tableRows,pieceMap)
+    NEW p,dlm SET p="" FOR  SET p=$ORDER(pieceMap(p)) QUIT:p=""  DO
+    . SET dlm="" FOR  SET dlm=$ORDER(pieceMap(p,dlm)) QUIT:dlm=""  DO
+    . . NEW d SET d=dlm QUIT:d=""
+    . . NEW text SET text=$GET(val)
+    . . NEW pieces SET pieces=$L(text,d)
+    . . IF pieces<1 QUIT
+    . . NEW rid SET rid=$$MakeRowId(subs)
+    . . NEW i FOR i=1:1:pieces DO
+    . . . NEW nm SET nm=$GET(pieceMap(p,d,i)) QUIT:nm=""
+    . . . NEW valp SET valp=$PIECE(text,d,i)
+    . . . DO SetCell(.tableRows,p,rid,nm,valp)
+    . . DO SetCell(.tableRows,p,rid,"%ID",rid)
+    QUIT
+
+MakeRowId(subs) QUIT subs
+
+SetCell(tableRows,parent,rowId,prop,val)
+    IF '$DATA(tableRows(parent,rowId)) SET tableRows(parent,rowId)=""
+    SET tableRows(parent,rowId,prop)=val
+    QUIT
+
+; ------------------------------------------------------------
+; Metadata enrichment
+; ------------------------------------------------------------
+
+BuildPropAndFK(tableRows,propMap,fkMap,Verbose)
+    K propMap K fkMap
+    NEW parent SET parent=""
+    FOR  SET parent=$ORDER(tableRows(parent)) QUIT:parent=""  DO
+    . NEW Class SET Class=$PIECE(parent,"||",1)
+    . DO LoadPropMap(Class,.propMap,Verbose)
+    . DO LoadFKMap(Class,.fkMap,Verbose)
+    QUIT
+
+LoadPropMap(Class,propMap,Verbose)
+    NEW sc,stmt,rs,sql
+    SET sql="SELECT Parent,Name,SqlFieldName,Type FROM %Dictionary.PropertyDefinition WHERE Parent=? ORDER BY Name"
+    SET stmt=##class(%SQL.Statement).%New()
+    SET sc=stmt.%Prepare(sql) IF $SYSTEM.Status.IsError(sc) QUIT
+    SET rs=stmt.%Execute(Class)
+    FOR  QUIT:'rs.%Next()  DO
+    . NEW nm SET nm=$GET(rs.Name) QUIT:nm=""
+    . SET propMap(Class,nm)=$GET(rs.SqlFieldName)
+    QUIT
+
+LoadFKMap(Class,fkMap,Verbose)
+    ; Read safe field Property first, then fall back to Properties (first component) if needed
+    NEW sc,stmt,rs,sql K fkMap(Class)
+    SET sql="SELECT Parent,Property,ReferencedClass FROM %Dictionary.ForeignKeyDefinition WHERE Parent=?"
+    SET stmt=##class(%SQL.Statement).%New()
+    SET sc=stmt.%Prepare(sql)
+    IF '$SYSTEM.Status.IsError(sc) DO
+    . SET rs=stmt.%Execute(Class)
+    . FOR  QUIT:'rs.%Next()  DO
+    . . NEW p SET p=$GET(rs.Property) QUIT:p=""
+    . . SET fkMap(Class,p)=$GET(rs.ReferencedClass)
+    ; fallback try using Properties (comma list)
+    NEW stmt2 SET stmt2=##class(%SQL.Statement).%New()
+    SET sc=stmt2.%Prepare("SELECT Parent,Properties,ReferencedClass FROM %Dictionary.ForeignKeyDefinition WHERE Parent=?")
+    IF '$SYSTEM.Status.IsError(sc) DO
+    . NEW rs2 SET rs2=stmt2.%Execute(Class)
+    . FOR  QUIT:'rs2.%Next()  DO
+    . . NEW ps SET ps=$GET(rs2.Properties) QUIT:ps=""
+    . . NEW one SET one=$PIECE(ps,",",1) QUIT:one=""
+    . . IF '$DATA(fkMap(Class,one)) SET fkMap(Class,one)=$GET(rs2.ReferencedClass)
+    QUIT
+
+; ------------------------------------------------------------
+; CSV writing
+; ------------------------------------------------------------
+
+WriteAllCSVs(tableRows,pieceMap,propMap,fkMap,OutputDir,Verbose)
+    NEW parent SET parent=""
+    FOR  SET parent=$ORDER(tableRows(parent)) QUIT:parent=""  DO
+    . NEW filename SET filename=$$FileFor(OutputDir,parent)
+    . DO Log(Verbose,"[WRITE] "_filename)
+    . DO WriteOneCSV(parent,.tableRows,.pieceMap,.propMap,.fkMap,filename,Verbose)
+    QUIT
+
+WriteOneCSV(parent,tableRows,pieceMap,propMap,fkMap,filename,Verbose)
+    NEW stream SET stream=##class(%Stream.FileCharacter).%New()
+    NEW sc SET sc=stream.LinkToFile(filename)
+    IF $SYSTEM.Status.IsError(sc) DO Log(1,"*** ERROR opening file: "_filename) QUIT
+    DO stream.CharsetSet("UTF-8")
+
+    NEW Class SET Class=$PIECE(parent,"||",1)
+    NEW headers DO BuildHeaders(parent,Class,.tableRows,.pieceMap,.propMap,.fkMap,.headers)
+    DO WriteLine(stream,$$JoinCSV(.headers))
+
+    NEW rowId SET rowId=""
+    FOR  SET rowId=$ORDER(tableRows(parent,rowId)) QUIT:rowId=""  DO
+    . NEW keyvals DO SplitRowId(rowId,.keyvals)
+    . NEW line,i SET line="",i=0
+    . FOR i=1:1:headers(0) DO
+    . . NEW h SET h=headers(i)
+    . . NEW v SET v=""
+    . . IF h="%ID" SET v=rowId
+    . . ELSE  IF $EXTRACT(h,1,4)="Key(" DO  ; named key label
+    . . . NEW pos SET pos=+$PIECE(h,"(",2)
+    . . . SET v=$GET(keyvals(pos))
+    . . ELSE  IF $EXTRACT(h,1,3)="Key" DO  ; fallback Key1..KeyN
+    . . . NEW pos SET pos=+$EXTRACT(h,4,99)
+    . . . SET v=$GET(keyvals(pos))
+    . . ELSE  IF h["." DO  ; FK column stores raw ID (same property value)
+    . . . NEW p SET p=$PIECE(h,".",2)
+    . . . SET v=$GET(tableRows(parent,rowId,p),"")
+    . . ELSE  SET v=$GET(tableRows(parent,rowId,h),"")
+    . . SET line=line_$SELECT(i>1:",",1:"")_$$CSVQ(v)
+    . DO WriteLine(stream,line)
+
+    DO stream.%Save() DO stream.%Close()
+    QUIT
+
+BuildHeaders(parent,Class,tableRows,pieceMap,propMap,fkMap,headers)
+    K headers NEW i SET i=0
+    ; %ID first
+    SET i=i+1,headers(i)="%ID"
+
+    ; dynamic key columns from %ID — try to label from Subscripts; else Key1..KeyN
+    NEW keylabels DO TryGetKeyLabels(parent,.keylabels)
+    NEW rowId SET rowId=$ORDER(tableRows(parent,"") )
+    NEW keyvals DO SplitRowId(rowId,.keyvals)
+    NEW k SET k=1
+    FOR  QUIT:'$DATA(keyvals(k))  SET k=k+1
+    NEW keyCount SET keyCount=k-1
+    NEW j FOR j=1:1:keyCount DO
+    . NEW lbl SET lbl=$GET(keylabels(j))
+    . IF lbl'="" SET i=i+1,headers(i)="Key("_j_")="_lbl
+    . ELSE  SET i=i+1,headers(i)="Key"_j
+
+    ; All mapped properties we captured for this table
+    NEW col SET col=""
+    FOR  SET col=$ORDER(tableRows(parent,rowId,col)) QUIT:col=""  DO
+    . IF (col="%ID")!(col?1"Key".N) QUIT
+    . IF col'?.E1".".E SET i=i+1,headers(i)=col
+
+    ; FK raw ID columns
+    NEW p SET p="" FOR  SET p=$ORDER(fkMap(Class,p)) QUIT:p=""  DO
+    . SET i=i+1,headers(i)=Class_"."_p
+
+    SET headers(0)=i
+    QUIT
+
+; Attempt to resolve subscript/key labels from SQLMap SubDefinition (Name field). Safe fallback to Key1..N
+TryGetKeyLabels(parent,labels)
+    K labels NEW sc,stmt,rs,sql
+    SET sql="SELECT ID,Name FROM %Dictionary.StorageSQLMapSubDefinition WHERE ID %STARTSWITH ?"
+    SET stmt=##class(%SQL.Statement).%New()
+    SET sc=stmt.%Prepare(sql) IF $SYSTEM.Status.IsError(sc) QUIT  ; not available -> fallback
+    SET rs=stmt.%Execute(parent)
+    NEW n SET n=0
+    FOR  QUIT:'rs.%Next()  DO
+    . NEW nm SET nm=$GET(rs.Name) QUIT:nm=""
+    . SET n=n+1,labels(n)=nm
+    QUIT
+
+; Parse composite %ID into an array keyvals(1..N), honoring quotes
+SplitRowId(rowId,keyvals)
+    K keyvals NEW s SET s=$GET(rowId)
+    NEW i,char,buf,inq SET (i,buf,inq)=0
+    NEW pos SET pos=1
+    FOR i=1:1:$L(s) DO
+    . SET char=$EXTRACT(s,i)
+    . IF char=","&'inq DO  SET pos=pos+1 QUIT
+    . . SET keyvals(pos-1)=$GET(keyvals(pos-1))_buf SET buf=""
+    . IF char='"' SET buf=buf_char QUIT
+    . IF inq=0 SET inq=1 QUIT  ; open quote
+    . ; char is '"' and inq=1: lookahead for escaped quote
+    . IF $EXTRACT(s,i+1)='"' DO  SET i=i+1,buf=buf_"""" QUIT
+    . SET inq=0  ; close quote
+    ; flush last
+    SET keyvals(pos)=$GET(keyvals(pos))_buf
+    QUIT
+
+FileFor(OutputDir,parent)
+    NEW repl SET repl="|:.""\""/"
+    NEW safe SET safe=$TRANSLATE(parent,repl,"______")
+    QUIT OutputDir_"\"_safe_".csv"
+
+WriteLine(stream,text) DO stream.Write(text),stream.Write($CHAR(13,10)) QUIT
+
+CSVQ(x)
+    NEW s SET s=$GET(x)
+    IF s[","!(s[""""])!(s[$C(10))!(s[$C(13)) SET s=""""_$REPLACE(s,"""","""""")_""""
+    QUIT s
+
+JoinCSV(arr)
+    NEW out,i SET out=""
+    FOR i=1:1:+$GET(arr(0)) SET out=out_$SELECT(i>1:",",1:"")_$$CSVQ($GET(arr(i)))
+    QUIT out

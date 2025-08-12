@@ -1,0 +1,128 @@
+;; DataLoader.int — Compile-time CSV→Object loader
+;; USAGE:
+;; 1. Compile SchemaBuilder.int (provides LoadSubMeta, LoadPropNames, LoadSchemaMap)
+;;    do ^SchemaBuilder
+;; 2. Edit the CONFIGURE section below: set ParentClass and InputCSV
+;; 3. Compile this routine:    compile "/path/to/DataLoader.int"
+;;    On compile, call INT automatically. Or run at any time via:
+;;       DO ^DataLoader
+;;
+;; DataLoader.int — Compile-time CSV→Object loader
+;; WARNING: Child classes must define these optional properties if you want metadata links:
+;;   Property LinkedSchema As %String;            // name of the table/schema it belongs to
+;;   Property ForeignParentClass As %String;      // name of the parent class
+;;   Property ForeignParentProperty As %String;   // FK property pointing back to parent
+;; Otherwise DataLoader will skip setting metadata.
+;; USAGE:
+;; 1. Compile SchemaBuilder.int (provides LoadSubMeta, LoadPropNames, LoadSchemaMap)
+;;    do ^SchemaBuilder
+;; 2. Edit CONFIGURE below: set ParentClass and InputCSV
+;; 3. Compile this routine:    compile "/path/to/DataLoader.int"
+;;    Then call: DO ^DataLoader
+
+DataLoader ; Load CSV data into MyApp classes
+    ;
+    ; CONFIGURE:
+    SET ParentClass = "Referral"           ; must match your generated parent
+    SET InputCSV    = "referralData.csv"   ; your data-global CSV
+    ;
+    QUIT  ; prevents fallthrough at compile
+
+INT  ; entry-point on compile, or call directly as ^DataLoader
+    NEW io,line,values,id
+    NEW prop2table,tableProps,childOids,childObj,parObj,cls,exec
+    NEW subMeta,schemaMap,sc
+
+    ;--- STEP 0: Ensure child classes define metadata properties
+; For each table, check and dynamically add properties if missing
+NEW tbl,compileSrc,cmpStatus
+FOR  SET tbl=$ORDER(schemaMap(tbl)) QUIT:tbl=""  DO  .
+. SET cls="MyApp."_tbl
+. ; generate source to add missing metadata properties
+. SET compileSrc="ClassDefinition GP"
+. SET compileSrc=compileSrc_" Extends %Persistent {
+"
+. IF '##class(%Dictionary.CompiledClassDefinition).%ExistsProperty(cls,"LinkedSchema") DO  
+. . SET compileSrc=compileSrc_"  Property LinkedSchema As %String;
+"
+. IF '##class(%Dictionary.CompiledClassDefinition).%ExistsProperty(cls,"ForeignParentClass") DO  
+. . SET compileSrc=compileSrc_"  Property ForeignParentClass As %String;
+"
+. IF '##class(%Dictionary.CompiledClassDefinition).%ExistsProperty(cls,"ForeignParentProperty") DO  
+. . SET compileSrc=compileSrc_"  Property ForeignParentProperty As %String;
+"
+. SET compileSrc=compileSrc_"}
+"
+. ; compile the patch
+. SET cmpStatus=$$$ClassCompile(cls,compileSrc)
+. IF 'cmpStatus WRITE "Warning: Could not update class ",cls,!,"Status=",cmpStatus,!
+
+;--- STEP 1: Load dictionary mappings into subMeta and schemaMap** etc.**: propertyName → tableName
+    NEW table,i,prop
+    FOR  SET table=$ORDER(schemaMap(table)) QUIT:table=""  DO  
+    . FOR i=1:1:$LISTLENGTH(schemaMap(table))  DO  
+    . . SET prop=$LISTGET(schemaMap(table),i)
+    . . SET prop2table(prop)=table
+
+    ;--- OPEN CSV
+    SET io=##class(%Stream.FileCharacter).%New()
+    SET sc=io.LinkToFile(InputCSV)
+    IF sc'=1 { WRITE "Cannot open ",InputCSV,!  QUIT }
+    DO io.ReadLine()  ; skip header
+
+    ;--- PROCESS EACH ROW
+    FOR  DO  QUIT:line=""  
+    . SET line=io.ReadLine()
+    . QUIT:line=""
+    . SET values=$LISTFROMSTRING($TRANSLATE(line,"""",""),",")
+    . SET id=$LISTGET(values,2)
+    . KILL tableProps,childOids
+
+    . ; GROUP VALUES BY TABLE
+    . NEW col,val,tbl
+    . FOR col=1:1:$LISTLENGTH(values)  DO  
+    . . SET prop=$GET(subMeta(col,"Property"))  QUIT:prop=""
+    . . SET val =$LISTGET(values,col)            QUIT:val=""
+    . . SET tbl=prop2table(prop)
+    . . SET tableProps(tbl,prop)=val
+
+    . ; CREATE & SAVE CHILD OBJECTS dynamically
+    . SET tbl=""
+    . FOR  SET tbl=$ORDER(tableProps(tbl)) QUIT:tbl=""  DO
+    . . ; dynamic instantiation
+    . . SET cls = "MyApp."_tbl
+    . . SET exec = "SET childObj=##class("_cls_").%New()"
+    . . XECUTE exec
+    . . ; set its data properties
+    . . NEW p
+    . . FOR  SET p=$ORDER(tableProps(tbl,p)) QUIT:p=""  DO  
+    . . . DO childObj.Set(p,tableProps(tbl,p))
+    . . ; metadata links
+    . . SET fkProp = $ORDER(schemaMap(tbl,""))
+    . . IF childObj.%IsValid("LinkedSchema")      DO childObj.Set("LinkedSchema",tbl)
+    . . IF childObj.%IsValid("ForeignParentClass") DO childObj.Set("ForeignParentClass",ParentClass)
+    . . IF childObj.%IsValid("ForeignParentProperty") DO childObj.Set("ForeignParentProperty",fkProp)
+    . . ; save and capture OID
+    . . IF childObj.%Save()'=1 {
+    . . . WRITE "Error saving child ",tbl,": ",$SYSTEM.Status.GetErrorText(childObj.%Status),!
+    . . } ELSE  {
+    . . . SET childOids(tbl)=childObj.%Id()
+    . . }
+
+    . ; CREATE & SAVE PARENT OBJECT
+    . SET cls = "MyApp."_ParentClass
+    . SET exec = "SET parObj=##class("_cls_").%New()"
+    . XECUTE exec
+    . ; set FKs on parent
+    . FOR tbl=$ORDER(childOids(tbl)) QUIT:tbl=""  DO  
+    . . SET fkProp = $ORDER(schemaMap(tbl,""))
+    . . DO parObj.Set(fkProp,childOids(tbl))
+
+    . IF parObj.%Save()'=1 {
+    . . WRITE "Error saving parent id=",id,": ",$SYSTEM.Status.GetErrorText(parObj.%Status),!
+    . } ELSE  {
+    . . WRITE "Saved parent OID=",parObj.%Id(),!
+    . }
+    
+    DO io.%Close()
+    QUIT

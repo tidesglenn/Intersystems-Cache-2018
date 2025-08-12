@@ -1,0 +1,478 @@
+; REFDBG_V3.mac  — One-file extractor + flattener + debugger
+; ----------------------------------------------------------------------------------
+; Purpose:
+;   - Crawl ^HMOREF and related indices in an *aliased* namespace (MHR, UCR, etc.)
+;   - Build SUBVARS (incl. HMOTBL[] and named slots) used by the retrieval code
+;   - Enforce skip rules via $SELECT guards (e.g., MHR-only / sanity checks)
+;   - Flatten into relational-style rows with FKs and provenance
+;   - Emit CSV and a DDL+SELECT smoke test SQL file
+;   - Log like it’s our job
+;
+; Entry points:
+;   DO RUN^REFDBG_V3(.cfg)  ; main end-to-end
+;   DO SIM^REFDBG_V3(.cfg)  ; optional quick generator that calls RUN
+;
+; Config (all optional):
+;   cfg("OutDir")   = output folder path (default "/tmp")
+;   cfg("MhrOnly")  = 1 to restrict to MHR-only items (default 1)
+;   cfg("EmitCSV")  = 1 to write CSVs (default 1)
+;   cfg("EmitSQL")  = 1 to write DDL+SELECTs (default 1)
+;   cfg("Debug")    = 0=quiet,1=info,2=debug (default 1)
+;   cfg("NS","mhr") = "MHRHMO"       ; alias -> real namespace/global mapping
+;   cfg("NS","reg") = "MHRREG"
+;   cfg("NS","ucr") = "UCRHMO"
+;   cfg("MaxRows")  = hard stop per section (default 0 = unlimited)
+;
+; Newer syntax notes:
+;   - We use TRY/CATCH for safe eval around retrieval micro-code
+;   - We use CONTINUE to skip inside loops and QUIT to exit
+;   - We use extended global refs: ^["NAMESPACE"]global(...)
+;
+; Expected outputs:
+;   <OutDir>/ref_flat_Referral.csv
+;   <OutDir>/ref_flat_ReferralLine.csv
+;   <OutDir>/ref_flat_ReferralEdiTxn.csv
+;   <OutDir>/ref_flat_ddls.sql
+;   <OutDir>/ref_flat_selects.sql
+;
+; ----------------------------------------------------------------------------------
+; Copyright (c) 2025. Provided as-is with generous comments.
+; ----------------------------------------------------------------------------------
+
+REFDBG_V3 ;
+
+RUN(cfg) ; -- end-to-end driver
+    NEW ok SET ok=$$INIT(.cfg) IF 'ok QUIT
+    DO LOG(1,"RUN: start",$$TS())
+    DO INITMAPS(.cfg) ; field maps + retrieval snippets
+    DO EMITHEADERS(.cfg) ; CSV headers
+    DO PROCESSREF(.cfg)  ; Referrals.Referral (core)
+    DO PROCESSRELINE(.cfg) ; Referrals.ReferralLine
+    DO PROCESSEDITXN(.cfg) ; Referrals.ReferralEdiTxn
+    DO EMITSQL(.cfg)    ; ddl + selects
+    DO LOG(1,"RUN: done",$$TS())
+    QUIT
+
+SIM(cfg) ; -- optional tiny generator, then run
+    DO LOG(1,"SIM: (placeholder) no synthetic generation implemented",$$TS())
+    DO RUN(.cfg)
+    QUIT
+
+; ----------------------------------------------------------------------------------
+; INIT + utilities
+; ----------------------------------------------------------------------------------
+INIT(cfg) ;
+    ; defaults
+    IF '$DATA(cfg("OutDir")) SET cfg("OutDir")="/tmp"
+    IF '$DATA(cfg("MhrOnly")) SET cfg("MhrOnly")=1
+    IF '$DATA(cfg("EmitCSV")) SET cfg("EmitCSV")=1
+    IF '$DATA(cfg("EmitSQL")) SET cfg("EmitSQL")=1
+    IF '$DATA(cfg("Debug")) SET cfg("Debug")=1
+    IF '$DATA(cfg("NS","mhr")) SET cfg("NS","mhr")="MHRHMO"
+    IF '$DATA(cfg("NS","reg")) SET cfg("NS","reg")="MHRREG"
+    IF '$DATA(cfg("NS","ucr")) SET cfg("NS","ucr")="UCRHMO"
+    IF '$DATA(cfg("MaxRows")) SET cfg("MaxRows")=0
+
+    ; try to mkdir
+    NEW sc SET sc=$$MKDIR(cfg("OutDir"))
+    IF 'sc DO LOG(0,"WARN: could not ensure OutDir "_cfg("OutDir"))
+
+    ; prep log buffer (in-memory)
+    KILL ^||REFDBGLOG SET ^||REFDBGLOG(0)=$HOROLOG
+
+    ; clear per-run temp
+    KILL ^||REFDBG,^||REFMAP
+
+    ; open CSVs if requested
+    IF cfg("EmitCSV") DO
+    . DO OPENCSV(.cfg,"Referral")
+    . DO OPENCSV(.cfg,"ReferralLine")
+    . DO OPENCSV(.cfg,"ReferralEdiTxn")
+
+    QUIT 1
+
+LOG(level,msg,extra) ;
+    ; level: 0=warn/err, 1=info, 2=debug
+    NEW ts SET ts=$$TS()
+    NEW ln SET ln=$GET(^||REFDBGLOG)+1
+    SET ^||REFDBGLOG=ln, ^||REFDBGLOG(ln)=level_$C(9)_ts_$C(9)_$GET(msg)_$C(9)_$GET(extra)
+    IF +$GET(cfg("Debug"))'<level WRITE !,"[",ts,"] ",msg," ",$GET(extra)
+    QUIT
+
+TS() QUIT $ZDATETIME($HOROLOG,3)
+
+MKDIR(p) ; best-effort
+    NEW cmd SET cmd="mkdir -p "_""""_p_""""
+    NEW rc SET rc=$ZF(-1,cmd)
+    QUIT (rc=0)
+
+OpenFile(file) ; returns device or ""
+    NEW dev SET dev="|"_$J_"|"
+    NEW ok OPEN file:(NEWVERSION:CHSET="UTF-8"):3 ELSE  QUIT ""
+    USE file QUIT file
+
+CloseFile(dev) ; close if it's a filename (simple heuristic)
+    IF dev'="" CLOSE dev
+    QUIT
+
+ESC(x) ; escape for CSV
+    NEW y SET y=x
+    IF y["""" SET y=$TRANSLATE(y,"""","""""")
+    IF y["," SET y=""""_y_"""" QUIT y
+    IF y[$C(10)!(y[$C(13)) SET y=""""_y_""""
+    QUIT y
+
+; ----------------------------------------------------------------------------------
+; Namespace indirection + SUBVARS (HMOTBL, etc.)
+; ----------------------------------------------------------------------------------
+
+RESOLVEN(alias) ; alias -> namespace
+    NEW nm SET nm=$GET(cfg("NS",alias))
+    QUIT $SELECT(nm'="":nm,1:alias) ; fall back to given alias
+
+SUBVARS(HMO,out) ;
+    ; Populate HMOTBL[] and named slots from REG namespace HMO table
+    KILL out
+    NEW regns SET regns=$$RESOLVEN("reg")
+    NEW h SET h=$GET(^[regns]HMO(HMO))
+    IF h="" QUIT 0
+    SET out("UCHM")=$PIECE(h,"^",1)
+    SET out("SYHM")=$PIECE(h,"^",2)
+    SET out("UCHR")=$PIECE(h,"^",3)
+    SET out("SYHR")=$PIECE(h,"^",4)
+    SET out("UCHPB")=$PIECE(h,"^",5)
+    SET out("SYHPB")=$PIECE(h,"^",6)
+    SET out("UCHP")=$PIECE(h,"^",7)
+    SET out("SYHP")=$PIECE(h,"^",8)
+    SET out("UCHCL")=$PIECE(h,"^",9)
+    SET out("SYHCL")=$PIECE(h,"^",10)
+    SET out("UCHC")=$PIECE(h,"^",11)
+    SET out("SYHC")=$PIECE(h,"^",12)
+    SET out("UCHRG")=$PIECE(h,"^",13)
+    SET out("SYHRG")=$PIECE(h,"^",14)
+    SET out("MCAPHMO")=$PIECE(h,"^",15)
+    SET out("ARCHMO")=$PIECE(h,"^",16)
+    SET out("UCHED")=$PIECE(h,"^",17)
+    SET out("SYHED")=$PIECE(h,"^",18)
+    SET out("GUCI")=$PIECE(h,"^",19)
+    SET out("GSYS")=$PIECE(h,"^",20)
+    QUIT 1
+
+; ----------------------------------------------------------------------------------
+; Field maps (trimmed exemplars—structured so you can drop in more)
+; ----------------------------------------------------------------------------------
+
+INITMAPS(cfg) ;
+    KILL ^||REFMAP
+
+    ; === Referral core (pieces from the base node via HMORIDX/HMOREF) ===
+    ; Minimal starter set—extend here as needed using your long mapping list
+    ; Note: L1=HMO, L2=ID, L3=RIN
+    SET ^||REFMAP("Referral","Fields",1)="RefNum|HMORIDX|piece|^[""MHRHMO""]HMORIDX({L1},""REFNUM"",{L2},{L3})|1"
+    SET ^||REFMAP("Referral","Fields",2)="Status|HMORIDX|piece|^[""MHRHMO""]HMORIDX({L1},""RFSTA"",{L2},{L3})|1"
+    SET ^||REFMAP("Referral","Fields",3)="ValidFromDt|HMORIDX|piece|^[""MHRHMO""]HMORIDX({L1},""FROMDAT"",{L2},{L3})|1"
+    SET ^||REFMAP("Referral","Fields",4)="ValidToDt|HMORIDX|piece|^[""MHRHMO""]HMORIDX({L1},""TODAT"",{L2},{L3})|1"
+    SET ^||REFMAP("Referral","Fields",5)="RefProv|HMORIDX|piece|^[""MHRHMO""]HMORIDX({L1},""RBYDOC"",{L2},{L3})|1"
+    SET ^||REFMAP("Referral","Fields",6)="ReferToProv|HMORIDX|piece|^[""MHRHMO""]HMORIDX({L1},""RTODOC"",{L2},{L3})|1"
+    SET ^||REFMAP("Referral","Fields",7)="ReferToLoc|HMORIDX|piece|^[""MHRHMO""]HMORIDX({L1},""RTOLOC"",{L2},{L3})|1"
+    SET ^||REFMAP("Referral","Fields",8)="Extnum|HMORIDX|piece|^[""MHRHMO""]HMORIDX({L1},""EXTNUM"",{L2},{L3})|1"
+    SET ^||REFMAP("Referral","Fields",9)="DtOrd|HMORIDX|piece|^[""MHRHMO""]HMORIDX({L1},""ORDAT"",{L2},{L3})|1"
+    SET ^||REFMAP("Referral","Fields",10)="CreatedBy|HMORIDX|piece|^[""MHRHMO""]HMORIDX({L1},""INI"",{L2},{L3})|1"
+
+    ; === ReferralLine (your provided offsets around {L3}+k and piece {L4}) ===
+    SET ^||REFMAP("ReferralLine","Fields",1)="Line|HMOREF-piece|code|s {*}=$PIECE($GET(^[""MHRHMO""]HMOREF({L1},{L2},{L3}+6)),""^"",{L4})|1"
+    SET ^||REFMAP("ReferralLine","Fields",2)="Units|HMOREF-piece|code|s {*}=$PIECE($GET(^[""MHRHMO""]HMOREF({L1},{L2},{L3}+7)),""^"",{L4})|1"
+    SET ^||REFMAP("ReferralLine","Fields",3)="UnitType|HMOREF-piece|code|s {*}=$PIECE($GET(^[""MHRHMO""]HMOREF({L1},{L2},{L3}+8)),""^"",{L4})|1"
+    SET ^||REFMAP("ReferralLine","Fields",4)="Freq|HMOREF-piece|code|s {*}=$PIECE($GET(^[""MHRHMO""]HMOREF({L1},{L2},{L3}+9)),""^"",{L4})|1"
+    SET ^||REFMAP("ReferralLine","Fields",5)="ServOrd|HMOREF-piece|code|s {*}=$PIECE($GET(^[""MHRHMO""]HMOREF({L1},{L2},{L3}+11)),""^"",{L4})|1"
+    SET ^||REFMAP("ReferralLine","Fields",6)="Days|HMOREF-piece|code|s {*}=$PIECE($GET(^[""MHRHMO""]HMOREF({L1},{L2},{L3}+14)),""^"",{L4})|1"
+    SET ^||REFMAP("ReferralLine","Fields",7)="EstLiab|HMOREF-piece|code|s {*}=$PIECE($GET(^[""MHRHMO""]HMOREF({L1},{L2},{L3}+15)),""^"",{L4})|1"
+    SET ^||REFMAP("ReferralLine","Fields",8)="CovCatOver|HMOREF-piece|code|s {*}=$PIECE($GET(^[""MHRHMO""]HMOREF({L1},{L2},{L3}+38)),""^"",{L4})|1"
+
+    ; === ReferralEdiTxn (subset) ===
+    SET ^||REFMAP("ReferralEdiTxn","Fields",1)="TradingPartner|HMOREF|piece|^[""MHRHMO""]HMOREF({L1},{L2},{L3},""EDI"",{L4})|2"
+    SET ^||REFMAP("ReferralEdiTxn","Fields",2)="Dt|HMOREF|piece|^[""MHRHMO""]HMOREF({L1},{L2},{L3},""EDI"",{L4})|1"
+    SET ^||REFMAP("ReferralEdiTxn","Fields",3)="Tm|HMOREF|piece|^[""MHRHMO""]HMOREF({L1},{L2},{L3},""EDI"",{L4})|2"
+    SET ^||REFMAP("ReferralEdiTxn","Fields",4)="CertType|HMOREF|piece|^[""MHRHMO""]HMOREF({L1},{L2},{L3},""EDI"",{L4})|7"
+    SET ^||REFMAP("ReferralEdiTxn","Fields",5)="X12Stat|HMOREF|piece|^[""MHRHMO""]HMOREF({L1},{L2},{L3},""EDI"",{L4})|10"
+    QUIT
+
+; ----------------------------------------------------------------------------------
+; Emit CSV headers (real property names in header)
+; ----------------------------------------------------------------------------------
+
+EMITHEADERS(cfg) ;
+    IF 'cfg("EmitCSV") QUIT
+    NEW hdr
+
+    ; Referral
+    SET hdr="Hmo,Id,Rin,RefNum,Status,ValidFromDt,ValidToDt,RefProv,ReferToProv,ReferToLoc,Extnum,DtOrd,CreatedBy,__link_to,__link_keys,__source_global,__source_node,__extract_ts"
+    DO WRITEHDR(.cfg,"Referral",hdr)
+
+    ; ReferralLine
+    SET hdr="Hmo,Id,Rin,Line,Units,UnitType,Freq,ServOrd,Days,EstLiab,CovCatOver,__link_to,__link_keys,__source_global,__source_node,__extract_ts"
+    DO WRITEHDR(.cfg,"ReferralLine",hdr)
+
+    ; ReferralEdiTxn
+    SET hdr="Hmo,Id,Rin,TradingPartner,Dt,Tm,CertType,X12Stat,__link_to,__link_keys,__source_global,__source_node,__extract_ts"
+    DO WRITEHDR(.cfg,"ReferralEdiTxn",hdr)
+
+    QUIT
+
+WRITEHDR(cfg,sect,hdr) ;
+    NEW dev SET dev=$GET(cfg("CSV",sect))
+    IF dev'="" USE dev WRITE hdr,!
+    QUIT
+
+OPENCSV(cfg,sect) ;
+    NEW f SET f=cfg("OutDir")_"/ref_flat_"_sect_".csv"
+    NEW dev SET dev=$$OpenFile(f)
+    IF dev="" DO LOG(0,"ERR: cannot open CSV "_f) QUIT
+    SET cfg("CSV",sect)=dev
+    DO LOG(2,"CSV open",f)
+    QUIT
+
+FLUSHCLOSECSV(cfg) ;
+    NEW sect FOR sect="Referral","ReferralLine","ReferralEdiTxn" DO
+    . NEW dev SET dev=$GET(cfg("CSV",sect)) IF dev'="" DO CloseFile(dev) SET cfg("CSV",sect)="" QUIT
+    QUIT
+
+; ----------------------------------------------------------------------------------
+; PROCESS: Referral (core), ReferralLine, ReferralEdiTxn
+; ----------------------------------------------------------------------------------
+
+PROCESSREF(cfg) ;
+    NEW mhrns SET mhrns=$$RESOLVEN("mhr")
+    NEW cnt SET cnt=0
+    NEW h SET h=""
+    FOR  SET h=$ORDER(^[mhrns]HMOREF(h)) QUIT:h=""  DO  QUIT:$GET(stop)
+    . ; $SELECT guard: MHR-only? (this section already anchored in MHR namespace)
+    . IF +$GET(cfg("MhrOnly"))=1 ; pass (we're already in MHR)
+    . NEW id SET id=""
+    . FOR  SET id=$ORDER(^[mhrns]HMOREF(h,id)) QUIT:id=""  DO  QUIT:$GET(stop)
+    . . NEW rin SET rin=""
+    . . FOR  SET rin=$ORDER(^[mhrns]HMOREF(h,id,rin)) QUIT:rin=""  DO  QUIT:$GET(stop)
+    . . . ; sanity: skip meta nodes
+    . . . IF rin'?1N.N QUIT  ; CONTINUE
+    . . . NEW okSub SET okSub=$$SUBVARS(h,.subv) IF 'okSub QUIT  ; CONTINUE
+    . . . NEW R SET R=$GET(^[mhrns]HMOREF(h,id,rin))
+    . . . ; Flatten core fields via map (subset)
+    . . . NEW row SET row("Hmo")=h,row("Id")=id,row("Rin")=rin
+    . . . DO APPLYMAP(.cfg,"Referral",h,id,rin,.row)
+    . . . ; provenance + links
+    . . . SET row("__link_to")="Referrals.Referral"
+    . . . SET row("__link_keys")="Hmo=" _ h _ ";Id=" _ id _ ";Rin=" _ rin
+    . . . SET row("__source_global")="^[" _ mhrns _ "]HMOREF"
+    . . . SET row("__source_node")=h_","_id_","_rin
+    . . . SET row("__extract_ts")=$$TS()
+    . . . DO EMITROW(.cfg,"Referral",.row)
+    . . . SET cnt=cnt+1 IF cfg("MaxRows"),cnt>=cfg("MaxRows") SET stop=1 QUIT  ; QUIT outer loops
+    DO LOG(1,"Referral processed",cnt_" rows")
+    QUIT
+
+PROCESSRELINE(cfg) ;
+    NEW mhrns SET mhrns=$$RESOLVEN("mhr")
+    NEW cnt SET cnt=0
+    NEW h SET h=""
+    FOR  SET h=$ORDER(^[mhrns]HMOREF(h)) QUIT:h=""  DO  QUIT:$GET(stop)
+    . NEW id SET id=""
+    . FOR  SET id=$ORDER(^[mhrns]HMOREF(h,id)) QUIT:id=""  DO  QUIT:$GET(stop)
+    . . NEW rin SET rin=""
+    . . FOR  SET rin=$ORDER(^[mhrns]HMOREF(h,id,rin)) QUIT:rin=""  DO  QUIT:$GET(stop)
+    . . . IF rin'?1N.N CONTINUE  ; skip non-numeric nodes
+    . . . NEW okSub SET okSub=$$SUBVARS(h,.subv) IF 'okSub CONTINUE
+    . . . ; Build a minimal set of line fields using the retrieval snippets
+    . . . NEW row SET row("Hmo")=h,row("Id")=id,row("Rin")=rin
+    . . . DO APPLYMAP(.cfg,"ReferralLine",h,id,rin,.row)
+    . . . ; provenance + links
+    . . . SET row("__link_to")="Referrals.ReferralLine"
+    . . . SET row("__link_keys")="Hmo=" _ h _ ";Id=" _ id _ ";Rin=" _ rin
+    . . . SET row("__source_global")="^[" _ mhrns _ "]HMOREF"
+    . . . SET row("__source_node")=h_","_id_","_rin
+    . . . SET row("__extract_ts")=$$TS()
+    . . . DO EMITROW(.cfg,"ReferralLine",.row)
+    . . . SET cnt=cnt+1 IF cfg("MaxRows"),cnt>=cfg("MaxRows") SET stop=1 QUIT
+    DO LOG(1,"ReferralLine processed",cnt_" rows")
+    QUIT
+
+PROCESSEDITXN(cfg) ;
+    NEW mhrns SET mhrns=$$RESOLVEN("mhr")
+    NEW cnt SET cnt=0
+    NEW h SET h=""
+    FOR  SET h=$ORDER(^[mhrns]HMOREF(h)) QUIT:h=""  DO  QUIT:$GET(stop)
+    . NEW id SET id=""
+    . FOR  SET id=$ORDER(^[mhrns]HMOREF(h,id)) QUIT:id=""  DO  QUIT:$GET(stop)
+    . . NEW rin SET rin=""
+    . . FOR  SET rin=$ORDER(^[mhrns]HMOREF(h,id,rin)) QUIT:rin=""  DO  QUIT:$GET(stop)
+    . . . IF rin'?1N.N CONTINUE
+    . . . NEW okSub SET okSub=$$SUBVARS(h,.subv) IF 'okSub CONTINUE
+    . . . ; EDI sub-node presence check
+    . . . IF '$DATA(^[mhrns]HMOREF(h,id,rin,"EDI")) CONTINUE
+    . . . NEW row SET row("Hmo")=h,row("Id")=id,row("Rin")=rin
+    . . . DO APPLYMAP(.cfg,"ReferralEdiTxn",h,id,rin,.row)
+    . . . ; provenance + links
+    . . . SET row("__link_to")="Referrals.ReferralEdiTxn"
+    . . . SET row("__link_keys")="Hmo=" _ h _ ";Id=" _ id _ ";Rin=" _ rin
+    . . . SET row("__source_global")="^[" _ mhrns _ "]HMOREF"
+    . . . SET row("__source_node")=h_","_id_","_rin_",EDI"
+    . . . SET row("__extract_ts")=$$TS()
+    . . . DO EMITROW(.cfg,"ReferralEdiTxn",.row)
+    . . . SET cnt=cnt+1 IF cfg("MaxRows"),cnt>=cfg("MaxRows") SET stop=1 QUIT
+    DO LOG(1,"ReferralEdiTxn processed",cnt_" rows")
+    QUIT
+
+; ----------------------------------------------------------------------------------
+; APPLYMAP: execute "piece" or "code" retrievers with guards
+; ----------------------------------------------------------------------------------
+
+APPLYMAP(cfg,sect,h,id,rin,row) ;
+    NEW i SET i=0
+    FOR  SET i=$ORDER(^||REFMAP(sect,"Fields",i)) QUIT:'i  DO
+    . NEW def SET def=^(i)
+    . ; def: Name|Group|Type|Expr|Piece
+    . NEW name SET name=$PIECE(def,"|",1)
+    . NEW typ SET typ=$PIECE(def,"|",3)
+    . NEW expr SET expr=$PIECE(def,"|",4)
+    . NEW pcs SET pcs=$PIECE(def,"|",5)
+    . NEW val SET val=""
+    . ; Guard: MHR-only restriction: since all exprs anchor to ["MHRHMO"], OK
+    . ; Parameterize {L1},{L2},{L3},{L4}
+    . NEW code
+    . IF typ="piece" DO
+    . . SET code="SET {*}=$PIECE($GET("_$$PARAM(expr,h,id,rin,1)_"),""^"","_pcs_")"
+    . ELSE  IF typ="code" DO
+    . . SET code=$$PARAM(expr,h,id,rin,1)
+    . ELSE  DO  QUIT  ; unknown type
+    . . DO LOG(0,"WARN: unknown map type "_typ_" for "_name)
+    . ; safe-run
+    . SET val=$$SAFEEXEC(code)
+    . ; Assign to row
+    . SET row(name)=val
+    QUIT
+
+PARAM(expr,h,id,rin,p) ;
+    NEW s SET s=expr
+    SET s=$$REPL(s,"{L1}",h)
+    SET s=$$REPL(s,"{L2}",id)
+    SET s=$$REPL(s,"{L3}",rin)
+    SET s=$$REPL(s,"{L4}",p)
+    QUIT s
+
+REPL(s,a,b) ; replace all (no regex)
+    NEW i FOR  SET i=$FIND(s,a) QUIT:'i  SET s=$EXTRACT(s,1,i-$LENGTH(a)-1)_b_$EXTRACT(s,i,9999)
+    QUIT s
+
+SAFEEXEC(code) ;
+    ; Execute 'code' with {*} as output variable.
+    NEW {*} SET {*}=""
+    NEW $ET,$ES S $ET="GOTO SAFEEXEH"
+    ; Note: The code we run is simple SET/PIECE extractions; we do not allow XECUTE of unknown user input in production.
+    XECUTE code
+    QUIT {*}
+SAFEEXEH ;
+    SET {*}="",$ECODE=""
+    QUIT {*}
+
+; ----------------------------------------------------------------------------------
+; EMITROW: write a CSV row
+; ----------------------------------------------------------------------------------
+
+EMITROW(cfg,sect,row) ;
+    IF 'cfg("EmitCSV") QUIT
+    NEW dev SET dev=$GET(cfg("CSV",sect)) IF dev="" QUIT
+    NEW keys,cols,csv
+    IF sect="Referral" SET cols="Hmo,Id,Rin,RefNum,Status,ValidFromDt,ValidToDt,RefProv,ReferToProv,ReferToLoc,Extnum,DtOrd,CreatedBy,__link_to,__link_keys,__source_global,__source_node,__extract_ts"
+    ELSE  IF sect="ReferralLine" SET cols="Hmo,Id,Rin,Line,Units,UnitType,Freq,ServOrd,Days,EstLiab,CovCatOver,__link_to,__link_keys,__source_global,__source_node,__extract_ts"
+    ELSE  IF sect="ReferralEdiTxn" SET cols="Hmo,Id,Rin,TradingPartner,Dt,Tm,CertType,X12Stat,__link_to,__link_keys,__source_global,__source_node,__extract_ts"
+    ELSE  QUIT
+    NEW i FOR i=1:1:$LENGTH(cols,",") DO
+    . NEW c SET c=$PIECE(cols,",",i)
+    . NEW v SET v=$GET(row(c))
+    . SET $PIECE(csv,",",i)=$$ESC($GET(v))
+    USE dev WRITE csv,!
+    QUIT
+
+; ----------------------------------------------------------------------------------
+; Emit DDL + sanity SELECTs (starter)
+; ----------------------------------------------------------------------------------
+
+EMITSQL(cfg) ;
+    IF 'cfg("EmitSQL") QUIT
+    NEW f1 SET f1=cfg("OutDir")_"/ref_flat_ddls.sql"
+    NEW f2 SET f2=cfg("OutDir")_"/ref_flat_selects.sql"
+    NEW d1 SET d1=$$OpenFile(f1) IF d1="" DO LOG(0,"ERR: cannot open "_f1) QUIT
+    NEW d2 SET d2=$$OpenFile(f2) IF d2="" DO LOG(0,"ERR: cannot open "_f2) DO CloseFile(d1) QUIT
+
+    USE d1 WRITE "-- DDL (starter)\n"
+    WRITE "CREATE TABLE IF NOT EXISTS ref_flat_referral (\n"
+    WRITE "  hmo            VARCHAR(32),\n"
+    WRITE "  id             VARCHAR(64),\n"
+    WRITE "  rin            BIGINT,\n"
+    WRITE "  refnum         VARCHAR(64),\n"
+    WRITE "  status         VARCHAR(32),\n"
+    WRITE "  validfromdt    VARCHAR(32),\n"
+    WRITE "  validtodt      VARCHAR(32),\n"
+    WRITE "  refprov        VARCHAR(64),\n"
+    WRITE "  refertoprov    VARCHAR(64),\n"
+    WRITE "  refertoloc     VARCHAR(64),\n"
+    WRITE "  extnum         VARCHAR(64),\n"
+    WRITE "  dtord          VARCHAR(32),\n"
+    WRITE "  createdby      VARCHAR(64),\n"
+    WRITE "  __link_to      VARCHAR(64),\n"
+    WRITE "  __link_keys    VARCHAR(256),\n"
+    WRITE "  __source_global VARCHAR(128),\n"
+    WRITE "  __source_node  VARCHAR(256),\n"
+    WRITE "  __extract_ts   VARCHAR(64)\n"
+    WRITE ");\n\n"
+
+    WRITE "CREATE TABLE IF NOT EXISTS ref_flat_referralline (\n"
+    WRITE "  hmo            VARCHAR(32),\n"
+    WRITE "  id             VARCHAR(64),\n"
+    WRITE "  rin            BIGINT,\n"
+    WRITE "  line           VARCHAR(32),\n"
+    WRITE "  units          VARCHAR(32),\n"
+    WRITE "  unittype       VARCHAR(32),\n"
+    WRITE "  freq           VARCHAR(32),\n"
+    WRITE "  servord        VARCHAR(32),\n"
+    WRITE "  days           VARCHAR(32),\n"
+    WRITE "  estliab        VARCHAR(32),\n"
+    WRITE "  covcatover     VARCHAR(64),\n"
+    WRITE "  __link_to      VARCHAR(64),\n"
+    WRITE "  __link_keys    VARCHAR(256),\n"
+    WRITE "  __source_global VARCHAR(128),\n"
+    WRITE "  __source_node  VARCHAR(256),\n"
+    WRITE "  __extract_ts   VARCHAR(64)\n"
+    WRITE ");\n\n"
+
+    WRITE "CREATE TABLE IF NOT EXISTS ref_flat_referraleditxn (\n"
+    WRITE "  hmo            VARCHAR(32),\n"
+    WRITE "  id             VARCHAR(64),\n"
+    WRITE "  rin            BIGINT,\n"
+    WRITE "  tradingpartner VARCHAR(64),\n"
+    WRITE "  dt             VARCHAR(32),\n"
+    WRITE "  tm             VARCHAR(32),\n"
+    WRITE "  certtype       VARCHAR(32),\n"
+    WRITE "  x12stat        VARCHAR(32),\n"
+    WRITE "  __link_to      VARCHAR(64),\n"
+    WRITE "  __link_keys    VARCHAR(256),\n"
+    WRITE "  __source_global VARCHAR(128),\n"
+    WRITE "  __source_node  VARCHAR(256),\n"
+    WRITE "  __extract_ts   VARCHAR(64)\n"
+    WRITE ");\n"
+    DO CloseFile(d1)
+
+    USE d2 WRITE "-- SELECT smoke tests (starter)\n"
+    WRITE "SELECT COUNT(*) AS n FROM ref_flat_referral;\n"
+    WRITE "SELECT COUNT(*) AS n FROM ref_flat_referralline;\n"
+    WRITE "SELECT COUNT(*) AS n FROM ref_flat_referraleditxn;\n"
+    WRITE "SELECT hmo,id,rin,refnum,status FROM ref_flat_referral ORDER BY hmo,id,rin LIMIT 20;\n"
+    WRITE "SELECT hmo,id,rin,line,units,unittype,freq FROM ref_flat_referralline ORDER BY hmo,id,rin LIMIT 20;\n"
+    WRITE "SELECT hmo,id,rin,tradingpartner,dt,tm FROM ref_flat_referraleditxn ORDER BY hmo,id,rin LIMIT 20;\n"
+    DO CloseFile(d2)
+
+    DO LOG(1,"SQL emitted",f1_" | "_f2)
+    QUIT
+
+; ----------------------------------------------------------------------------------
+; END
+; ----------------------------------------------------------------------------------

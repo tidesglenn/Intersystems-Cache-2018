@@ -1,0 +1,121 @@
+DrillTimeSix ; Export class data to CSV (Caché 2018, verified against doc)
+
+DoAll
+    NEW origNS SET origNS=$NAMESPACE
+    IF origNS'="%SYS" ZN "%SYS"
+    NEW class SET class=""
+    FOR  SET class=$ORDER(^%Dictionary.ClassDefinition(class)) QUIT:class=""  DO
+    . IF class["Z",class'["Referral" QUIT
+    . NEW gl SET gl=$$ResolveGlobal(class)
+    . IF gl="" QUIT
+    . ZN origNS
+    . DO DoADrill(gl,class,"HMO,ID,RIN",origNS)
+    . ZN "%SYS"
+    ZN origNS
+    QUIT
+
+DoADrill(pGlobal,pClass,pKeyList,pNamespace)
+    SET $ZTRAP="TRAP^DrillTimeSix"
+    IF $GET(pNamespace)'="",pNamespace'=$NAMESPACE  DO
+    . IF pGlobal?1"^".E  SET pGlobal="^["""_pNamespace_"""]"_$E(pGlobal,2,999)
+    NEW keyLength,keyFields,classDef,sc
+    NEW seq,propName,propObj,skip,type,coll
+    NEW outputProps,fieldPieceMap,fieldTypeMap,recCount,i,totalProps
+    SET recCount=0
+    IF $GET(pKeyList)?1N.N  SET keyLength=+pKeyList
+    ELSE  DO
+    . SET keyLength=$LENGTH(pKeyList,",")
+    . FOR i=1:1:keyLength  SET keyFields(i)=$PIECE(pKeyList,",",i)
+    SET classDef=##class(%Dictionary.ClassDefinition).%OpenId(pClass,.sc)
+    IF '$ISOBJECT(classDef)  DO  QUIT
+    . WRITE "ERROR: Can't open class: ",pClass,!
+    SET totalProps=classDef.Properties.Count()
+    IF totalProps'>0  DO  QUIT
+    . WRITE "No properties",!
+    FOR i=1:1:totalProps  DO
+    . SET propObj=classDef.Properties.GetAt(i)
+    . IF '$ISOBJECT(propObj) QUIT
+    . SET skip=($PROPERTY(propObj,"Calculated")!$PROPERTY(propObj,"Relationship")!$PROPERTY(propObj,"MultiDimensional"))
+    . IF $PROPERTY(propObj,"Collection")'="" SET skip=1
+    . SET type=$PROPERTY(propObj,"Type") IF type["%Stream" SET skip=1
+    . IF skip QUIT
+    . SET propName=$PROPERTY(propObj,"Name")
+    . SET seq=$PROPERTY(propObj,"SequenceNumber") IF seq="" SET seq=9999
+    . SET outputProps(seq)=propName
+    . SET fieldPieceMap(propName)=seq
+    . SET fieldTypeMap(propName)=type
+    ;— Build CSV header
+    NEW headerLine SET headerLine="""KEYS"""
+    FOR i=1:1:keyLength SET headerLine=headerLine_","""_$PIECE(pKeyList,",",i)_""""
+    FOR idx=$ORDER(outputProps("")):1 QUIT:'$DATA(outputProps(idx))  DO
+    . SET headerLine=headerLine_","""_outputProps(idx)_""""
+    SET ^EXPORT($J,0)=headerLine
+    WRITE !,"Header: ",headerLine,!
+    NEW gRoot SET gRoot=$$ResolveGlobal(pGlobal,pClass)
+    DO Traverse(gRoot,"",keyLength,.outputProps,.recCount,.fieldPieceMap,.fieldTypeMap)
+    DO WriteCSV(pClass)
+    WRITE !,"Export complete: ",recCount," rows",!
+    SET ^EXPORT($J,"__done")=1
+    QUIT
+
+Traverse(root,subs,keyDepth,fieldsRef,recCountRef,pieceMapRef,typeMapRef)
+    NEW sub,newSubs
+    ; always iterate all subscript types
+    SET sub=""
+    FOR  SET sub=$ORDER(@root@(subs,sub)) QUIT:sub=""  DO
+    . SET newSubs=$SELECT($LENGTH(subs):subs_","_sub,1:sub)
+    . WRITE !,"Visiting: ",root,"(",newSubs,")"
+    . DO TraverseNode(root,newSubs,keyDepth,fieldsRef,.recCountRef,pieceMapRef,typeMapRef)
+    QUIT
+
+TraverseNode(root,newSubs,keyDepth,fieldsRef,recCountRef,pieceMapRef,typeMapRef)
+    NEW fullRef SET fullRef=root_"("_newSubs_")"
+    ; emit scalar data
+    IF $DATA(@fullRef)#2  DO
+    . NEW val,csvLine,f SET val=@fullRef,csvLine=""
+    . FOR f=1:1:keyDepth SET csvLine=csvLine_$SELECT(f=1:"",1:",")_""""_$PIECE(newSubs,",",f)_""""
+    . FOR  SET f=$ORDER(fieldsRef(f)) QUIT:f=""  DO
+    . . NEW piece,valPiece
+    . . SET piece=+$GET(pieceMapRef(fieldsRef(f)))
+    . . SET valPiece=$PIECE(val,"^",piece)
+    . . SET csvLine=csvLine_","""_valPiece_""""
+    . SET recCountRef=recCountRef+1
+    . SET ^EXPORT($J,recCountRef)=csvLine
+    . WRITE !,"Row ",recCountRef,": ",csvLine
+    ; recurse into all child subscripts
+    NEW prefix,child SET prefix=$PIECE(fullRef,")",1)
+    SET child=""
+    FOR  SET child=$ORDER(@(prefix_","""_child_""")")) QUIT:child=""  DO
+    . DO Traverse(root,newSubs_","_child,keyDepth,fieldsRef,.recCountRef,pieceMapRef,typeMapRef)
+    QUIT
+
+WriteCSV(class)
+    NEW filename,fileObj,idx
+    SET filename="C:\InterSystems\Cache\Hackensack\"_class_"_EXPORT_LOG.csv"
+    SET fileObj=##class(%Library.FileCharacter).%New()
+    IF 'fileObj.Open(filename,"WS")  DO  QUIT
+    . WRITE "ERROR opening file: ",filename,!
+    SET idx=""
+    FOR  SET idx=$ORDER(^EXPORT($J,idx)) QUIT:idx=""  DO
+    . DO fileObj.WriteLine(^EXPORT($J,idx))
+    DO fileObj.Close()
+    WRITE !,"CSV written: ",filename,!
+    QUIT
+
+ResolveGlobal(global,class)
+    QUIT:$L($G(global)) global
+    NEW def,sc,storName,storObj,gl
+    SET def=##class(%Dictionary.ClassDefinition).%OpenId(class,.sc)
+    IF '$ISOBJECT(def)  QUIT ""
+    SET storName=$PROPERTY(def,"Storage")  IF storName=""  QUIT ""
+    SET storObj=##class(%Dictionary.StorageDefinition).%OpenId(class_":"_storName,.sc)
+    IF '$ISOBJECT(storObj)  QUIT ""
+    SET gl=$PROPERTY(storObj,"DataLocation")
+    QUIT $SELECT(gl?1"^".E:gl,1:"^"_gl)
+
+TRAP
+    NEW err SET err=$ZE
+    SET ^EXPORT($J,"__ERROR")=err
+    WRITE !,"ERROR: ",err,!
+    SET $ZTRAP=""
+    QUIT

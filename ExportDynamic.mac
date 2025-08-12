@@ -1,0 +1,622 @@
+;; =====================================================================
+;; Routine: ExportDynamic
+;; Purpose: Traverse a DATA GLOBAL (e.g., ^HMOREF), infer table rows via
+;;          %Dictionary Storage SQL Map (Caché 2018.1.7), and write one CSV
+;;          per storage table/class with property columns. All FK properties
+;;          are embedded as "<Class>.<Property>" columns with their raw ID
+;;          values. Optionally resolves display text (safe SQL) when possible.
+;;
+;; Target: InterSystems Caché 2018.1.x (NO IRIS-ONLY FEATURES)
+;; Safe points:
+;;   - Uses ONLY these verified dictionary classes/fields on 2018.1:
+;;     * %Dictionary.StorageSQLMapSubDefinition: ID
+;;     * %Dictionary.StorageSQLMapDataDefinition: ID,Name,Piece,Delimiter
+;;     * %Dictionary.PropertyDefinition: Parent,Name,SqlFieldName,Type
+;;     * %Dictionary.ClassDefinition: Name,SqlTableName
+;;     * %Dictionary.ForeignKeyDefinition: Parent,Property OR Properties,ReferencedClass
+;;   - TRY/CATCH for isolation; does not rely on %Library.DynamicArray/OOps.
+;;   - Extended global refs (^|"NS"|G) for read-only traversal across namespaces.
+;;   - CSV is written with %Stream.FileCharacter (CRLF), headers first, then rows.
+;;
+;; What you get:
+;;   - One CSV per storage table (class storage node). Filename = <Storage>.csv
+;;   - Columns = all properties encountered in that table (piece-map order first,
+;;     then any "extra" vertical properties discovered while scanning) PLUS
+;;     fully-qualified FK property columns as "<Class>.<Prop>" containing FK IDs.
+;;   - Optional *display* columns for FKs if SQL lookup succeeds:
+;;       "<Class>.<Prop>_Display"  (best-effort)
+;;
+;; Usage (examples):
+;;   DO ^ExportDynamic
+;;   ; or programmatic:
+;;   NEW p SET p("Package")="Referrals"
+;;   SET p("GlobalRef")="^HMOREF"
+;;   SET p("OutputDir")="C:\Temp\Exports"
+;;   SET p("Verbose")=1
+;;   DO ExportPackageGlobalToCSV^ExportDynamic(.p)
+;;
+;; =====================================================================
+
+ExportGlobalToCSV(parm)
+    NEW $ETRAP SET $ETRAP="GOTO ERR^ExportDynamic"
+    IF '$DATA(parm("Class")) WRITE "*** ERROR: Class required (e.g., 'Referrals.Referral')",!! QUIT
+    IF '$DATA(parm("GlobalRef")) WRITE "*** ERROR: GlobalRef required (e.g., '^HMOREF')",!! QUIT
+    IF '$DATA(parm("OutputDir")) SET parm("OutputDir")=$ZTRNLNM("CACHETEMP") IF parm("OutputDir")="" SET parm("OutputDir")="C:\Temp"
+    IF '$DATA(parm("Verbose")) SET parm("Verbose")=1
+    IF '$DATA(parm("MaxDepth")) SET parm("MaxDepth")=200
+    IF '$DATA(parm("MaxNodes")) SET parm("MaxNodes")=0  ; 0 = unlimited
+
+    NEW Class,GlobalRef,OutputDir,Verbose,MaxDepth,MaxNodes
+    SET Class=$GET(parm("Class"))
+    SET GlobalRef=$GET(parm("GlobalRef"))
+    SET OutputDir=$GET(parm("OutputDir"))
+    SET Verbose=+$GET(parm("Verbose"))
+    SET MaxDepth=+$GET(parm("MaxDepth"))
+    SET MaxNodes=+$GET(parm("MaxNodes"))
+
+    DO Log(Verbose,"[PARAM] Class="_Class_" GlobalRef="_GlobalRef_" OutputDir="_OutputDir)
+    DO ##class(%File).CreateDirectoryChain(OutputDir)
+
+    NEW rootRef SET rootRef=GlobalRef
+    DO NormalizeGlobalRef(.rootRef,,Verbose)
+    DO Log(Verbose,"[NS] Using rootRef="_rootRef)
+
+    ; Load dictionary meta for this class
+    NEW subMap,dataMap,pieceMap,tableSet,propMap,fkMap
+    DO LoadStorageMeta(.subMap,.dataMap,Verbose)
+    DO BuildPieceMap(.dataMap,.pieceMap)
+    DO BuildTableSet(.tableSet,.subMap,.dataMap)
+    DO LoadPropMap(Class,.propMap,Verbose)
+    DO LoadFKMeta(.fkMap,Verbose)
+
+    ; Traverse
+    NEW headerTokens SET headerTokens("0")=1, headerTokens("HEADER")=1
+    NEW tableRows,stats
+    DO Log(Verbose,"[RUN] Traversal start for "_rootRef_" (Class="_Class_")")
+    DO TraverseGlobal(rootRef,"",.tableRows,Class,0,,,.tableSet,.pieceMap,.dataMap,.headerTokens,.stats,Verbose,MaxDepth,MaxNodes)
+    DO Log(Verbose,"[RUN] Traversal complete. Tables="_$$CountKeys(.tableRows))
+
+    ; Restrict to storages used by this class
+    NEW classRows
+    DO RestrictToClassStorages(Class,.tableRows,.classRows)
+
+    ; Ensure FK property columns exist as "<Class>.<Prop>" and try display
+    DO EnsureFKColumns(Class,.classRows,.fkMap,.propMap,Verbose)
+
+    ; Write CSVs
+    DO WriteCSVPerStorage(OutputDir,Class,.classRows,.pieceMap,.dataMap,.fkMap,.propMap,Verbose)
+
+    DO PrintStats(.stats)
+    WRITE !,"[DONE] Export completed.",!
+    QUIT
+
+ExportPackageGlobalToCSV(parm)
+    NEW $ETRAP SET $ETRAP="GOTO ERR^ExportDynamic"
+    IF '$DATA(parm("Package")) WRITE "*** ERROR: Package required (e.g., 'Referrals')",!! QUIT
+    IF '$DATA(parm("GlobalRef")) WRITE "*** ERROR: GlobalRef required (e.g., '^HMOREF')",!! QUIT
+    IF '$DATA(parm("OutputDir")) SET parm("OutputDir")=$ZTRNLNM("CACHETEMP") IF parm("OutputDir")="" SET parm("OutputDir")="C:\Temp"
+    IF '$DATA(parm("Verbose")) SET parm("Verbose")=1
+    IF '$DATA(parm("MaxDepth")) SET parm("MaxDepth")=200
+    IF '$DATA(parm("MaxNodes")) SET parm("MaxNodes")=0  ; 0 = unlimited
+
+    NEW Package,GlobalRef,OutputDir,Verbose,MaxDepth,MaxNodes
+    SET Package=$GET(parm("Package"))
+    SET GlobalRef=$GET(parm("GlobalRef"))
+    SET OutputDir=$GET(parm("OutputDir"))
+    SET Verbose=+$GET(parm("Verbose"))
+    SET MaxDepth=+$GET(parm("MaxDepth"))
+    SET MaxNodes=+$GET(parm("MaxNodes"))
+
+    DO Log(Verbose,"[PKG] Package="_Package_" GlobalRef="_GlobalRef_" OutputDir="_OutputDir)
+    DO ##class(%File).CreateDirectoryChain(OutputDir)
+
+    NEW rootRef SET rootRef=GlobalRef
+    DO NormalizeGlobalRef(.rootRef,,Verbose)
+    DO Log(Verbose,"[NS] Using rootRef="_rootRef)
+
+    ; Discover classes in package
+    NEW classList DO ListClassesInPackage(Package,.classList,Verbose)
+    IF '$DATA(classList) WRITE "*** ERROR: No classes found in package "_Package,!! QUIT
+
+    ; Load global meta once
+    NEW subMap,dataMap,pieceMap,tableSet,fkMap
+    DO LoadStorageMeta(.subMap,.dataMap,Verbose)
+    DO BuildPieceMap(.dataMap,.pieceMap)
+    DO BuildTableSet(.tableSet,.subMap,.dataMap)
+    DO LoadFKMeta(.fkMap,Verbose)
+
+    ; Single traversal across the global
+    NEW headerTokens SET headerTokens("0")=1, headerTokens("HEADER")=1
+    NEW tableRows,stats
+    DO Log(Verbose,"[COLLECT] Traverse "_rootRef_" (tables="_$$CountKeys(.tableSet)_")")
+    DO TraverseGlobal(rootRef,"",.tableRows,"__PKG__",0,,,.tableSet,.pieceMap,.dataMap,.headerTokens,.stats,Verbose,MaxDepth,MaxNodes)
+
+    ; Split rows into per-class buckets (by storage mapping)
+    NEW classRows DO SplitRowsByClass(.tableRows,.classList,.subMap,.classRows,Verbose)
+
+    ; FK columns + optional display
+    NEW cls SET cls=""
+    FOR  SET cls=$ORDER(classRows(cls)) QUIT:cls=""  DO  ; for each class
+    . NEW propMap DO LoadPropMap(cls,.propMap,Verbose)
+    . DO EnsureFKColumns(cls,.classRows,.fkMap,.propMap,Verbose)
+
+    ; Write CSVs per class (one CSV per storage used by that class)
+    DO WriteCSVPerClass(OutputDir,.classRows,.pieceMap,.dataMap,.fkMap,Verbose)
+
+    DO PrintStats(.stats)
+    WRITE !,"[PKG DONE] Export complete for package "_Package,!
+    QUIT
+
+;; =============================
+;; Error
+;; =============================
+ERR
+    NEW err SET err=$ZERROR
+    WRITE !,"*** UNEXPECTED ERROR: ",err,!,!
+    QUIT
+
+;; =============================
+;; Logging
+;; =============================
+Log(v,msg) IF +$GET(v) WRITE msg,!
+ QUIT
+
+NL WRITE ! QUIT
+
+;; =============================
+;; Namespace helpers
+;; =============================
+IsDisallowedNS(ns)
+    NEW up SET up=$ZCONVERT($GET(ns),"U")
+    IF up["SYS" QUIT 1
+    IF up["TEST" QUIT 1
+    IF up["MHR" QUIT 1  ; user-specific filter—adjust to your env
+    QUIT 0
+
+FindGlobalNamespace(base,outNS,Verbose)
+    NEW nsList,ns,ref,ok SET ok=0,outNS=""
+    DO ##class(%SYS.Namespace).ListAll(.nsList)
+    SET ns=""
+    FOR  SET ns=$ORDER(nsList(ns)) QUIT:ns=""  DO  QUIT:ok
+    . IF $$IsDisallowedNS(ns) QUIT
+    . IF '##class(%SYS.Namespace).Exists(ns) QUIT
+    . SET ref="^|"""_ns_"""|"_base
+    . IF $DATA(@ref) SET outNS=ns,ok=1 QUIT
+    . IF $ORDER(@(ref_"("""")"))'="" SET outNS=ns,ok=1
+    QUIT ok
+
+NormalizeGlobalRef(outRef,nsForced,Verbose)
+    NEW g SET g=$PIECE($GET(outRef),"(",1)
+    IF g="" QUIT
+    IF g["|" QUIT  ; already namespaced
+    IF $EXTRACT(g,1)="^" SET g=$EXTRACT(g,2,*)
+    NEW ns,ok SET ok=$$FindGlobalNamespace(g,.ns,$GET(Verbose))
+    IF ok SET outRef="^|"""_ns_"""|"_g DO Log($GET(Verbose),"[NS] Resolved "_g_" in "_ns)
+    QUIT
+
+;; =============================
+;; Dictionary metadata loaders
+;; =============================
+
+LoadStorageMeta(subMap,dataMap,Verbose)
+    K subMap,dataMap
+    NEW stmt,sc,rs,sql
+    SET stmt=##class(%SQL.Statement).%New()
+
+    ; 1) StorageSQLMapSubDefinition -> IDs (Class||Storage)
+    SET sql="SELECT ID FROM %Dictionary.StorageSQLMapSubDefinition ORDER BY ID"
+    SET sc=stmt.%Prepare(sql) DO Log(Verbose,"[META] SubDef prepare="_sc)
+    IF sc=1 {
+      SET rs=stmt.%Execute()
+      FOR  QUIT:'rs.%Next()  DO
+      . NEW id SET id=rs.%Get("ID") QUIT:id=""
+      . SET subMap(id)=""
+    } ELSE DO Log(Verbose,"[META] SubDef skipped (prepare failed)")
+
+    ; 2) StorageSQLMapDataDefinition -> piece/delim per (Class||Storage,Name)
+    SET sql="SELECT ID,Name,Piece,Delimiter FROM %Dictionary.StorageSQLMapDataDefinition"
+    SET sc=stmt.%Prepare(sql) DO Log(Verbose,"[META] DataDef prepare="_sc)
+    IF sc=1 {
+      SET rs=stmt.%Execute()
+      FOR  QUIT:'rs.%Next()  DO
+      . NEW id,name,piece,delim
+      . SET id=rs.%Get("ID"),name=rs.%Get("Name"),piece=rs.%Get("Piece"),delim=rs.%Get("Delimiter")
+      . SET dataMap(id,name)=piece_"^"_delim
+    } ELSE DO Log(Verbose,"[META] DataDef skipped (prepare failed)")
+
+    QUIT
+
+BuildPieceMap(dataMap,pieceMap)
+    K pieceMap
+    NEW id,name,pair,p
+    SET id=""
+    FOR  SET id=$ORDER(dataMap(id)) QUIT:id=""  DO
+    . SET name=""
+    . FOR  SET name=$ORDER(dataMap(id,name)) QUIT:name=""  DO
+    . . SET pair=dataMap(id,name),p=+$PIECE(pair,"^",1)
+    . . IF p>0 SET pieceMap(id,p)=name
+    QUIT
+
+BuildTableSet(tableSet,subMap,dataMap)
+    K tableSet
+    NEW id,stor
+    SET id=""
+    FOR  SET id=$ORDER(subMap(id)) QUIT:id=""  DO  SET stor=$PIECE(id,"||",2) IF stor'="" SET tableSet(stor)=1
+    SET id=""
+    FOR  SET id=$ORDER(dataMap(id)) QUIT:id=""  DO  SET stor=$PIECE(id,"||",2) IF stor'="" SET tableSet(stor)=1
+    QUIT
+
+LoadPropMap(Class,propMap,Verbose)
+    K propMap
+    NEW stmt,sc,rs,sql
+    SET stmt=##class(%SQL.Statement).%New()
+    SET sql="SELECT Name,SqlFieldName,Type FROM %Dictionary.PropertyDefinition WHERE Parent=?"
+    SET sc=stmt.%Prepare(sql) DO Log(Verbose,"[META] PropDef prepare="_sc_" for "_Class)
+    IF sc'=1 QUIT
+    SET rs=stmt.%Execute(Class)
+    FOR  QUIT:'rs.%Next()  DO
+    . NEW n,sf,t SET n=rs.%Get("Name"),sf=rs.%Get("SqlFieldName"),t=rs.%Get("Type")
+    . IF n'="" SET propMap(n)=sf_"^"_t
+    QUIT
+
+LoadFKMeta(fkMap,Verbose)
+    K fkMap
+    NEW stmt,sc,rs,sql,ok,mode
+    SET stmt=##class(%SQL.Statement).%New()
+    SET sql="SELECT Parent,Properties,ReferencedClass FROM %Dictionary.ForeignKeyDefinition"
+    SET sc=stmt.%Prepare(sql) SET ok=(sc=1) SET mode="list"
+    IF 'ok {
+      SET sql="SELECT Parent,Property,ReferencedClass FROM %Dictionary.ForeignKeyDefinition"
+      SET sc=stmt.%Prepare(sql) SET ok=(sc=1) SET mode="single"
+    }
+    DO Log(Verbose,"[META] FK prepare="_sc_" mode="_mode)
+    IF 'ok QUIT
+    SET rs=stmt.%Execute()
+    FOR  QUIT:'rs.%Next()  DO
+    . NEW parent,refcls SET parent=rs.%Get("Parent"),refcls=rs.%Get("ReferencedClass")
+    . IF mode="list" {
+    . . NEW props,i SET props=$GET(rs.%Get("Properties")) QUIT:props=""
+    . . FOR i=1:1:$L(props,",") NEW prop SET prop=$ZSTRIP($PIECE(props,",",i),"<>W") QUIT:prop=""  SET fkMap(parent,prop)=refcls
+    . } ELSE {
+    . . NEW prop SET prop=$GET(rs.%Get("Property")) QUIT:prop=""  SET fkMap(parent,prop)=refcls
+    . }
+    QUIT
+
+;; =============================
+;; Traversal core
+;; =============================
+
+BumpAndCheck(stats,MaxNodes,Verbose)
+    SET stats("nodes")=$GET(stats("nodes"))+1
+    IF MaxNodes>0,stats("nodes")>MaxNodes DO  QUIT 1
+    . DO Log(Verbose,"[LIMIT] MaxNodes reached ("_MaxNodes_"). Stopping.")
+    QUIT 0
+
+IsNumeric(sub)
+    NEW s SET s=$GET(sub)
+    IF s?1.N QUIT 1
+    IF s?1"-".N QUIT 1
+    IF s?1.N1".".N QUIT 1
+    IF s?1"-"1.N1".".N QUIT 1
+    QUIT 0
+
+Esc(sub) ; quote subscript literal if needed
+    NEW s SET s=$GET(sub)
+    IF $L(s)=0 QUIT """"_""""
+    IF $$IsNumeric(s) QUIT s
+    SET s=$REPLACE(s,"""","""""")
+    QUIT """"_s_""""
+
+Unesc(qs)
+    NEW s SET s=$GET(qs)
+    IF $EXTRACT(s,1)="""" SET s=$EXTRACT(s,2,*)
+    IF $EXTRACT(s,*)="""" SET s=$EXTRACT(s,1,*-1)
+    SET s=$REPLACE(s,"""""","""")
+    QUIT s
+
+DetectTableByIndex(subs,Class,tableSet)
+    NEW i,n,token,lastHit
+    SET n=$L(subs,",")
+    SET lastHit=""
+    FOR i=1:1:n {
+      SET token=$$Unesc($PIECE(subs,",",i))
+      IF $DATA(tableSet(token)) SET lastHit=token
+    }
+    QUIT $SELECT(lastHit'="":lastHit,1:$GET(Class))
+
+MetaIDFor(Class,Storage) QUIT $GET(Class)_"||"_$GET(Storage)
+
+DelimiterFor(id,val,dataMap)
+    NEW delim,name,pair,d SET delim="",name=""
+    FOR  SET name=$ORDER(dataMap(id,name)) QUIT:(name="")!(delim'="")  DO
+    . SET pair=dataMap(id,name),d=$PIECE(pair,"^",2) IF d'="" SET delim=d
+    IF delim'="" QUIT delim
+    IF $GET(val)["^" QUIT "^"
+    IF $GET(val)["*" QUIT "*"
+    QUIT ""
+
+IsHeaderToken(token,headerTokens) IF $DATA(headerTokens(token)) QUIT 1 QUIT 0
+
+RowKeyFor(Class,Table,subs,isHoriz,dataMap,headerTokens)
+    NEW id,last,lastU
+    SET id=$$MetaIDFor($GET(Class),$GET(Table))
+    IF subs="" QUIT ""
+    SET last=$PIECE(subs,",",$L(subs,",")),lastU=$$Unesc(last)
+    IF isHoriz {
+      IF $$IsHeaderToken(lastU,.headerTokens) QUIT $EXTRACT(subs,1,$L(subs)-$L(","_last))
+      QUIT subs
+    }
+    IF $DATA(dataMap(id,lastU)) QUIT $EXTRACT(subs,1,$L(subs)-$L(","_last))
+    QUIT subs
+
+SafeSet(table,recKey,col,val,rowData,stats)
+    IF $DATA(rowData(table,recKey,col)) SET stats(table,"overwrites")=$GET(stats(table,"overwrites"))+1
+    SET rowData(table,recKey,col)=val
+    QUIT
+
+TraverseGlobal(rootGlobal,subs,rowData,ClassName,depth,horizMap,vertMap,tableSet,pieceMap,dataMap,headerTokens,stats,Verbose,MaxDepth,MaxNodes)
+    NEW child,val,del,id,currTable,recKey,i,piece,col,lastSub,nodeHasVal
+    IF $GET(depth)="" SET depth=0
+    IF depth>+$GET(MaxDepth,200) QUIT
+    IF $$BumpAndCheck(.stats,+$GET(MaxNodes),Verbose) QUIT
+
+    ; process current node (record value even if empty string)
+    IF subs'="" {
+      SET nodeHasVal=$DATA(@rootGlobal@(subs))#10
+      IF nodeHasVal {
+        SET val=$GET(@rootGlobal@(subs))
+        SET currTable=$$DetectTableByIndex(subs,$GET(ClassName),.tableSet)
+        SET id=$$MetaIDFor($GET(ClassName),currTable)
+        SET del=$$DelimiterFor(id,val,.dataMap)
+        SET recKey=$$RowKeyFor($GET(ClassName),currTable,subs,(del'=""),.dataMap,.headerTokens)
+        DO Log(Verbose,"[NODE] "_rootGlobal_"("_subs_") [table="_currTable_"] [recKey="_recKey_"] = "_val)
+        IF '$DATA(stats(currTable,"seen",recKey)) {
+          SET stats(currTable,"seen",recKey)=1
+          SET stats(currTable,"records")=$GET(stats(currTable,"records"))+1
+        }
+        IF del'="" {
+          SET stats(currTable,"horiz")=$GET(stats(currTable,"horiz"))+1
+          FOR i=1:1:$L(val,del) {
+            SET piece=$PIECE(val,del,i)
+            SET col=$GET(pieceMap(id,i),$GET(horizMap(i),"HORIZ#"_i))
+            DO SafeSet(currTable,recKey,col,piece,.rowData,.stats)
+          }
+        } ELSE {
+          SET stats(currTable,"vert")=$GET(stats(currTable,"vert"))+1
+          SET lastSub=$PIECE(subs,",",$L(subs,",")),lastSub=$$Unesc(lastSub)
+          SET col=$SELECT($DATA(dataMap(id,lastSub)):lastSub,1:$GET(vertMap(lastSub),"VERT:"_lastSub))
+          DO SafeSet(currTable,recKey,col,val,.rowData,.stats)
+        }
+      }
+    }
+
+    ; children
+    SET child=""
+    IF subs="" {
+      FOR  SET child=$ORDER(@rootGlobal@(child)) QUIT:child=""  DO
+      . DO TraverseGlobal(rootGlobal,$$Esc(child),.rowData,$GET(ClassName),depth+1,.horizMap,.vertMap,.tableSet,.pieceMap,.dataMap,.headerTokens,.stats,Verbose,MaxDepth,MaxNodes)
+    } ELSE {
+      FOR  SET child=$ORDER(@rootGlobal@(subs,child)) QUIT:child=""  DO
+      . DO TraverseGlobal(rootGlobal,subs_","_$$Esc(child),.rowData,$GET(ClassName),depth+1,.horizMap,.vertMap,.tableSet,.pieceMap,.dataMap,.headerTokens,.stats,Verbose,MaxDepth,MaxNodes)
+    }
+    QUIT
+
+;; =============================
+;; Row splitting & FK handling
+;; =============================
+
+RestrictToClassStorages(Class,tableRows,classRows)
+    K classRows
+    NEW id,stor SET id="",stor=""
+    ; Gather storages for this class from subMap/dataMap IDs that start with Class||
+    NEW desiredStor SET desiredStor(""),stor=""
+    SET id=""
+    FOR  SET id=$ORDER(^CacheTemp.ExportDynamic("sub",id)) QUIT:id=""  DO
+    . IF $PIECE(id,"||",1)=Class SET desiredStor($PIECE(id,"||",2))=1
+    SET id=""
+    FOR  SET id=$ORDER(^CacheTemp.ExportDynamic("data",id)) QUIT:id=""  DO
+    . IF $PIECE(id,"||",1)=Class SET desiredStor($PIECE(id,"||",2))=1
+    ; Copy only those
+    SET stor=""
+    FOR  SET stor=$ORDER(tableRows(stor)) QUIT:stor=""  DO
+    . IF $DATA(desiredStor(stor)) MERGE classRows(Class,stor)=tableRows(stor)
+    QUIT
+
+SplitRowsByClass(tableRows,classList,subMap,classRows,Verbose)
+    K classRows
+    NEW stor SET stor=""
+    FOR  SET stor=$ORDER(tableRows(stor)) QUIT:stor=""  DO
+    . NEW cls SET cls=$$ClassForStorage(stor,.classList,.subMap)
+    . IF cls="" DO Log(Verbose,"[ROUTE] No class for storage '"_stor_"' (skipped)") QUIT
+    . MERGE classRows(cls,stor)=tableRows(stor)
+    QUIT
+
+ClassForStorage(stor,classList,subMap)
+    NEW id,cls SET cls=""
+    SET id=""
+    FOR  SET id=$ORDER(subMap(id)) QUIT:id=""  DO  QUIT:cls'=""
+    . IF $PIECE(id,"||",2)=stor SET cls=$PIECE(id,"||",1) IF $DATA(classList(cls)) QUIT
+    QUIT cls
+
+EnsureFKColumns(Class,classRows,fkMap,propMap,Verbose)
+    IF '$DATA(fkMap(Class)) QUIT
+    NEW stor SET stor=""
+    FOR  SET stor=$ORDER(classRows(Class,stor)) QUIT:stor=""  DO
+    . NEW rowKey SET rowKey=""
+    . FOR  SET rowKey=$ORDER(classRows(Class,stor,rowKey)) QUIT:rowKey=""  DO
+    . . NEW p SET p=""
+    . . FOR  SET p=$ORDER(fkMap(Class,p)) QUIT:p=""  DO
+    . . . NEW colName SET colName=Class_"."_p
+    . . . IF '$DATA(classRows(Class,stor,rowKey,colName)) DO  ; copy raw FK id if it exists under native prop
+    . . . . NEW raw SET raw=$GET(classRows(Class,stor,rowKey,p))
+    . . . . IF raw'="" SET classRows(Class,stor,rowKey,colName)=raw
+    . . . ; optional display lookup (best-effort via SQL)
+    . . . NEW disp SET disp=$$FKDisplaySQL(fkMap(Class,p),$GET(classRows(Class,stor,rowKey,p)),Verbose,.propMap)
+    . . . IF disp'="" SET classRows(Class,stor,rowKey,colName_"_Display")=disp
+    QUIT
+
+FKDisplaySQL(refClass,keyVal,Verbose,propMap)
+    NEW tbl SET tbl=$$SqlTableName(refClass)
+    IF tbl="" QUIT ""
+    NEW dispField SET dispField=$$PickDisplayField(refClass,.propMap)
+    IF dispField="" QUIT ""
+    NEW sqlField SET sqlField=$$SqlFieldName(refClass,dispField) IF sqlField="" SET sqlField=dispField
+    NEW stmt,sc,rs,sql,val SET val=""
+    SET stmt=##class(%SQL.Statement).%New()
+    SET sql="SELECT "_sqlField_" FROM "_tbl_" WHERE %ID=?"
+    DO Log(Verbose,"[FK][SQL] "_refClass_" @"_keyVal_" SQL="_sql)
+    SET sc=stmt.%Prepare(sql) IF sc'=1 QUIT ""
+    SET rs=stmt.%Execute(keyVal)
+    IF rs.%Next() SET val=rs.%Get(sqlField)
+    QUIT val
+
+SqlTableName(Class)
+    NEW stmt,rs,sc,sql,tbl SET tbl=""
+    SET stmt=##class(%SQL.Statement).%New()
+    SET sql="SELECT SqlTableName FROM %Dictionary.ClassDefinition WHERE Name=?"
+    SET sc=stmt.%Prepare(sql) IF sc'=1 QUIT ""
+    SET rs=stmt.%Execute(Class) IF rs.%Next() SET tbl=rs.%Get("SqlTableName")
+    QUIT tbl
+
+SqlFieldName(Class,Prop)
+    NEW stmt,rs,sc,sql,sf SET sf=""
+    SET stmt=##class(%SQL.Statement).%New()
+    SET sql="SELECT SqlFieldName FROM %Dictionary.PropertyDefinition WHERE Parent=? AND Name=?"
+    SET sc=stmt.%Prepare(sql) IF sc'=1 QUIT ""
+    SET rs=stmt.%Execute(Class,Prop) IF rs.%Next() SET sf=rs.%Get("SqlFieldName")
+    QUIT sf
+
+PickDisplayField(Class,propMap)
+    ; Prefer the first string-like property from piece map or property list
+    NEW s SET s=""
+    ; Scan piece order cached under ^CacheTemp.ExportDynamic("pm",Class,*)
+    NEW pm SET pm=$NA(^CacheTemp.ExportDynamic("pm",Class)),p
+    SET p=""
+    FOR  SET p=$ORDER(@pm@(p)) QUIT:p=""  DO  QUIT:s'=""
+    . NEW prop SET prop=@pm@(p)
+    . IF $$IsStringProp(Class,prop,.propMap) SET s=prop
+    IF s'="" QUIT s
+    ; Fallback: any string property
+    NEW prop SET prop=""
+    FOR  SET prop=$ORDER(propMap(prop)) QUIT:prop=""  DO  QUIT:s'=""
+    . IF $$IsStringProp(Class,prop,.propMap) SET s=prop
+    QUIT s
+
+IsStringProp(Class,Prop,propMap)
+    NEW t SET t=$PIECE($GET(propMap(Prop)),"^",2)
+    QUIT $SELECT(t["%String":1,t["%Library.String":1,1:0)
+
+;; =============================
+;; CSV Writers
+;; =============================
+
+BuildHeaderForStorage(Class,Storage,classRows,pieceMap,dataMap,fkMap,propMap,hdr)
+    K hdr NEW i SET i=0
+    NEW id SET id=Class_"||"_Storage
+    ; 1) piece-order columns
+    NEW p SET p=""
+    FOR  SET p=$ORDER(pieceMap(id,p)) QUIT:p=""  DO  SET i=i+1,hdr(i)=pieceMap(id,p) SET ^CacheTemp.ExportDynamic("pm",Class,p)=pieceMap(id,p)
+    ; 2) extras from seen rows
+    NEW rowKey SET rowKey=""
+    FOR  SET rowKey=$ORDER(classRows(Class,Storage,rowKey)) QUIT:rowKey=""  DO
+    . NEW col SET col=""
+    . FOR  SET col=$ORDER(classRows(Class,Storage,rowKey,col)) QUIT:col=""  DO
+    . . IF '$$InHdr(col,.hdr) SET i=i+1,hdr(i)=col
+    ; 3) FK columns as "<Class>.<Prop>" (+ optional Display)
+    IF $DATA(fkMap(Class)) {
+      NEW prop SET prop=""
+      FOR  SET prop=$ORDER(fkMap(Class,prop)) QUIT:prop=""  DO
+      . NEW fq SET fq=Class_"."_prop
+      . IF '$$InHdr(fq,.hdr) SET i=i+1,hdr(i)=fq
+      . NEW fqD SET fqD=fq_"_Display"
+      . IF '$$InHdr(fqD,.hdr) SET i=i+1,hdr(i)=fqD
+    }
+    QUIT
+
+InHdr(col,hdr)
+    NEW j SET j=""
+    FOR  SET j=$ORDER(hdr(j)) QUIT:j=""  IF hdr(j)=col QUIT 1
+    QUIT 0
+
+CSV(v)
+    NEW s SET s=$GET(v)
+    SET s=$REPLACE(s,"""","""""")
+    IF (s[",")!(s["""")!(s[$C(13)])!(s[$C(10))) SET s=""""_s_""""
+    QUIT s
+
+WriteCSVPerStorage(OutputDir,Class,classRows,pieceMap,dataMap,fkMap,propMap,Verbose)
+    NEW Storage SET Storage=""
+    FOR  SET Storage=$ORDER(classRows(Class,Storage)) QUIT:Storage=""  DO
+    . NEW hdr DO BuildHeaderForStorage(Class,Storage,.classRows,.pieceMap,.dataMap,.fkMap,.propMap,.hdr)
+    . NEW file SET file=OutputDir_"\"_Storage_".csv"
+    . NEW stream SET stream=##class(%Stream.FileCharacter).%New()
+    . NEW sc SET sc=stream.LinkToFile(file)
+    . IF $SYSTEM.Status.IsError(sc) WRITE "*** ERROR opening CSV: ",file,!,! QUIT
+    . ; header
+    . DO stream.WriteLine($$Join(.hdr,","))
+    . ; rows
+    . NEW rowKey SET rowKey=""
+    . FOR  SET rowKey=$ORDER(classRows(Class,Storage,rowKey)) QUIT:rowKey=""  DO
+    . . NEW i,line SET i=0,line=""
+    . . FOR  SET i=$ORDER(hdr(i)) QUIT:i=""  DO
+    . . . NEW col SET col=hdr(i)
+    . . . NEW val SET val=$GET(classRows(Class,Storage,rowKey,col))
+    . . . SET line=line_$SELECT(i=1:"",1:",")_$$CSV(val)
+    . . DO stream.WriteLine(line)
+    . DO stream.Close()
+    . DO Log(Verbose,"[CSV] "_file_" rows="_+$ORDER(classRows(Class,Storage,""),-1))
+    QUIT
+
+WriteCSVPerClass(OutputDir,classRows,pieceMap,dataMap,fkMap,Verbose)
+    NEW Class SET Class=""
+    FOR  SET Class=$ORDER(classRows(Class)) QUIT:Class=""  DO
+    . NEW Storage SET Storage=""
+    . FOR  SET Storage=$ORDER(classRows(Class,Storage)) QUIT:Storage=""  DO
+    . . NEW propMap DO LoadPropMap(Class,.propMap,Verbose)
+    . . DO WriteCSVPerStorage(OutputDir,Class,.classRows,.pieceMap,.dataMap,.fkMap,.propMap,Verbose)
+    QUIT
+
+Join(arr,delim)
+    NEW out,idx SET out="",idx=0
+    FOR  SET idx=$ORDER(arr(idx)) QUIT:idx=""  SET out=out_$SELECT(out="":"",1:delim)_$GET(arr(idx))
+    QUIT out
+
+CountKeys(arr)
+    NEW k,c SET c=0,k=""
+    FOR  SET k=$ORDER(arr(k)) QUIT:k=""  SET c=c+1
+    QUIT c
+
+;; =============================
+;; Stats
+;; =============================
+PrintStats(stats)
+    WRITE !,"[STATS] Nodes traversed=",$GET(stats("nodes"))
+    NEW stor SET stor=""
+    FOR  SET stor=$ORDER(stats(stor)) QUIT:stor=""  DO
+    . IF stor="nodes" QUIT
+    . WRITE !,"[STATS] Storage=",stor," records=",$GET(stats(stor,"records"))," horiz=",$GET(stats(stor,"horiz"))," vert=",$GET(stats(stor,"vert"))," overwrites=",$GET(stats(stor,"overwrites"))
+    WRITE !
+    QUIT
+
+;; =============================
+;; Bootstrap cache for piece map lookups (optional)
+;; We use ^CacheTemp.ExportDynamic to cache sub/data id sets so RestrictToClassStorages can work
+;; when ExportGlobalToCSV is called directly for a single class.
+;; =============================
+InitCache(subMap,dataMap)
+    K ^CacheTemp.ExportDynamic
+    NEW id SET id=""
+    FOR  SET id=$ORDER(subMap(id)) QUIT:id=""  SET ^CacheTemp.ExportDynamic("sub",id)=""
+    SET id=""
+    FOR  SET id=$ORDER(dataMap(id)) QUIT:id=""  SET ^CacheTemp.ExportDynamic("data",id)=""
+    QUIT
+
+;; Hook the loader to also warm the cache
+LoadAndInitMeta(Verbose)
+    NEW subMap,dataMap DO LoadStorageMeta(.subMap,.dataMap,Verbose) DO InitCache(.subMap,.dataMap) QUIT
+
+;; Entry to warm cache explicitly
+Warm
+    DO LoadAndInitMeta(1)
+    WRITE !,"[WARM] ^CacheTemp.ExportDynamic cache initialized.",!
+    QUIT
